@@ -4,7 +4,7 @@
 
 Voice-first personal AI assistant platform. Users speak commands to post to social media, browse websites, generate AI videos, set reminders, and more. Social media management is the flagship skill, but the agent handles any task. Claude (tool_use) routes commands to skill handlers.
 
-Two codebases in this repo: **Java backend** (Gradle, Spring Boot, Cloud Run) and **React Native mobile app** (Expo, in `mobile/`). Shares auth/framework infrastructure with strategiz-core via GitHub Packages.
+This repo is the **Java backend** (Gradle, Spring Boot, Cloud Run). Mobile app lives in `tacticl-mobile` (React Native Expo, separate repo). Shares auth/framework infrastructure with strategiz-core via GitHub Packages.
 
 ## Tech Stack
 
@@ -44,7 +44,6 @@ client-twitter/       → Twitter/X API v2 client
 client-linkedin/      → LinkedIn Marketing API client
 client-instagram/     → Instagram Graph API client
 client-siliconflow/   → SiliconFlow API (Wan 2.2 video generation)
-mobile/               → React Native (Expo) app
 deployment/           → Cloud Build YAML configs
 ```
 
@@ -131,20 +130,6 @@ Push-to-talk → expo-av → Whisper API (~500ms) → text
 - **Quota by tier**: Creator 20/mo, Business 50/mo, Agency 100/mo
 - **Flow**: User prompt → Sonnet enhances prompt → SiliconFlow generates → Cloud Storage → attach to post
 
-## Mobile App (React Native / Expo)
-
-```bash
-cd mobile
-npx expo install                       # Install dependencies
-npx expo start                         # Dev server
-npx expo run:ios                       # iOS simulator
-npx expo run:android                   # Android emulator
-```
-
-Key libraries: `expo-av` (recording), `expo-secure-store` (tokens), `expo-haptics` (mic feedback), `expo-video`, `react-native-webview` (browser automation)
-
-Key screens: Home (push-to-talk), Feed (published + scheduled), Accounts (OAuth), Settings (preferences, billing, agent config)
-
 ## Deploy
 
 ```bash
@@ -155,7 +140,7 @@ gcloud builds submit --config deployment/cloudbuild/cloudbuild-qa.yaml .
 gcloud builds submit --config deployment/cloudbuild/cloudbuild-prod.yaml .
 ```
 
-- QA: `social-automation-qa` (2Gi), prod: `social-automation` (4Gi)
+- QA: `tacticl-core-qa` (2Gi), prod: `tacticl-core` (4Gi)
 - Both on Cloud Run, us-east1, public access
 - Spring profiles: `qa` / `prod`
 

@@ -6,11 +6,11 @@ steps:
 
   # Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'us-east1-docker.pkg.dev/$PROJECT_ID/social-automation/social-automation-qa:$SHORT_SHA', '.']
+    args: ['build', '-t', 'us-east1-docker.pkg.dev/$PROJECT_ID/tacticl-core/tacticl-core-qa:$SHORT_SHA', '.']
 
   # Push to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'us-east1-docker.pkg.dev/$PROJECT_ID/social-automation/social-automation-qa:$SHORT_SHA']
+    args: ['push', 'us-east1-docker.pkg.dev/$PROJECT_ID/tacticl-core/tacticl-core-qa:$SHORT_SHA']
 
   # Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -18,8 +18,8 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'social-automation-qa'
-      - '--image=us-east1-docker.pkg.dev/$PROJECT_ID/social-automation/social-automation-qa:$SHORT_SHA'
+      - 'tacticl-core-qa'
+      - '--image=us-east1-docker.pkg.dev/$PROJECT_ID/tacticl-core/tacticl-core-qa:$SHORT_SHA'
       - '--region=us-east1'
       - '--platform=managed'
       - '--memory=2Gi'

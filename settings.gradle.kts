@@ -1,4 +1,4 @@
-rootProject.name = "social-automation"
+rootProject.name = "tacticl-core"
 
 include(
     "application",
