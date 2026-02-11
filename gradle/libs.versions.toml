@@ -1,0 +1,50 @@
+[versions]
+# Core
+spring-boot = "3.5.7"
+java = "21"
+
+# Strategiz shared libraries (from GitHub Packages)
+strategiz = "1.0-SNAPSHOT"
+
+# External dependencies
+bucket4j = "8.10.1"
+springdoc = "2.8.0"
+resilience4j = "2.2.0"
+jackson = "2.18.0"
+
+# Testing
+junit = "5.12.2"
+mockito = "4.11.0"
+
+[libraries]
+# Spring Boot
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
+spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-starter-security" }
+spring-boot-starter-oauth2-client = { module = "org.springframework.boot:spring-boot-starter-oauth2-client" }
+
+# Strategiz shared libraries
+strategiz-framework-authorization = { module = "io.strategiz:framework-authorization", version.ref = "strategiz" }
+strategiz-framework-token-issuance = { module = "io.strategiz:framework-token-issuance", version.ref = "strategiz" }
+strategiz-framework-exception = { module = "io.strategiz:framework-exception", version.ref = "strategiz" }
+strategiz-framework-logging = { module = "io.strategiz:framework-logging", version.ref = "strategiz" }
+strategiz-framework-secrets = { module = "io.strategiz:framework-secrets", version.ref = "strategiz" }
+strategiz-framework-resilience = { module = "io.strategiz:framework-resilience", version.ref = "strategiz" }
+strategiz-framework-api-docs = { module = "io.strategiz:framework-api-docs", version.ref = "strategiz" }
+strategiz-client-base = { module = "io.strategiz:client-base", version.ref = "strategiz" }
+
+# External
+bucket4j-core = { module = "com.bucket4j:bucket4j-core", version.ref = "bucket4j" }
+springdoc-openapi = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
+jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
+httpclient = { module = "org.apache.httpcomponents:httpclient", version = "4.5.14" }
+
+# Testing
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version = "1.1.7" }

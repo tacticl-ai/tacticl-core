@@ -1,0 +1,29 @@
+steps:
+  # Build with Gradle
+  - name: 'gradle:8.12-jdk21'
+    entrypoint: 'gradle'
+    args: ['build', '-x', 'test']
+
+  # Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'us-east1-docker.pkg.dev/$PROJECT_ID/social-automation/social-automation:$SHORT_SHA', '.']
+
+  # Push to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-east1-docker.pkg.dev/$PROJECT_ID/social-automation/social-automation:$SHORT_SHA']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'social-automation'
+      - '--image=us-east1-docker.pkg.dev/$PROJECT_ID/social-automation/social-automation:$SHORT_SHA'
+      - '--region=us-east1'
+      - '--platform=managed'
+      - '--memory=4Gi'
+      - '--set-env-vars=SPRING_PROFILES_ACTIVE=prod'
+      - '--allow-unauthenticated'
+
+timeout: '900s'
