@@ -9,7 +9,7 @@ This repo is the **Java backend** (Gradle, Spring Boot, Cloud Run). Mobile app l
 ## Tech Stack
 
 - Java 21, Spring Boot 3.5.7, Gradle 8.12 (Kotlin DSL)
-- Firestore (shared project with Strategiz)
+- Firestore (own project: `tacticl`, us-east1)
 - Cloud Run deployment, Cloud Build CI/CD
 - PASETO auth (shared keys with Strategiz for cross-product SSO)
 - React Native (Expo) mobile app
@@ -140,6 +140,7 @@ gcloud builds submit --config deployment/cloudbuild/cloudbuild-qa.yaml .
 gcloud builds submit --config deployment/cloudbuild/cloudbuild-prod.yaml .
 ```
 
+- GCP project: `tacticl`, Artifact Registry: `tacticl-core`
 - QA: `tacticl-core-qa` (2Gi), prod: `tacticl-core` (4Gi)
 - Both on Cloud Run, us-east1, public access
 - Spring profiles: `qa` / `prod`
