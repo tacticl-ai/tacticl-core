@@ -4,8 +4,12 @@ plugins {
 
 dependencies {
     implementation(project(":data-social"))
+    implementation(project(":client-twitter"))
+    implementation(project(":client-linkedin"))
+    implementation(project(":client-instagram"))
 
     // Strategiz shared frameworks
+    implementation(libs.strategiz.client.base)
     implementation(libs.strategiz.framework.exception)
     implementation(libs.strategiz.framework.logging)
     implementation(libs.strategiz.framework.secrets)

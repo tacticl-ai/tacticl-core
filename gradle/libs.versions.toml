@@ -11,6 +11,7 @@ bucket4j = "8.10.1"
 springdoc = "2.8.0"
 resilience4j = "2.2.0"
 jackson = "2.18.0"
+google-cloud-firestore = "3.28.0"
 
 # Testing
 junit = "5.12.2"
@@ -40,6 +41,7 @@ springdoc-openapi = { module = "org.springdoc:springdoc-openapi-starter-webmvc-u
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
 httpclient = { module = "org.apache.httpcomponents:httpclient", version = "4.5.14" }
+google-cloud-firestore = { module = "com.google.cloud:google-cloud-firestore", version.ref = "google-cloud-firestore" }
 
 # Testing
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }

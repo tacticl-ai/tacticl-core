@@ -9,6 +9,7 @@ version = "0.1.0-SNAPSHOT"
 
 allprojects {
     repositories {
+        mavenLocal()
         mavenCentral()
         // Strategiz shared libraries from GitHub Packages
         maven {
@@ -25,6 +26,12 @@ allprojects {
 subprojects {
     apply(plugin = "java")
     apply(plugin = "io.spring.dependency-management")
+
+    the<io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension>().apply {
+        imports {
+            mavenBom("org.springframework.boot:spring-boot-dependencies:3.5.7")
+        }
+    }
 
     java {
         sourceCompatibility = JavaVersion.VERSION_21

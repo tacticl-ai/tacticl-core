@@ -5,11 +5,14 @@ plugins {
 
 dependencies {
     implementation(project(":service-social"))
+    implementation(project(":service-agent"))
     implementation(project(":business-social"))
+    implementation(project(":business-agent"))
     implementation(project(":data-social"))
     implementation(project(":client-twitter"))
     implementation(project(":client-linkedin"))
     implementation(project(":client-instagram"))
+    implementation(project(":client-siliconflow"))
 
     // Strategiz shared frameworks
     implementation(libs.strategiz.framework.authorization)
@@ -29,5 +32,5 @@ dependencies {
 }
 
 springBoot {
-    mainClass = "io.strategiz.social.application.SocialAutomationApplication"
+    mainClass = "io.strategiz.social.application.TacticlApplication"
 }

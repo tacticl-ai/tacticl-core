@@ -10,6 +10,9 @@ dependencies {
     // Spring Boot
     implementation(libs.spring.boot.starter.web)
 
+    // Google Cloud Firestore
+    implementation(libs.google.cloud.firestore)
+
     // Jackson
     implementation(libs.jackson.databind)
     implementation(libs.jackson.annotations)
