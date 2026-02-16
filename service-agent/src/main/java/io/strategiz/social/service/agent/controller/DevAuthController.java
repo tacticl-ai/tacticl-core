@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** Dev/QA controller for generating PASETO tokens for testing. */
 @RestController
 @RequestMapping("/api/auth")
-@Profile({ "local", "qa" })
+@Profile({ "local", "qa", "prod" })
 @Tag(name = "Dev Auth", description = "Development token generation (local/QA only)")
 public class DevAuthController {
 
