@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** REST controller for the voice agent. */
 @RestController
 @RequestMapping("/api/agent")
-@Tag(name = "Voice Agent", description = "Voice-first AI agent for social media automation")
+@Tag(name = "Voice Agent", description = "Personal AI agent that remotes into your devices as workers")
 public class AgentController {
 
 	private static final Logger log = LoggerFactory.getLogger(AgentController.class);

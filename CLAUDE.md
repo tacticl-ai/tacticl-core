@@ -2,7 +2,7 @@
 
 ## Overview
 
-Voice-first personal AI assistant platform. Users speak commands to post to social media, browse websites, generate AI videos, set reminders, and more. Social media management is the flagship skill, but the agent handles any task. Claude (tool_use) routes commands to skill handlers.
+Personal AI assistant that remotes into all your devices and utilizes them as workers. It can handle social automation, web browsing, content generation, video creation, reminders, and much more — any task you can do on your devices, Tacticl can do for you. Claude (tool_use) routes commands to skill handlers.
 
 This repo is the **Java backend** (Gradle, Spring Boot, Cloud Run). Mobile app lives in `tacticl-mobile` (React Native Expo, separate repo). Shares auth/framework infrastructure with strategiz-core via GitHub Packages.
 
@@ -44,10 +44,10 @@ client-twitter/       → Twitter/X API v2 client
 client-linkedin/      → LinkedIn Marketing API client
 client-instagram/     → Instagram Graph API client
 client-siliconflow/   → SiliconFlow API (Wan 2.2 video generation)
+client-brave-search/  → Brave Search API (web search for agents)
+client-jina/          → Jina Reader API (web page → markdown extraction)
 deployment/           → Cloud Build YAML configs
 ```
-
-**Currently scaffolded**: application, service-social, business-social, data-social, client-twitter, client-linkedin, client-instagram. The rest are planned.
 
 ## Build Commands
 
@@ -122,6 +122,22 @@ Push-to-talk → expo-av → Whisper API (~500ms) → text
 ```
 
 **Two-model strategy**: Haiku 4.5 for routing/simple queries, Sonnet 4.5 for content generation and complex tasks.
+
+## Web Search & Browsing
+
+- **Search**: Brave Search API (`client-brave-search`) — independent index, $3/1K queries, 2K free/month
+- **Browse**: Jina Reader API (`client-jina`) — `GET r.jina.ai/{url}` returns clean markdown, 10M free tokens
+- Both use `Optional<Client>` injection in skills — graceful degradation if disabled
+- Feature flags: `tacticl.brave-search.enabled`, `tacticl.jina.enabled`
+- Vault secrets: `brave-search.api-key`, `jina.api-key`
+
+### Future: Google WebMCP (Chrome 146+)
+
+Google's Web Model Context Protocol (`navigator.modelContext`) lets websites expose structured tools directly to AI agents — no scraping needed. Currently in Chrome 146 Canary behind a flag, expected stable mid-to-late 2026.
+
+**How it complements Brave/Jina**: WebMCP handles *interaction* (fill forms, click buttons, complete workflows via structured JSON schemas), while Brave/Jina handle *reading/searching*. When WebMCP reaches stable Chrome and websites adopt it, integrate as a third browsing layer — especially powerful for Tier 1 actions (posting to platforms, form submission).
+
+**Integration approach**: Would require a headless Chrome instance (or mobile browser bridge) since WebMCP is a client-side browser API, not a server-side REST call. Could run as a sidecar service or leverage Chrome DevTools Protocol.
 
 ## AI Video Generation
 

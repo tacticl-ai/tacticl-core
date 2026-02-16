@@ -7,6 +7,8 @@ dependencies {
     implementation(project(":data-social"))
     implementation(project(":business-social"))
     implementation(project(":client-siliconflow"))
+    implementation(project(":client-brave-search"))
+    implementation(project(":client-jina"))
 
     // Strategiz shared frameworks
     implementation(libs.strategiz.framework.exception)

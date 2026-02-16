@@ -10,7 +10,9 @@ include(
     "client-twitter",
     "client-linkedin",
     "client-instagram",
-    "client-siliconflow"
+    "client-siliconflow",
+    "client-brave-search",
+    "client-jina"
 )
 
 // Version catalog auto-discovered from gradle/libs.versions.toml

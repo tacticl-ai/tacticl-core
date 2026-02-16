@@ -13,6 +13,8 @@ dependencies {
     implementation(project(":client-linkedin"))
     implementation(project(":client-instagram"))
     implementation(project(":client-siliconflow"))
+    implementation(project(":client-brave-search"))
+    implementation(project(":client-jina"))
 
     // Strategiz shared frameworks
     implementation(libs.strategiz.framework.authorization)
