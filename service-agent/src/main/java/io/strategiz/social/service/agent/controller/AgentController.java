@@ -3,6 +3,7 @@ package io.strategiz.social.service.agent.controller;
 import io.strategiz.framework.authorization.annotation.AuthUser;
 import io.strategiz.framework.authorization.annotation.RequireAuth;
 import io.strategiz.framework.authorization.context.AuthenticatedUser;
+import io.strategiz.framework.llmrouter.LlmRouter;
 import io.strategiz.social.business.agent.service.UserProvisioningService;
 import io.strategiz.social.business.agent.service.VoiceAgentService;
 import io.strategiz.social.data.entity.ActionConfirmation;
@@ -41,6 +42,8 @@ public class AgentController {
 
 	private final VoiceAgentService voiceAgentService;
 
+	private final LlmRouter llmRouter;
+
 	private final AgentAuditLogRepository auditLogRepository;
 
 	private final ActionConfirmationRepository confirmationRepository;
@@ -49,10 +52,11 @@ public class AgentController {
 
 	private final UserProvisioningService userProvisioningService;
 
-	public AgentController(VoiceAgentService voiceAgentService, AgentAuditLogRepository auditLogRepository,
-			ActionConfirmationRepository confirmationRepository, SocialIntegrationRepository integrationRepository,
-			UserProvisioningService userProvisioningService) {
+	public AgentController(VoiceAgentService voiceAgentService, LlmRouter llmRouter,
+			AgentAuditLogRepository auditLogRepository, ActionConfirmationRepository confirmationRepository,
+			SocialIntegrationRepository integrationRepository, UserProvisioningService userProvisioningService) {
 		this.voiceAgentService = voiceAgentService;
+		this.llmRouter = llmRouter;
 		this.auditLogRepository = auditLogRepository;
 		this.confirmationRepository = confirmationRepository;
 		this.integrationRepository = integrationRepository;
@@ -81,10 +85,10 @@ public class AgentController {
 			.toList();
 
 		VoiceAgentService.AgentResult result = voiceAgentService.execute(request.getText(), user.getUserId(), sessionId,
-				connectedPlatforms, timezone);
+				connectedPlatforms, timezone, request.getModel());
 
 		AgentCommandResponse response = new AgentCommandResponse(result.getResponseText(), result.getToolsInvoked(),
-				result.isSuccess());
+				result.isSuccess(), result.getModel());
 
 		return ResponseEntity.ok(response);
 	}
@@ -117,6 +121,13 @@ public class AgentController {
 		confirmationRepository.save(action, action.getId());
 
 		return ResponseEntity.ok(request.getApproved() ? "Action approved" : "Action denied");
+	}
+
+	@GetMapping("/models")
+	@RequireAuth
+	@Operation(summary = "List available LLM models")
+	public ResponseEntity<?> getAvailableModels() {
+		return ResponseEntity.ok(llmRouter.getAvailableModels());
 	}
 
 	@GetMapping("/history")

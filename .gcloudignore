@@ -1,0 +1,12 @@
+.git
+.gradle
+.idea
+build/
+*/build/
+*/*/build/
+node_modules/
+*.iml
+.DS_Store
+local.properties
+*.hprof
+hs_err_pid*

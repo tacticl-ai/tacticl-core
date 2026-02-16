@@ -8,10 +8,12 @@ import io.strategiz.social.client.siliconflow.client.SiliconFlowClient;
 import io.strategiz.social.client.siliconflow.dto.VideoGenerationResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /** Skill to generate AI video via SiliconFlow Wan 2.2. Tier 1: requires confirmation. */
 @Component
+@ConditionalOnProperty(name = "tacticl.siliconflow.enabled", havingValue = "true", matchIfMissing = false)
 public class VideoGenSkill implements AgentSkill {
 
 	private static final Logger log = LoggerFactory.getLogger(VideoGenSkill.class);

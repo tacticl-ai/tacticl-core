@@ -1,11 +1,11 @@
 package io.strategiz.social.business.agent.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import io.strategiz.client.base.llm.LlmProvider;
 import io.strategiz.client.base.llm.model.LlmMessage;
 import io.strategiz.client.base.llm.model.LlmResponse;
 import io.strategiz.client.base.llm.model.ToolResultMessage;
 import io.strategiz.client.base.llm.model.ToolUseBlock;
+import io.strategiz.framework.llmrouter.LlmRouter;
+import io.strategiz.social.business.agent.config.AgentModelConfig;
 import io.strategiz.social.business.agent.skill.AgentSkill;
 import io.strategiz.social.data.entity.AgentAuditLog;
 import io.strategiz.social.data.repository.AgentAuditLogRepository;
@@ -27,13 +27,11 @@ public class VoiceAgentService {
 
 	private static final Logger logger = LoggerFactory.getLogger(VoiceAgentService.class);
 
-	private static final String ROUTING_MODEL = "claude-haiku-4-5";
-
-	private static final String GENERATION_MODEL = "claude-sonnet-4-5";
-
 	private static final int MAX_TOOL_ROUNDS = 5;
 
-	private final LlmProvider llmProvider;
+	private final LlmRouter llmRouter;
+
+	private final AgentModelConfig modelConfig;
 
 	private final ToolRegistry toolRegistry;
 
@@ -41,9 +39,10 @@ public class VoiceAgentService {
 
 	private final AgentAuditLogRepository auditLogRepository;
 
-	public VoiceAgentService(LlmProvider llmProvider, ToolRegistry toolRegistry,
+	public VoiceAgentService(LlmRouter llmRouter, AgentModelConfig modelConfig, ToolRegistry toolRegistry,
 			AgentSystemPrompt agentSystemPrompt, AgentAuditLogRepository auditLogRepository) {
-		this.llmProvider = llmProvider;
+		this.llmRouter = llmRouter;
+		this.modelConfig = modelConfig;
 		this.toolRegistry = toolRegistry;
 		this.agentSystemPrompt = agentSystemPrompt;
 		this.auditLogRepository = auditLogRepository;
@@ -59,9 +58,11 @@ public class VoiceAgentService {
 	 * @return the agent's text response
 	 */
 	public AgentResult execute(String commandText, String userId, String sessionId, List<String> connectedPlatforms,
-			String timezone) {
+			String timezone, String modelOverride) {
 		long startTime = System.currentTimeMillis();
 		List<String> toolsInvoked = new ArrayList<>();
+		String effectiveModel = (modelOverride != null && !modelOverride.isBlank()) ? modelOverride
+				: modelConfig.getRoutingModel();
 
 		try {
 			// 1. Build system prompt
@@ -71,14 +72,14 @@ public class VoiceAgentService {
 			List<LlmMessage> messages = new ArrayList<>();
 			messages.add(LlmMessage.user(commandText));
 
-			// 3. Agent loop: call Claude, execute tools, repeat until end_turn
+			// 3. Agent loop: call LLM via router, execute tools, repeat until end_turn
 			String finalResponse = null;
 			int rounds = 0;
 
 			while (rounds < MAX_TOOL_ROUNDS) {
 				rounds++;
 
-				LlmResponse response = llmProvider.generateWithTools(messages, ROUTING_MODEL,
+				LlmResponse response = llmRouter.generateWithTools(messages, effectiveModel,
 						toolRegistry.getToolDefinitions(), systemPrompt);
 
 				if (!response.isSuccess()) {
@@ -117,7 +118,7 @@ public class VoiceAgentService {
 			logAudit(userId, sessionId, commandText, toolsInvoked, finalResponse, true, null,
 					System.currentTimeMillis() - startTime);
 
-			return AgentResult.success(finalResponse, toolsInvoked);
+			return AgentResult.success(finalResponse, toolsInvoked, effectiveModel);
 		}
 		catch (Exception e) {
 			logger.error("Agent execution failed for user {}", userId, e);
@@ -174,18 +175,21 @@ public class VoiceAgentService {
 
 		private final boolean success;
 
-		private AgentResult(String responseText, List<String> toolsInvoked, boolean success) {
+		private final String model;
+
+		private AgentResult(String responseText, List<String> toolsInvoked, boolean success, String model) {
 			this.responseText = responseText;
 			this.toolsInvoked = toolsInvoked;
 			this.success = success;
+			this.model = model;
 		}
 
-		public static AgentResult success(String responseText, List<String> toolsInvoked) {
-			return new AgentResult(responseText, toolsInvoked, true);
+		public static AgentResult success(String responseText, List<String> toolsInvoked, String model) {
+			return new AgentResult(responseText, toolsInvoked, true, model);
 		}
 
 		public static AgentResult failure(String errorMessage) {
-			return new AgentResult(errorMessage, List.of(), false);
+			return new AgentResult(errorMessage, List.of(), false, null);
 		}
 
 		public String getResponseText() {
@@ -198,6 +202,10 @@ public class VoiceAgentService {
 
 		public boolean isSuccess() {
 			return success;
+		}
+
+		public String getModel() {
+			return model;
 		}
 
 	}

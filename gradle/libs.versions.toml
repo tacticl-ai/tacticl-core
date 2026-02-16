@@ -34,6 +34,10 @@ strategiz-framework-secrets = { module = "io.strategiz:framework-secrets", versi
 strategiz-framework-resilience = { module = "io.strategiz:framework-resilience", version.ref = "strategiz" }
 strategiz-framework-api-docs = { module = "io.strategiz:framework-api-docs", version.ref = "strategiz" }
 strategiz-client-base = { module = "io.strategiz:client-base", version.ref = "strategiz" }
+strategiz-client-anthropic-direct = { module = "io.strategiz:client-anthropic-direct", version.ref = "strategiz" }
+strategiz-framework-llm-router = { module = "io.strategiz:framework-llm-router", version.ref = "strategiz" }
+strategiz-client-openai-direct = { module = "io.strategiz:client-openai-direct", version.ref = "strategiz" }
+strategiz-client-grok-direct = { module = "io.strategiz:client-grok-direct", version.ref = "strategiz" }
 
 # External
 bucket4j-core = { module = "com.bucket4j:bucket4j-core", version.ref = "bucket4j" }

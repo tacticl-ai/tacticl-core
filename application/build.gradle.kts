@@ -22,6 +22,10 @@ dependencies {
     implementation(libs.strategiz.framework.secrets)
     implementation(libs.strategiz.framework.resilience)
     implementation(libs.strategiz.framework.api.docs)
+    implementation(libs.strategiz.client.anthropic.direct)
+    implementation(libs.strategiz.framework.llm.router)
+    implementation(libs.strategiz.client.openai.direct)
+    implementation(libs.strategiz.client.grok.direct)
 
     // Spring Boot
     implementation(libs.spring.boot.starter.web)

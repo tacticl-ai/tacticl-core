@@ -8,10 +8,12 @@ import io.strategiz.social.client.siliconflow.client.SiliconFlowClient;
 import io.strategiz.social.client.siliconflow.dto.VideoStatusResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /** Skill to check the status of a video generation request. Tier 0: auto-execute. */
 @Component
+@ConditionalOnProperty(name = "tacticl.siliconflow.enabled", havingValue = "true", matchIfMissing = false)
 public class CheckVideoStatusSkill implements AgentSkill {
 
 	private static final Logger log = LoggerFactory.getLogger(CheckVideoStatusSkill.class);

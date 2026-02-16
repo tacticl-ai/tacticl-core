@@ -38,11 +38,11 @@ public class OAuthTokenExchangeService {
 
 	private final RestClient restClient;
 
-	public OAuthTokenExchangeService(TwitterConfig twitterConfig, LinkedInConfig linkedInConfig,
-			InstagramConfig instagramConfig, SocialIntegrationRepository integrationRepository) {
-		this.twitterConfig = twitterConfig;
-		this.linkedInConfig = linkedInConfig;
-		this.instagramConfig = instagramConfig;
+	public OAuthTokenExchangeService(Optional<TwitterConfig> twitterConfig, Optional<LinkedInConfig> linkedInConfig,
+			Optional<InstagramConfig> instagramConfig, SocialIntegrationRepository integrationRepository) {
+		this.twitterConfig = twitterConfig.orElse(null);
+		this.linkedInConfig = linkedInConfig.orElse(null);
+		this.instagramConfig = instagramConfig.orElse(null);
 		this.integrationRepository = integrationRepository;
 		this.restClient = RestClient.create();
 	}
@@ -114,6 +114,9 @@ public class OAuthTokenExchangeService {
 	}
 
 	private AuthTokens exchangeTwitterToken(String code, String codeVerifier, String redirectUri) {
+		if (twitterConfig == null) {
+			throw new IllegalStateException("Twitter is not enabled — set tacticl.twitter.enabled=true");
+		}
 		MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
 		params.add("grant_type", "authorization_code");
 		params.add("code", code);
@@ -132,6 +135,9 @@ public class OAuthTokenExchangeService {
 	}
 
 	private AuthTokens refreshTwitterToken(String refreshToken) {
+		if (twitterConfig == null) {
+			throw new IllegalStateException("Twitter is not enabled — set tacticl.twitter.enabled=true");
+		}
 		MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
 		params.add("grant_type", "refresh_token");
 		params.add("refresh_token", refreshToken);
@@ -148,6 +154,9 @@ public class OAuthTokenExchangeService {
 	}
 
 	private AuthTokens exchangeLinkedInToken(String code, String codeVerifier, String redirectUri) {
+		if (linkedInConfig == null) {
+			throw new IllegalStateException("LinkedIn is not enabled — set tacticl.linkedin.enabled=true");
+		}
 		MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
 		params.add("grant_type", "authorization_code");
 		params.add("code", code);
@@ -169,6 +178,9 @@ public class OAuthTokenExchangeService {
 	}
 
 	private AuthTokens refreshLinkedInToken(String refreshToken) {
+		if (linkedInConfig == null) {
+			throw new IllegalStateException("LinkedIn is not enabled — set tacticl.linkedin.enabled=true");
+		}
 		MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
 		params.add("grant_type", "refresh_token");
 		params.add("refresh_token", refreshToken);
@@ -186,6 +198,9 @@ public class OAuthTokenExchangeService {
 	}
 
 	private AuthTokens exchangeInstagramToken(String code, String redirectUri) {
+		if (instagramConfig == null) {
+			throw new IllegalStateException("Instagram is not enabled — set tacticl.instagram.enabled=true");
+		}
 		MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
 		params.add("grant_type", "authorization_code");
 		params.add("code", code);

@@ -10,9 +10,11 @@ dependencies {
 
     // Strategiz shared frameworks
     implementation(libs.strategiz.framework.authorization)
+    implementation(libs.strategiz.framework.token.issuance)
     implementation(libs.strategiz.framework.exception)
     implementation(libs.strategiz.framework.logging)
     implementation(libs.strategiz.framework.api.docs)
+    implementation(libs.strategiz.framework.llm.router)
 
     // Spring Boot
     implementation(libs.spring.boot.starter.web)

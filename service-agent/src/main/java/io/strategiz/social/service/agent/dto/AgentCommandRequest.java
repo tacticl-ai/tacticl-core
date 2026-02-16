@@ -12,6 +12,8 @@ public class AgentCommandRequest {
 
 	private String timezone;
 
+	private String model;
+
 	public String getText() {
 		return text;
 	}
@@ -34,6 +36,14 @@ public class AgentCommandRequest {
 
 	public void setTimezone(String timezone) {
 		this.timezone = timezone;
+	}
+
+	public String getModel() {
+		return model;
+	}
+
+	public void setModel(String model) {
+		this.model = model;
 	}
 
 }

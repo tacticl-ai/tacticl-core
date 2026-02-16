@@ -11,13 +11,16 @@ public class AgentCommandResponse {
 
 	private boolean success;
 
+	private String model;
+
 	public AgentCommandResponse() {
 	}
 
-	public AgentCommandResponse(String responseText, List<String> toolsInvoked, boolean success) {
+	public AgentCommandResponse(String responseText, List<String> toolsInvoked, boolean success, String model) {
 		this.responseText = responseText;
 		this.toolsInvoked = toolsInvoked;
 		this.success = success;
+		this.model = model;
 	}
 
 	public String getResponseText() {
@@ -42,6 +45,14 @@ public class AgentCommandResponse {
 
 	public void setSuccess(boolean success) {
 		this.success = success;
+	}
+
+	public String getModel() {
+		return model;
+	}
+
+	public void setModel(String model) {
+		this.model = model;
 	}
 
 }

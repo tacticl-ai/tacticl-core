@@ -8,10 +8,12 @@ import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /** Twitter/X implementation of {@link SocialMediaProvider}. */
 @Component
+@ConditionalOnProperty(name = "tacticl.twitter.enabled", havingValue = "true", matchIfMissing = false)
 public class TwitterProvider implements SocialMediaProvider {
 
 	private static final Logger log = LoggerFactory.getLogger(TwitterProvider.class);
