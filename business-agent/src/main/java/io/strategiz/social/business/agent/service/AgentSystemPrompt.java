@@ -7,11 +7,17 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 /**
- * Builds the system prompt for the voice agent. Includes personality, user context,
- * connected accounts, and behavioral guidelines.
+ * Builds the system prompt for the voice agent. Includes personality, user context, connected
+ * accounts, device context, and behavioral guidelines.
  */
 @Component
 public class AgentSystemPrompt {
+
+	private final DeviceRoutingService deviceRoutingService;
+
+	public AgentSystemPrompt(DeviceRoutingService deviceRoutingService) {
+		this.deviceRoutingService = deviceRoutingService;
+	}
 
 	private static final String BASE_PROMPT = """
 			You are Tacticl, a personal AI assistant that remotes into the user's devices and \
@@ -52,6 +58,10 @@ public class AgentSystemPrompt {
 			prompt.append(
 					"- No social platforms connected yet. Guide the user to connect accounts before posting.\n");
 		}
+
+		// Add connected device context
+		prompt.append("\n## Connected Devices\n");
+		prompt.append(deviceRoutingService.buildDeviceContext(userId));
 
 		return prompt.toString();
 	}

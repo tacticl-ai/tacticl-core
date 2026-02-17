@@ -1,0 +1,156 @@
+package io.strategiz.social.business.agent.service;
+
+import io.strategiz.social.data.entity.DeviceRegistration;
+import io.strategiz.social.data.entity.DeviceState;
+import io.strategiz.social.data.entity.DeviceType;
+import io.strategiz.social.data.repository.DeviceRepository;
+import io.strategiz.social.data.repository.DeviceSessionRepository;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+/** Manages device registration, verification, and lifecycle. */
+@Service
+public class DeviceRegistryService {
+
+	private static final Logger log = LoggerFactory.getLogger(DeviceRegistryService.class);
+
+	private final DeviceRepository deviceRepository;
+
+	private final DeviceSessionRepository sessionRepository;
+
+	public DeviceRegistryService(DeviceRepository deviceRepository, DeviceSessionRepository sessionRepository) {
+		this.deviceRepository = deviceRepository;
+		this.sessionRepository = sessionRepository;
+	}
+
+	/** Register a new device for a user. Returns the device with a verification code. */
+	public DeviceRegistration registerDevice(String userId, String deviceName, DeviceType deviceType,
+			String pushToken) {
+		DeviceRegistration device = new DeviceRegistration();
+		device.setId(UUID.randomUUID().toString());
+		device.setUserId(userId);
+		device.setDeviceName(deviceName);
+		device.setDeviceType(deviceType);
+		device.setPushToken(pushToken);
+		device.setState(DeviceState.PENDING_VERIFICATION);
+		device.setVerificationCode(generateVerificationCode());
+		device.setCreatedAt(Instant.now());
+		device.setActive(true);
+
+		deviceRepository.save(device, device.getId());
+		log.info("Device registered: {} ({}) for user {}", deviceName, deviceType, userId);
+		return device;
+	}
+
+	/** Verify a device with the 6-digit code. */
+	public Optional<DeviceRegistration> verifyDevice(String deviceId, String userId, String code) {
+		Optional<DeviceRegistration> opt = deviceRepository.findById(deviceId);
+		if (opt.isEmpty()) {
+			return Optional.empty();
+		}
+
+		DeviceRegistration device = opt.get();
+		if (!device.getUserId().equals(userId)) {
+			return Optional.empty();
+		}
+		if (device.getState() != DeviceState.PENDING_VERIFICATION) {
+			return Optional.empty();
+		}
+		if (!code.equals(device.getVerificationCode())) {
+			return Optional.empty();
+		}
+
+		device.setState(DeviceState.ACTIVE);
+		device.setVerificationCode(null);
+		deviceRepository.save(device, device.getId());
+		log.info("Device verified: {} for user {}", device.getDeviceName(), userId);
+		return Optional.of(device);
+	}
+
+	/** Auto-verify a device (for the user's first device — no second device to send code to). */
+	public DeviceRegistration autoVerifyDevice(String userId, String deviceName, DeviceType deviceType,
+			String pushToken) {
+		List<DeviceRegistration> existing = deviceRepository.findActiveByUserId(userId);
+		if (!existing.isEmpty()) {
+			throw new IllegalStateException("Auto-verify only allowed for first device");
+		}
+
+		DeviceRegistration device = registerDevice(userId, deviceName, deviceType, pushToken);
+		device.setState(DeviceState.ACTIVE);
+		device.setVerificationCode(null);
+		deviceRepository.save(device, device.getId());
+		log.info("Device auto-verified (first device): {} for user {}", deviceName, userId);
+		return device;
+	}
+
+	/** List all active devices for a user, enriched with online status. */
+	public List<DeviceRegistration> listDevices(String userId) {
+		List<DeviceRegistration> devices = deviceRepository.findActiveByUserId(userId);
+		Set<String> onlineDeviceIds = sessionRepository.findActiveByUserId(userId)
+			.stream()
+			.map(s -> s.getDeviceId())
+			.collect(Collectors.toSet());
+
+		// Enrich connectivity with online status
+		for (DeviceRegistration device : devices) {
+			Map<String, Object> conn = device.getConnectivity();
+			if (conn == null) {
+				conn = new java.util.HashMap<>();
+			}
+			conn.put("online", onlineDeviceIds.contains(device.getId()));
+			device.setConnectivity(conn);
+		}
+		return devices;
+	}
+
+	/** Get a single device by ID, verifying user ownership. */
+	public Optional<DeviceRegistration> getDevice(String deviceId, String userId) {
+		return deviceRepository.findById(deviceId).filter(d -> d.getUserId().equals(userId) && d.isActive());
+	}
+
+	/** Revoke (soft-delete) a device. */
+	public boolean revokeDevice(String deviceId, String userId) {
+		Optional<DeviceRegistration> opt = getDevice(deviceId, userId);
+		if (opt.isEmpty()) {
+			return false;
+		}
+		DeviceRegistration device = opt.get();
+		device.setState(DeviceState.REVOKED);
+		device.setActive(false);
+		deviceRepository.save(device, device.getId());
+		log.info("Device revoked: {} for user {}", device.getDeviceName(), userId);
+		return true;
+	}
+
+	/** Update device capabilities (called on WebSocket connect). */
+	public void updateCapabilities(String deviceId, Map<String, Object> capabilities) {
+		deviceRepository.findById(deviceId).ifPresent(device -> {
+			device.setCapabilities(capabilities);
+			device.setLastSeenAt(Instant.now());
+			deviceRepository.save(device, device.getId());
+		});
+	}
+
+	/** Update device connectivity info (battery, network). */
+	public void updateConnectivity(String deviceId, Map<String, Object> connectivity) {
+		deviceRepository.findById(deviceId).ifPresent(device -> {
+			device.setConnectivity(connectivity);
+			device.setLastSeenAt(Instant.now());
+			deviceRepository.save(device, device.getId());
+		});
+	}
+
+	private String generateVerificationCode() {
+		return String.format("%06d", ThreadLocalRandom.current().nextInt(1000000));
+	}
+
+}

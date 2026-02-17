@@ -19,6 +19,7 @@ dependencies {
     // Spring Boot
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.validation)
+    implementation(libs.spring.boot.starter.websocket)
 
     // Swagger
     implementation(libs.springdoc.openapi)
