@@ -39,13 +39,16 @@ public class VoiceAgentService {
 
 	private final AgentAuditLogRepository auditLogRepository;
 
+	private final AskService askService;
+
 	public VoiceAgentService(LlmRouter llmRouter, AgentModelConfig modelConfig, ToolRegistry toolRegistry,
-			AgentSystemPrompt agentSystemPrompt, AgentAuditLogRepository auditLogRepository) {
+			AgentSystemPrompt agentSystemPrompt, AgentAuditLogRepository auditLogRepository, AskService askService) {
 		this.llmRouter = llmRouter;
 		this.modelConfig = modelConfig;
 		this.toolRegistry = toolRegistry;
 		this.agentSystemPrompt = agentSystemPrompt;
 		this.auditLogRepository = auditLogRepository;
+		this.askService = askService;
 	}
 
 	/**
@@ -64,7 +67,17 @@ public class VoiceAgentService {
 		String effectiveModel = (modelOverride != null && !modelOverride.isBlank()) ? modelOverride
 				: modelConfig.getRoutingModel();
 
+		// Create ask for activity tracking
+		AskService.CreateAskResult askResult = askService.createAsk(userId, null, commandText, effectiveModel);
+		String askId = askResult.ask().getId();
+		String taskId = askResult.taskId();
+		String agentId = askResult.agentId();
+
+		AskContext.set(new AskContext(askId, taskId, agentId));
 		try {
+			// Mark running when agent loop starts
+			askService.markRunning(askId);
+
 			// 1. Build system prompt
 			String systemPrompt = agentSystemPrompt.buildSystemPrompt(userId, connectedPlatforms, timezone);
 
@@ -118,6 +131,9 @@ public class VoiceAgentService {
 			logAudit(userId, sessionId, commandText, toolsInvoked, finalResponse, true, null,
 					System.currentTimeMillis() - startTime);
 
+			// Mark ask completed
+			askService.markCompleted(askId, 0, effectiveModel);
+
 			return AgentResult.success(finalResponse, toolsInvoked, effectiveModel);
 		}
 		catch (Exception e) {
@@ -125,7 +141,14 @@ public class VoiceAgentService {
 			String errorMsg = "Something went wrong: " + e.getMessage();
 			logAudit(userId, sessionId, commandText, toolsInvoked, null, false, e.getMessage(),
 					System.currentTimeMillis() - startTime);
+
+			// Mark ask failed
+			askService.markFailed(askId, 0, effectiveModel);
+
 			return AgentResult.failure(errorMsg);
+		}
+		finally {
+			AskContext.clear();
 		}
 	}
 

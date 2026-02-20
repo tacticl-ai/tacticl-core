@@ -1,6 +1,7 @@
 package io.strategiz.social.service.agent.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.strategiz.social.business.agent.service.ActivityBroadcaster;
 import io.strategiz.social.business.agent.service.DeviceCommandDispatcher;
 import io.strategiz.social.data.entity.DeviceSession;
 import io.strategiz.social.data.repository.DeviceSessionRepository;
@@ -22,7 +23,7 @@ import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorato
  * WebSocket send, and handles connect/disconnect lifecycle.
  */
 @Component
-public class DeviceSessionManager implements DeviceCommandDispatcher {
+public class DeviceSessionManager implements DeviceCommandDispatcher, ActivityBroadcaster {
 
 	private static final Logger log = LoggerFactory.getLogger(DeviceSessionManager.class);
 
@@ -150,6 +151,25 @@ public class DeviceSessionManager implements DeviceCommandDispatcher {
 	/** Get the principal for a connected device. */
 	public Optional<DevicePrincipal> getPrincipal(String deviceId) {
 		return Optional.ofNullable(devicePrincipals.get(deviceId));
+	}
+
+	/** Broadcast an activity update to all devices owned by a user. */
+	@Override
+	public void broadcastActivity(String userId, Map<String, Object> activityPayload) {
+		for (Map.Entry<String, DevicePrincipal> entry : devicePrincipals.entrySet()) {
+			if (entry.getValue().getUserId().equals(userId)) {
+				WebSocketSession session = deviceSessions.get(entry.getKey());
+				if (session != null && session.isOpen()) {
+					try {
+						String json = objectMapper.writeValueAsString(activityPayload);
+						session.sendMessage(new TextMessage(json));
+					}
+					catch (Exception ex) {
+						log.error("[WS] Failed to broadcast activity to device {}", entry.getKey(), ex);
+					}
+				}
+			}
+		}
 	}
 
 }

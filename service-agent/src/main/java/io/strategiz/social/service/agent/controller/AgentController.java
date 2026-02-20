@@ -4,14 +4,18 @@ import io.strategiz.framework.authorization.annotation.AuthUser;
 import io.strategiz.framework.authorization.annotation.RequireAuth;
 import io.strategiz.framework.authorization.context.AuthenticatedUser;
 import io.strategiz.framework.llmrouter.LlmRouter;
+import io.strategiz.social.business.agent.service.AskService;
 import io.strategiz.social.business.agent.service.UserProvisioningService;
 import io.strategiz.social.business.agent.service.VoiceAgentService;
 import io.strategiz.social.data.entity.ActionConfirmation;
 import io.strategiz.social.data.entity.AgentAuditLog;
+import io.strategiz.social.data.entity.Ask;
+import io.strategiz.social.data.entity.AskState;
 import io.strategiz.social.data.entity.SocialIntegration;
 import io.strategiz.social.data.repository.ActionConfirmationRepository;
 import io.strategiz.social.data.repository.AgentAuditLogRepository;
 import io.strategiz.social.data.repository.SocialIntegrationRepository;
+import io.strategiz.social.service.agent.dto.ActivityResponse;
 import io.strategiz.social.service.agent.dto.AgentCommandRequest;
 import io.strategiz.social.service.agent.dto.AgentCommandResponse;
 import io.strategiz.social.service.agent.dto.AuditLogResponse;
@@ -20,6 +24,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -52,15 +57,19 @@ public class AgentController {
 
 	private final UserProvisioningService userProvisioningService;
 
+	private final AskService askService;
+
 	public AgentController(VoiceAgentService voiceAgentService, LlmRouter llmRouter,
 			AgentAuditLogRepository auditLogRepository, ActionConfirmationRepository confirmationRepository,
-			SocialIntegrationRepository integrationRepository, UserProvisioningService userProvisioningService) {
+			SocialIntegrationRepository integrationRepository, UserProvisioningService userProvisioningService,
+			AskService askService) {
 		this.voiceAgentService = voiceAgentService;
 		this.llmRouter = llmRouter;
 		this.auditLogRepository = auditLogRepository;
 		this.confirmationRepository = confirmationRepository;
 		this.integrationRepository = integrationRepository;
 		this.userProvisioningService = userProvisioningService;
+		this.askService = askService;
 	}
 
 	@PostMapping("/command")
@@ -149,6 +158,44 @@ public class AgentController {
 		}).toList();
 
 		return ResponseEntity.ok(response);
+	}
+
+	@GetMapping("/activity")
+	@RequireAuth
+	@Operation(summary = "Get activity dashboard data",
+			description = "Returns active and recent asks with tasks and commands")
+	public ResponseEntity<ActivityResponse> getActivity(@AuthUser AuthenticatedUser user) {
+		List<Ask> active = askService.getActiveAsks(user.getUserId());
+		List<Ask> recent = askService.getRecentAsks(user.getUserId(), 10);
+
+		ActivityResponse response = new ActivityResponse();
+		response.setActiveAsks(active.stream()
+			.map(a -> askService.getAskDetail(a.getId(), user.getUserId()).orElse(Map.of()))
+			.toList());
+		response.setRecentAsks(recent.stream()
+			.filter(a -> a.getState() != AskState.PENDING && a.getState() != AskState.RUNNING)
+			.map(a -> askService.getAskDetail(a.getId(), user.getUserId()).orElse(Map.of()))
+			.limit(10)
+			.toList());
+		return ResponseEntity.ok(response);
+	}
+
+	@GetMapping("/asks/{askId}")
+	@RequireAuth
+	@Operation(summary = "Get ask detail")
+	public ResponseEntity<Map<String, Object>> getAskDetail(@PathVariable String askId,
+			@AuthUser AuthenticatedUser user) {
+		return askService.getAskDetail(askId, user.getUserId())
+			.map(ResponseEntity::ok)
+			.orElse(ResponseEntity.notFound().build());
+	}
+
+	@PostMapping("/asks/{askId}/cancel")
+	@RequireAuth
+	@Operation(summary = "Cancel an ask")
+	public ResponseEntity<Void> cancelAsk(@PathVariable String askId, @AuthUser AuthenticatedUser user) {
+		boolean cancelled = askService.cancelAsk(askId, user.getUserId());
+		return cancelled ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
 	}
 
 }
