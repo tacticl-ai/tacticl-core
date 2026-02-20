@@ -26,8 +26,11 @@ id:           UUID (askId)
 userId:       String
 deviceId:     String (primary device — default device, overridable)
 commandText:  String (user's original request)
-state:        PENDING | RUNNING | COMPLETED | FAILED
+state:        PENDING | RUNNING | COMPLETED | FAILED | CANCELLED
 tasks:        List<taskId>
+totalTokens:  int (sum of all agent instances)
+estimatedCost: BigDecimal (calculated from model pricing)
+deviceFallbackEnabled: boolean (auto-reroute to another device if primary goes offline)
 createdAt:    Instant
 completedAt:  Instant (nullable)
 ```
@@ -39,7 +42,7 @@ askId:        String (parent ask)
 userId:       String
 description:  String (what this task does)
 agentId:      String (LLM instance assigned to this task)
-state:        PENDING | ASSIGNED | RUNNING | COMPLETED | FAILED
+state:        PENDING | ASSIGNED | RUNNING | COMPLETED | FAILED | CANCELLED
 commands:     List<commandId>
 createdAt:    Instant
 completedAt:  Instant (nullable)
@@ -52,7 +55,7 @@ taskId:       String (task this agent is working on)
 userId:       String
 deviceId:     String (device this agent executes on)
 modelId:      String (e.g., "claude-sonnet-4-5")
-state:        INITIALIZING | RUNNING | COMPLETED | FAILED
+state:        INITIALIZING | RUNNING | COMPLETED | FAILED | CANCELLED
 tokenCount:   int
 createdAt:    Instant
 completedAt:  Instant (nullable)
@@ -72,10 +75,10 @@ id, userId, deviceName, deviceType (IPHONE, ANDROID, MACOS, WINDOWS, LINUX), cap
 ### State Machines
 
 ```
-Ask:     PENDING → RUNNING → COMPLETED | FAILED
-Task:    PENDING → ASSIGNED → RUNNING → COMPLETED | FAILED
-Agent:   INITIALIZING → RUNNING → COMPLETED | FAILED
-Command: QUEUED → SENT → EXECUTING → COMPLETED | FAILED | EXPIRED
+Ask:     PENDING → RUNNING → COMPLETED | FAILED | CANCELLED
+Task:    PENDING → ASSIGNED → RUNNING → COMPLETED | FAILED | CANCELLED
+Agent:   INITIALIZING → RUNNING → COMPLETED | FAILED | CANCELLED
+Command: QUEUED → SENT → EXECUTING → COMPLETED | FAILED | EXPIRED | CANCELLED
 ```
 
 ## Device Strategy
@@ -203,9 +206,10 @@ Expandable cards for each running ask:
 
 ### New REST Endpoints
 ```
-GET  /api/agent/activity          # Active asks + tasks + commands (dashboard)
-GET  /api/agent/asks              # List asks (paginated, filterable)
-GET  /api/agent/asks/{askId}      # Ask detail with tasks and commands
+GET  /api/agent/activity              # Active asks + tasks + commands (dashboard)
+GET  /api/agent/asks                  # List asks (paginated, filterable)
+GET  /api/agent/asks/{askId}          # Ask detail with tasks and commands
+POST /api/agent/asks/{askId}/cancel   # Cancel an ask (cascades to tasks/commands)
 ```
 
 ### New Firestore Collections
@@ -258,6 +262,69 @@ New flow:
 6. Every state transition broadcasts via WebSocket
 
 For now (single-task simplification): one ask = one task = one agent. The model supports multi-task decomposition when the orchestrator is ready.
+
+## Cancellation
+
+User can cancel at any level via `POST /api/agent/asks/{askId}/cancel`.
+
+Cascade: Cancel ask → cancel all tasks → terminate all agents → abort in-flight commands.
+
+Dashboard: long-press or swipe an active ask card → cancel button.
+
+## Failure Propagation
+
+```
+Command fails
+  → Agent decides: retry (up to 2 attempts) or mark task FAILED
+    → If task FAILED and other tasks still running: Ask continues
+    → Ask FAILED only when all tasks resolved and at least one failed
+    → Ask COMPLETED when all tasks completed successfully
+```
+
+One failed task does not kill the whole ask. The agent adapts — "Research trends" failing doesn't prevent "Draft posts" from proceeding with what it has.
+
+## Notifications
+
+- **Mobile**: Push notification via FCM when ask completes/fails and app is backgrounded
+- **Desktop (Electron)**: System notification via Electron Notification API
+- **In-app**: WebSocket activity broadcast updates dashboard in real-time
+
+Triggers: ask completed, ask failed, confirmation needed (Tier 1/2), device went offline during active ask.
+
+## Cost Visibility
+
+Each `AgentInstance` tracks `tokenCount`. Each `Ask` aggregates `totalTokens` and `estimatedCost` from all its agents.
+
+Dashboard shows per-ask: "3 tasks, 18K tokens, ~$0.06". History tab shows cumulative daily/weekly cost.
+
+Model pricing lookup table maintained in backend config.
+
+## Concurrency Limits
+
+```
+Per user:    Max 5 concurrent asks
+Per device:  Max 3 concurrent asks targeting same device
+```
+
+If limit reached, new asks queue as PENDING and start when a slot opens. Dashboard shows queue position.
+
+## Device Offline Mid-Ask
+
+```
+Device disconnects during active ask
+  → In-flight commands: wait 30s for reconnect
+    → Reconnected: resume (re-send QUEUED/SENT commands)
+    → Not reconnected: commands → FAILED ("device offline")
+  → If deviceFallbackEnabled on Ask:
+    → Auto-reroute remaining commands to another online device with matching capabilities
+  → If not: agent gets failure → can retry or fail task
+```
+
+## Command Results Persistence
+
+`DeviceCommand.result` (Map) persisted to Firestore on every completion. For large results (screenshots), store as reference: `result: { type: "screenshot", storageUrl: "gs://tacticl-assets/..." }` — don't inline base64.
+
+Dashboard reads results from Firestore for past commands, WebSocket for live updates.
 
 ## Implementation Order
 
