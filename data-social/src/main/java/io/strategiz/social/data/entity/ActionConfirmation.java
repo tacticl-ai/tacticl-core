@@ -2,10 +2,13 @@ package io.strategiz.social.data.entity;
 
 import java.time.Instant;
 
+import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+
 /**
  * Represents a pending action confirmation for Tier 1 (mutations) and Tier 2 (financial)
  * agent actions. Stored in the action_confirmations Firestore collection.
  */
+@IgnoreExtraProperties
 public class ActionConfirmation {
 
 	private String id;

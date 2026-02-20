@@ -4,7 +4,10 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+
 /** Tacticl user record stored in the tacticl_users Firestore collection. */
+@IgnoreExtraProperties
 public class TacticlUser {
 
 	private String id;

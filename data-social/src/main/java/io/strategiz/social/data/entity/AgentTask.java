@@ -4,10 +4,13 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+
 /**
  * Represents a unit of work within an ask. Each task is assigned to an agent instance and produces
  * one or more device commands.
  */
+@IgnoreExtraProperties
 public class AgentTask {
 
 	private String id;

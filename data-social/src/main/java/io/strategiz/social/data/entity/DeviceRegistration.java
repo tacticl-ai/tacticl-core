@@ -1,5 +1,7 @@
 package io.strategiz.social.data.entity;
 
+import com.google.cloud.firestore.annotation.Exclude;
+import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
 import java.time.Instant;
 import java.util.Map;
 
@@ -7,6 +9,7 @@ import java.util.Map;
  * Represents a device registered to a user's Tacticl account. Each device connects via WebSocket
  * and reports its capabilities for task routing.
  */
+@IgnoreExtraProperties
 public class DeviceRegistration {
 
 	private String id;
@@ -140,6 +143,7 @@ public class DeviceRegistration {
 	}
 
 	/** Check if the device has a specific capability. */
+	@Exclude
 	public boolean hasCapability(String capabilityKey) {
 		if (capabilities == null) {
 			return false;
@@ -153,6 +157,7 @@ public class DeviceRegistration {
 	}
 
 	/** Check if the device is currently charging. */
+	@Exclude
 	public boolean isCharging() {
 		if (connectivity == null) {
 			return false;
@@ -161,6 +166,7 @@ public class DeviceRegistration {
 	}
 
 	/** Get battery level (0-100), defaults to 0 if unknown. */
+	@Exclude
 	public int getBatteryLevel() {
 		if (connectivity == null) {
 			return 0;

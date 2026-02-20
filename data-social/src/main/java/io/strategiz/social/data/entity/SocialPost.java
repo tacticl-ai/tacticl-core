@@ -6,9 +6,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+
 /**
  * Represents a social media post that can be scheduled and published to one or more platforms.
  */
+@IgnoreExtraProperties
 public class SocialPost {
 
 	private String id;

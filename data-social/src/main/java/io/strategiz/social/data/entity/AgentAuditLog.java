@@ -4,10 +4,13 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+
 /**
  * Audit log entry for every agent command executed. Stored in the agent_audit_log
  * Firestore collection.
  */
+@IgnoreExtraProperties
 public class AgentAuditLog {
 
 	private String id;

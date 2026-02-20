@@ -4,9 +4,12 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+
 /**
  * Represents a connected social media account (OAuth integration).
  */
+@IgnoreExtraProperties
 public class SocialIntegration {
 
 	private String id;

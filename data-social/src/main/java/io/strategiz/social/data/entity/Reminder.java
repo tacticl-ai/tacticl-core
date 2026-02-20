@@ -2,7 +2,10 @@ package io.strategiz.social.data.entity;
 
 import java.time.Instant;
 
+import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+
 /** A user-set reminder stored in the reminders Firestore collection. */
+@IgnoreExtraProperties
 public class Reminder {
 
 	private String id;

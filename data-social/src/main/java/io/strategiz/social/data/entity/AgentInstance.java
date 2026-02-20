@@ -2,10 +2,13 @@ package io.strategiz.social.data.entity;
 
 import java.time.Instant;
 
+import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+
 /**
  * Represents an LLM agent instance working on a specific task. Tracks the model used, token
  * consumption, and lifecycle state.
  */
+@IgnoreExtraProperties
 public class AgentInstance {
 
 	private String id;

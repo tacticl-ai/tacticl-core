@@ -5,10 +5,13 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+
 /**
  * Represents a user's top-level request to the agent. An ask decomposes into one or more tasks,
  * each worked by an agent instance. All tasks within an ask target the same primary device.
  */
+@IgnoreExtraProperties
 public class Ask {
 
 	private String id;

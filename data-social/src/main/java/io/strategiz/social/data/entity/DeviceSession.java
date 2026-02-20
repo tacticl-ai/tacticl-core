@@ -2,10 +2,13 @@ package io.strategiz.social.data.entity;
 
 import java.time.Instant;
 
+import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+
 /**
  * Tracks an active WebSocket session for a device. Used to determine which devices are currently
  * online and reachable.
  */
+@IgnoreExtraProperties
 public class DeviceSession {
 
 	private String id;

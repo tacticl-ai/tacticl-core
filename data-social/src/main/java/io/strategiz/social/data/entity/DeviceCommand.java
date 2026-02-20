@@ -3,10 +3,13 @@ package io.strategiz.social.data.entity;
 import java.time.Instant;
 import java.util.Map;
 
+import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+
 /**
  * Represents a command dispatched to a device for execution. Commands are created by the agent,
  * sent via WebSocket, and tracked through their lifecycle.
  */
+@IgnoreExtraProperties
 public class DeviceCommand {
 
 	private String id;
