@@ -17,6 +17,12 @@ public class DeviceCommand {
 
 	private String sessionId;
 
+	private String askId;
+
+	private String taskId;
+
+	private String agentId;
+
 	private CommandType commandType;
 
 	private Map<String, Object> payload;
@@ -137,6 +143,30 @@ public class DeviceCommand {
 
 	public void setExpiresAt(Instant expiresAt) {
 		this.expiresAt = expiresAt;
+	}
+
+	public String getAskId() {
+		return askId;
+	}
+
+	public void setAskId(String askId) {
+		this.askId = askId;
+	}
+
+	public String getTaskId() {
+		return taskId;
+	}
+
+	public void setTaskId(String taskId) {
+		this.taskId = taskId;
+	}
+
+	public String getAgentId() {
+		return agentId;
+	}
+
+	public void setAgentId(String agentId) {
+		this.agentId = agentId;
 	}
 
 }
