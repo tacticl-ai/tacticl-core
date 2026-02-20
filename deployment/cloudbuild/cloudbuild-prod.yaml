@@ -24,7 +24,7 @@ steps:
         mvn install -f framework/pom.xml -N -DskipTests -q
         mvn install -f client/pom.xml -N -DskipTests -q
         echo "=== Installing shared libraries ==="
-        mvn install -pl framework/framework-exception,framework/framework-logging,framework/framework-secrets,framework/framework-authorization,framework/framework-token-issuance,framework/framework-resilience,framework/framework-api-docs,framework/framework-llm-router,client/client-base,client/client-anthropic-direct,client/client-openai-direct,client/client-grok-direct -am -DskipTests -q -Dspotbugs.skip=true -Dcheckstyle.skip=true
+        mvn install -pl framework/framework-exception,framework/framework-logging,framework/framework-secrets,framework/framework-authorization,framework/framework-token-issuance,framework/framework-resilience,framework/framework-api-docs,framework/framework-llm-router,client/client-framework-base,client/client-anthropic-direct,client/client-openai-direct,client/client-grok-direct -am -DskipTests -q -Dspotbugs.skip=true -Dcheckstyle.skip=true
         echo "=== Maven install succeeded ==="
         echo "=== Building tacticl-core with Gradle ==="
         cd /workspace
@@ -55,5 +55,7 @@ steps:
       - '--set-env-vars=SPRING_PROFILES_ACTIVE=prod,STRATEGIZ_VAULT_ADDRESS=https://strategiz-vault-43628135674.us-east1.run.app'
       - '--set-secrets=VAULT_TOKEN=vault-root-token:latest'
       - '--allow-unauthenticated'
+      - '--timeout=3600'
+      - '--session-affinity'
 
 timeout: '1200s'

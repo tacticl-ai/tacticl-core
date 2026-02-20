@@ -2,24 +2,23 @@ package io.strategiz.social.service.agent.websocket;
 
 import io.strategiz.framework.authorization.context.AuthenticatedUser;
 import io.strategiz.framework.authorization.validator.PasetoTokenValidator;
-import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.messaging.Message;
-import org.springframework.messaging.MessageChannel;
-import org.springframework.messaging.simp.stomp.StompCommand;
-import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
-import org.springframework.messaging.support.ChannelInterceptor;
-import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.http.server.ServerHttpRequest;
+import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.WebSocketHandler;
+import org.springframework.web.socket.server.HandshakeInterceptor;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
- * Intercepts STOMP CONNECT frames to authenticate devices. Extracts PASETO token and device ID from
- * headers, validates them, and sets the authenticated principal.
+ * Authenticates WebSocket upgrade requests. Extracts PASETO token and device ID from query
+ * parameters, validates the token, and stores the authenticated principal in session attributes.
  */
 @Component
-public class WebSocketAuthInterceptor implements ChannelInterceptor {
+public class WebSocketAuthInterceptor implements HandshakeInterceptor {
 
 	private static final Logger log = LoggerFactory.getLogger(WebSocketAuthInterceptor.class);
 
@@ -30,16 +29,16 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 	}
 
 	@Override
-	public Message<?> preSend(Message<?> message, MessageChannel channel) {
-		StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-
-		if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
-			String token = getHeader(accessor, "Authorization");
-			String deviceId = getHeader(accessor, "X-Device-Id");
+	public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response,
+			WebSocketHandler wsHandler, Map<String, Object> attributes) {
+		try {
+			var params = UriComponentsBuilder.fromUri(request.getURI()).build().getQueryParams();
+			String token = params.getFirst("token");
+			String deviceId = params.getFirst("deviceId");
 
 			if (token == null || deviceId == null) {
-				log.warn("WebSocket CONNECT missing Authorization or X-Device-Id header");
-				throw new SecurityException("Missing authentication headers");
+				log.warn("[WS-AUTH] Missing query params: token={}, deviceId={}", token != null, deviceId != null);
+				return false;
 			}
 
 			// Strip "Bearer " prefix if present
@@ -47,26 +46,27 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 				token = token.substring(7);
 			}
 
-			// Validate PASETO token using the same validator as @RequireAuth
 			Optional<AuthenticatedUser> userOpt = tokenValidator.validateAndExtract(token);
 			if (userOpt.isEmpty()) {
-				log.warn("WebSocket CONNECT with invalid token for device {}", deviceId);
-				throw new SecurityException("Invalid authentication token");
+				log.warn("[WS-AUTH] Token validation failed for device {}", deviceId);
+				return false;
 			}
 
 			String userId = userOpt.get().getUserId();
-
-			// Set the authenticated principal for user-destination routing
-			accessor.setUser(new DevicePrincipal(userId, deviceId));
-			log.info("WebSocket CONNECT authenticated: user={}, device={}", userId, deviceId);
+			attributes.put("principal", new DevicePrincipal(userId, deviceId));
+			log.info("[WS-AUTH] Authenticated: user={}, device={}", userId, deviceId);
+			return true;
 		}
-
-		return message;
+		catch (Exception ex) {
+			log.error("[WS-AUTH] Handshake failed", ex);
+			return false;
+		}
 	}
 
-	private String getHeader(StompHeaderAccessor accessor, String headerName) {
-		List<String> values = accessor.getNativeHeader(headerName);
-		return (values != null && !values.isEmpty()) ? values.get(0) : null;
+	@Override
+	public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler,
+			Exception exception) {
+		// No-op
 	}
 
 }

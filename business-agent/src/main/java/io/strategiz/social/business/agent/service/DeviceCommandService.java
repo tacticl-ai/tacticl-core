@@ -6,6 +6,7 @@ import io.strategiz.social.data.entity.DeviceCommand;
 import io.strategiz.social.data.repository.DeviceCommandRepository;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,7 +19,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * Creates, dispatches, and tracks device commands. Uses an in-memory latch system for synchronous
- * command-response within the agent loop.
+ * command-response within the agent loop. Auto-dispatches commands via WebSocket on creation.
  */
 @Service
 public class DeviceCommandService {
@@ -31,16 +32,19 @@ public class DeviceCommandService {
 
 	private final DeviceCommandRepository commandRepository;
 
+	private final DeviceCommandDispatcher dispatcher;
+
 	/** In-memory latches for awaiting command results. Key = commandId. */
 	private final ConcurrentHashMap<String, CommandResult> resultMap = new ConcurrentHashMap<>();
 
 	private final ConcurrentHashMap<String, CountDownLatch> latchMap = new ConcurrentHashMap<>();
 
-	public DeviceCommandService(DeviceCommandRepository commandRepository) {
+	public DeviceCommandService(DeviceCommandRepository commandRepository, DeviceCommandDispatcher dispatcher) {
 		this.commandRepository = commandRepository;
+		this.dispatcher = dispatcher;
 	}
 
-	/** Create a command and persist it. Does NOT dispatch — call dispatch separately. */
+	/** Create a command, persist it, and dispatch to the device via WebSocket. */
 	public DeviceCommand createCommand(String userId, String deviceId, String sessionId, CommandType commandType,
 			Map<String, Object> payload, int tier) {
 		DeviceCommand cmd = new DeviceCommand();
@@ -60,6 +64,10 @@ public class DeviceCommandService {
 
 		// Prepare latch for synchronous wait
 		latchMap.put(cmd.getId(), new CountDownLatch(1));
+
+		// Dispatch to device via WebSocket
+		dispatch(cmd);
+
 		return cmd;
 	}
 
@@ -129,6 +137,20 @@ public class DeviceCommandService {
 		}
 
 		log.info("Command {} {}: {}", commandId, success ? "completed" : "failed", message);
+	}
+
+	private void dispatch(DeviceCommand cmd) {
+		Map<String, Object> message = new HashMap<>();
+		message.put("type", "command");
+		message.put("commandId", cmd.getId());
+		message.put("commandType", cmd.getCommandType().name());
+		message.put("payload", cmd.getPayload());
+
+		dispatcher.dispatch(cmd.getUserId(), cmd.getDeviceId(), message);
+
+		cmd.setState(CommandState.SENT);
+		cmd.setSentAt(Instant.now());
+		commandRepository.save(cmd, cmd.getId());
 	}
 
 	private void cleanup(String commandId) {
