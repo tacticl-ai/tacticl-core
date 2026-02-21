@@ -20,7 +20,9 @@ public enum AgentErrorDetails implements ErrorDetails {
 
 	CONFIRMATION_EXPIRED(HttpStatus.GONE, "agent-confirmation-expired"),
 
-	UNAUTHORIZED_CONFIRMATION(HttpStatus.FORBIDDEN, "agent-unauthorized-confirmation");
+	UNAUTHORIZED_CONFIRMATION(HttpStatus.FORBIDDEN, "agent-unauthorized-confirmation"),
+
+	TRANSCRIPTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "agent-transcription-failed");
 
 	private final HttpStatus httpStatus;
 

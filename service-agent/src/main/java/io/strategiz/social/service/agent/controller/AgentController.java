@@ -5,6 +5,7 @@ import io.strategiz.framework.authorization.annotation.RequireAuth;
 import io.strategiz.framework.authorization.context.AuthenticatedUser;
 import io.strategiz.framework.llmrouter.LlmRouter;
 import io.strategiz.social.business.agent.service.AskService;
+import io.strategiz.social.business.agent.service.TranscriptionService;
 import io.strategiz.social.business.agent.service.UserProvisioningService;
 import io.strategiz.social.business.agent.service.VoiceAgentService;
 import io.strategiz.social.data.entity.ActionConfirmation;
@@ -20,6 +21,7 @@ import io.strategiz.social.service.agent.dto.AgentCommandRequest;
 import io.strategiz.social.service.agent.dto.AgentCommandResponse;
 import io.strategiz.social.service.agent.dto.AuditLogResponse;
 import io.strategiz.social.service.agent.dto.ConfirmActionRequest;
+import io.strategiz.social.service.agent.dto.TranscribeResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -30,12 +32,15 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /** REST controller for the voice agent. */
 @RestController
@@ -59,10 +64,12 @@ public class AgentController {
 
 	private final AskService askService;
 
+	private final TranscriptionService transcriptionService;
+
 	public AgentController(VoiceAgentService voiceAgentService, LlmRouter llmRouter,
 			AgentAuditLogRepository auditLogRepository, ActionConfirmationRepository confirmationRepository,
 			SocialIntegrationRepository integrationRepository, UserProvisioningService userProvisioningService,
-			AskService askService) {
+			AskService askService, TranscriptionService transcriptionService) {
 		this.voiceAgentService = voiceAgentService;
 		this.llmRouter = llmRouter;
 		this.auditLogRepository = auditLogRepository;
@@ -70,6 +77,7 @@ public class AgentController {
 		this.integrationRepository = integrationRepository;
 		this.userProvisioningService = userProvisioningService;
 		this.askService = askService;
+		this.transcriptionService = transcriptionService;
 	}
 
 	@PostMapping("/command")
@@ -196,6 +204,26 @@ public class AgentController {
 	public ResponseEntity<Void> cancelAsk(@PathVariable String askId, @AuthUser AuthenticatedUser user) {
 		boolean cancelled = askService.cancelAsk(askId, user.getUserId());
 		return cancelled ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
+	}
+
+	@PostMapping(value = "/transcribe", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@RequireAuth
+	@Operation(summary = "Transcribe audio to text",
+			description = "Proxies audio to OpenAI Whisper API and returns transcribed text")
+	public ResponseEntity<TranscribeResponse> transcribeAudio(@RequestParam("file") MultipartFile file,
+			@AuthUser AuthenticatedUser user) {
+		log.info("Transcribe request from user {}: {} ({} bytes)", user.getUserId(), file.getOriginalFilename(),
+				file.getSize());
+
+		try {
+			String text = transcriptionService.transcribe(file.getBytes(), file.getOriginalFilename());
+			return ResponseEntity.ok(new TranscribeResponse(text));
+		}
+		catch (Exception ex) {
+			log.error("Transcription failed for user {}", user.getUserId(), ex);
+			return ResponseEntity.internalServerError()
+				.body(new TranscribeResponse("Transcription failed: " + ex.getMessage()));
+		}
 	}
 
 }
