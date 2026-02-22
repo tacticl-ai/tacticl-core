@@ -3,6 +3,7 @@ package io.strategiz.social.data.entity;
 import com.google.cloud.firestore.annotation.Exclude;
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -37,6 +38,16 @@ public class DeviceRegistration {
 	private Instant createdAt;
 
 	private boolean isActive;
+
+	private Map<String, Object> specs;
+
+	private List<String> clonedRepos;
+
+	private int activeDaemons;
+
+	private String daemonVersion;
+
+	private Map<String, Object> sparkPreferences;
 
 	public String getId() {
 		return id;
@@ -140,6 +151,46 @@ public class DeviceRegistration {
 
 	public void setActive(boolean active) {
 		isActive = active;
+	}
+
+	public Map<String, Object> getSpecs() {
+		return specs;
+	}
+
+	public void setSpecs(Map<String, Object> specs) {
+		this.specs = specs;
+	}
+
+	public List<String> getClonedRepos() {
+		return clonedRepos;
+	}
+
+	public void setClonedRepos(List<String> clonedRepos) {
+		this.clonedRepos = clonedRepos;
+	}
+
+	public int getActiveDaemons() {
+		return activeDaemons;
+	}
+
+	public void setActiveDaemons(int activeDaemons) {
+		this.activeDaemons = activeDaemons;
+	}
+
+	public String getDaemonVersion() {
+		return daemonVersion;
+	}
+
+	public void setDaemonVersion(String daemonVersion) {
+		this.daemonVersion = daemonVersion;
+	}
+
+	public Map<String, Object> getSparkPreferences() {
+		return sparkPreferences;
+	}
+
+	public void setSparkPreferences(Map<String, Object> sparkPreferences) {
+		this.sparkPreferences = sparkPreferences;
 	}
 
 	/** Check if the device has a specific capability. */
