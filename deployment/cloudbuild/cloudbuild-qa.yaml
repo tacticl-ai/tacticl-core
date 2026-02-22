@@ -1,6 +1,6 @@
 availableSecrets:
   secretManager:
-    - versionName: projects/$PROJECT_ID/secrets/github-packages-token/versions/latest
+    - versionName: projects/$PROJECT_ID/secrets/strategiz-github-github-oauthtoken-50744d/versions/latest
       env: 'GITHUB_TOKEN'
 
 steps:
