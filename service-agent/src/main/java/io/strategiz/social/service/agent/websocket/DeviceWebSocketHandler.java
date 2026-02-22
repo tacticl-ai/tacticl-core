@@ -6,6 +6,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.strategiz.social.business.agent.service.DeviceCommandService;
 import io.strategiz.social.business.agent.service.DeviceRegistryService;
+import io.strategiz.social.business.agent.service.SparkService;
+import io.strategiz.social.data.entity.SparkState;
+import io.strategiz.social.data.entity.TacticState;
+import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,11 +36,14 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 
 	private final DeviceRegistryService registryService;
 
+	private final SparkService sparkService;
+
 	public DeviceWebSocketHandler(DeviceSessionManager sessionManager, DeviceCommandService commandService,
-			DeviceRegistryService registryService) {
+			DeviceRegistryService registryService, SparkService sparkService) {
 		this.sessionManager = sessionManager;
 		this.commandService = commandService;
 		this.registryService = registryService;
+		this.sparkService = sparkService;
 		this.objectMapper = new ObjectMapper();
 		this.objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 	}
@@ -72,6 +79,11 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 				case "capabilities" -> handleCapabilities(node, principal);
 				case "status" -> handleStatus(node, principal);
 				case "ping" -> handlePing(session, principal);
+				case "spark_accepted" -> handleSparkAccepted(node, principal);
+				case "spark_progress" -> handleSparkProgress(node, principal);
+				case "spark_checkpoint" -> handleSparkCheckpoint(node, principal);
+				case "spark_completed" -> handleSparkCompleted(node, principal);
+				case "spark_failed" -> handleSparkFailed(node, principal);
 				default -> log.warn("[WS] Unknown message type '{}' from device {}", type, principal.getDeviceId());
 			}
 		}
@@ -122,6 +134,132 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 		}
 		catch (Exception ex) {
 			log.error("[WS] Failed to send pong to device {}", principal.getDeviceId(), ex);
+		}
+	}
+
+	private void handleSparkAccepted(JsonNode node, DevicePrincipal principal) {
+		String sparkId = node.has("sparkId") ? node.get("sparkId").asText() : null;
+		if (sparkId == null) {
+			log.warn("[WS] spark_accepted missing sparkId from device {}", principal.getDeviceId());
+			return;
+		}
+		log.info("[WS] Spark accepted: spark={} device={}", sparkId, principal.getDeviceId());
+		sparkService.onSparkProgress(sparkId, SparkState.EXECUTING, 0);
+	}
+
+	@SuppressWarnings("unchecked")
+	private void handleSparkProgress(JsonNode node, DevicePrincipal principal) {
+		String sparkId = node.has("sparkId") ? node.get("sparkId").asText() : null;
+		if (sparkId == null) {
+			log.warn("[WS] spark_progress missing sparkId from device {}", principal.getDeviceId());
+			return;
+		}
+
+		long tokensDelta = node.has("tokensDelta") ? node.get("tokensDelta").asLong() : 0;
+		String statusStr = node.has("status") ? node.get("status").asText() : null;
+		SparkState status = parseSparkState(statusStr, SparkState.EXECUTING);
+
+		sparkService.onSparkProgress(sparkId, status, tokensDelta);
+
+		// Sync tactic updates if present
+		if (node.has("tactics") && node.get("tactics").isArray()) {
+			for (JsonNode tacticNode : node.get("tactics")) {
+				String tacticId = tacticNode.has("tacticId") ? tacticNode.get("tacticId").asText() : null;
+				if (tacticId == null) {
+					continue;
+				}
+				String description = tacticNode.has("description") ? tacticNode.get("description").asText() : null;
+				String tacticStatusStr = tacticNode.has("status") ? tacticNode.get("status").asText() : null;
+				TacticState tacticState = parseTacticState(tacticStatusStr, TacticState.EXECUTING);
+				long tacticTokens = tacticNode.has("tokenUsage") ? tacticNode.get("tokenUsage").asLong() : 0;
+
+				sparkService.syncTactic(sparkId, tacticId, principal.getDeviceId(), description, tacticState,
+						tacticTokens);
+			}
+		}
+
+		log.debug("[WS] Spark progress: spark={} status={} tokens={}", sparkId, status, tokensDelta);
+	}
+
+	@SuppressWarnings("unchecked")
+	private void handleSparkCheckpoint(JsonNode node, DevicePrincipal principal) {
+		String sparkId = node.has("sparkId") ? node.get("sparkId").asText() : null;
+		if (sparkId == null) {
+			log.warn("[WS] spark_checkpoint missing sparkId from device {}", principal.getDeviceId());
+			return;
+		}
+
+		String tacticId = node.has("tacticId") ? node.get("tacticId").asText() : null;
+		String title = node.has("title") ? node.get("title").asText() : "Checkpoint";
+		String description = node.has("description") ? node.get("description").asText() : "";
+
+		List<Map<String, Object>> findings = null;
+		if (node.has("findings") && node.get("findings").isArray()) {
+			findings = objectMapper.convertValue(node.get("findings"),
+					objectMapper.getTypeFactory().constructCollectionType(List.class, Map.class));
+		}
+
+		List<String> options = null;
+		if (node.has("options") && node.get("options").isArray()) {
+			options = objectMapper.convertValue(node.get("options"),
+					objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
+		}
+
+		sparkService.onSparkCheckpoint(sparkId, tacticId, title, description, findings, options);
+		log.info("[WS] Spark checkpoint: spark={} title={}", sparkId, title);
+	}
+
+	@SuppressWarnings("unchecked")
+	private void handleSparkCompleted(JsonNode node, DevicePrincipal principal) {
+		String sparkId = node.has("sparkId") ? node.get("sparkId").asText() : null;
+		if (sparkId == null) {
+			log.warn("[WS] spark_completed missing sparkId from device {}", principal.getDeviceId());
+			return;
+		}
+
+		Map<String, Object> result = null;
+		if (node.has("result")) {
+			result = objectMapper.convertValue(node.get("result"), Map.class);
+		}
+		long totalTokens = node.has("totalTokens") ? node.get("totalTokens").asLong() : 0;
+
+		sparkService.onSparkCompleted(sparkId, result, totalTokens);
+		log.info("[WS] Spark completed: spark={} tokens={}", sparkId, totalTokens);
+	}
+
+	private void handleSparkFailed(JsonNode node, DevicePrincipal principal) {
+		String sparkId = node.has("sparkId") ? node.get("sparkId").asText() : null;
+		if (sparkId == null) {
+			log.warn("[WS] spark_failed missing sparkId from device {}", principal.getDeviceId());
+			return;
+		}
+
+		String error = node.has("error") ? node.get("error").asText() : "Unknown error";
+		sparkService.onSparkFailed(sparkId, error);
+		log.info("[WS] Spark failed: spark={} error={}", sparkId, error);
+	}
+
+	private SparkState parseSparkState(String value, SparkState defaultState) {
+		if (value == null) {
+			return defaultState;
+		}
+		try {
+			return SparkState.valueOf(value.toUpperCase());
+		}
+		catch (IllegalArgumentException e) {
+			return defaultState;
+		}
+	}
+
+	private TacticState parseTacticState(String value, TacticState defaultState) {
+		if (value == null) {
+			return defaultState;
+		}
+		try {
+			return TacticState.valueOf(value.toUpperCase());
+		}
+		catch (IllegalArgumentException e) {
+			return defaultState;
 		}
 	}
 

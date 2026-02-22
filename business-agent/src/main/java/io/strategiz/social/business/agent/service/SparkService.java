@@ -260,6 +260,53 @@ public class SparkService {
 		return tacticRepository.findBySparkId(sparkId);
 	}
 
+	/** Mark a spark as failed. */
+	public void onSparkFailed(String sparkId, String errorMessage) {
+		sparkRepository.findById(sparkId).ifPresent(spark -> {
+			spark.setStatus(SparkState.FAILED);
+			spark.setResult(Map.of("error", errorMessage));
+			spark.setCompletedAt(Instant.now());
+			sparkRepository.save(spark, spark.getId());
+
+			broadcastSparkUpdate(spark);
+			log.info("[SPARK] Failed spark={} error={}", sparkId, errorMessage);
+		});
+	}
+
+	/** Sync a tactic reported by a device into Firestore. */
+	public void syncTactic(String sparkId, String tacticId, String deviceId, String description, TacticState status,
+			long tokenUsage) {
+		Optional<Tactic> existing = tacticRepository.findById(tacticId);
+		Tactic tactic;
+		if (existing.isPresent()) {
+			tactic = existing.get();
+		}
+		else {
+			tactic = new Tactic();
+			tactic.setId(tacticId);
+			tactic.setSparkId(sparkId);
+			tactic.setDeviceId(deviceId);
+			tactic.setCreatedAt(Instant.now());
+		}
+		if (description != null) {
+			tactic.setDescription(description);
+		}
+		tactic.setStatus(status);
+		tactic.setTokenUsage(tokenUsage);
+		if (status == TacticState.COMPLETED || status == TacticState.FAILED) {
+			tactic.setCompletedAt(Instant.now());
+		}
+		tacticRepository.save(tactic, tactic.getId());
+	}
+
+	/**
+	 * Get a spark by ID (internal use, no ownership check). Used by WebSocket handler which
+	 * already verified device ownership via the authenticated session.
+	 */
+	public Optional<Spark> getSparkInternal(String sparkId) {
+		return sparkRepository.findById(sparkId);
+	}
+
 	/** Get execution logs for a spark. */
 	public List<ExecutionLog> getLogs(String sparkId) {
 		return executionLogRepository.findBySparkId(sparkId);

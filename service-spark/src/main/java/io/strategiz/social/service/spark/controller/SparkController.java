@@ -3,8 +3,10 @@ package io.strategiz.social.service.spark.controller;
 import io.strategiz.framework.authorization.annotation.AuthUser;
 import io.strategiz.framework.authorization.annotation.RequireAuth;
 import io.strategiz.framework.authorization.context.AuthenticatedUser;
+import io.strategiz.social.business.agent.service.SparkDispatchService;
 import io.strategiz.social.business.agent.service.SparkService;
 import io.strategiz.social.data.entity.CheckpointPolicy;
+import io.strategiz.social.data.entity.DeviceRegistration;
 import io.strategiz.social.data.entity.ExecutionLog;
 import io.strategiz.social.data.entity.Spark;
 import io.strategiz.social.data.entity.SparkPriority;
@@ -43,8 +45,11 @@ public class SparkController {
 
 	private final SparkService sparkService;
 
-	public SparkController(SparkService sparkService) {
+	private final SparkDispatchService sparkDispatchService;
+
+	public SparkController(SparkService sparkService, SparkDispatchService sparkDispatchService) {
 		this.sparkService = sparkService;
+		this.sparkDispatchService = sparkDispatchService;
 	}
 
 	@PostMapping
@@ -61,6 +66,14 @@ public class SparkController {
 
 		Spark spark = sparkService.createSpark(user.getUserId(), request.getTitle(), request.getDescription(),
 				request.getType(), priority, policy, request.getRepoAccess(), request.getSchedule());
+
+		// Auto-route and dispatch to an available device
+		Optional<DeviceRegistration> device = sparkService.routeSpark(spark.getId(), user.getUserId());
+		if (device.isPresent()) {
+			// Re-fetch spark after routing (status/deviceId updated)
+			spark = sparkService.getSparkInternal(spark.getId()).orElse(spark);
+			sparkDispatchService.dispatchSpark(spark);
+		}
 
 		return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(spark));
 	}
@@ -111,14 +124,39 @@ public class SparkController {
 	@RequireAuth
 	@Operation(summary = "Run a spark", description = "Route the spark to a device and begin execution")
 	public ResponseEntity<SparkResponse> runSpark(@PathVariable String id, @AuthUser AuthenticatedUser user) {
-		Optional<Spark> spark = sparkService.getSpark(id, user.getUserId());
-		if (spark.isEmpty()) {
+		Optional<Spark> sparkOpt = sparkService.getSpark(id, user.getUserId());
+		if (sparkOpt.isEmpty()) {
 			return ResponseEntity.notFound().build();
 		}
 
-		sparkService.routeSpark(id, user.getUserId());
+		Optional<DeviceRegistration> device = sparkService.routeSpark(id, user.getUserId());
+		if (device.isPresent()) {
+			sparkService.getSparkInternal(id).ifPresent(sparkDispatchService::dispatchSpark);
+		}
 
-		// Re-fetch after routing
+		return sparkService.getSpark(id, user.getUserId())
+			.map(this::toResponse)
+			.map(ResponseEntity::ok)
+			.orElse(ResponseEntity.notFound().build());
+	}
+
+	@PostMapping("/{id}/cancel")
+	@RequireAuth
+	@Operation(summary = "Cancel a spark", description = "Cancel execution and notify the device")
+	public ResponseEntity<SparkResponse> cancelSpark(@PathVariable String id, @AuthUser AuthenticatedUser user) {
+		Optional<Spark> sparkOpt = sparkService.getSpark(id, user.getUserId());
+		if (sparkOpt.isEmpty()) {
+			return ResponseEntity.notFound().build();
+		}
+
+		// Send cancel to device before updating state
+		sparkDispatchService.cancelSparkOnDevice(sparkOpt.get());
+
+		boolean cancelled = sparkService.cancelSpark(id, user.getUserId());
+		if (!cancelled) {
+			return ResponseEntity.badRequest().build();
+		}
+
 		return sparkService.getSpark(id, user.getUserId())
 			.map(this::toResponse)
 			.map(ResponseEntity::ok)

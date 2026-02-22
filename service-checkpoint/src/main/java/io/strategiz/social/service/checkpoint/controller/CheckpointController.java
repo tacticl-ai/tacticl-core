@@ -3,9 +3,11 @@ package io.strategiz.social.service.checkpoint.controller;
 import io.strategiz.framework.authorization.annotation.AuthUser;
 import io.strategiz.framework.authorization.annotation.RequireAuth;
 import io.strategiz.framework.authorization.context.AuthenticatedUser;
+import io.strategiz.social.business.agent.service.SparkDispatchService;
 import io.strategiz.social.business.agent.service.SparkService;
 import io.strategiz.social.data.entity.Checkpoint;
 import io.strategiz.social.data.entity.CheckpointDecision;
+import io.strategiz.social.data.entity.Spark;
 import io.strategiz.social.service.checkpoint.dto.CheckpointResponse;
 import io.strategiz.social.service.checkpoint.dto.DecideCheckpointRequest;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,8 +35,11 @@ public class CheckpointController {
 
 	private final SparkService sparkService;
 
-	public CheckpointController(SparkService sparkService) {
+	private final SparkDispatchService sparkDispatchService;
+
+	public CheckpointController(SparkService sparkService, SparkDispatchService sparkDispatchService) {
 		this.sparkService = sparkService;
+		this.sparkDispatchService = sparkDispatchService;
 	}
 
 	@GetMapping
@@ -74,6 +79,14 @@ public class CheckpointController {
 
 		Optional<Checkpoint> decided = sparkService.decideCheckpoint(id, user.getUserId(), decision,
 				request.getFeedback());
+
+		// Relay the decision to the device via WebSocket
+		if (decided.isPresent()) {
+			Checkpoint checkpoint = decided.get();
+			sparkService.getSparkInternal(checkpoint.getSparkId())
+				.ifPresent(spark -> sparkDispatchService.relayCheckpointDecision(spark, checkpoint.getId(), decision,
+						request.getFeedback()));
+		}
 
 		return decided.map(this::toResponse).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
 	}
