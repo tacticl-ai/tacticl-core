@@ -1,0 +1,351 @@
+package io.strategiz.social.business.agent.service;
+
+import io.strategiz.social.data.entity.Checkpoint;
+import io.strategiz.social.data.entity.CheckpointDecision;
+import io.strategiz.social.data.entity.CheckpointPolicy;
+import io.strategiz.social.data.entity.DevicePreference;
+import io.strategiz.social.data.entity.DeviceRegistration;
+import io.strategiz.social.data.entity.ExecutionLog;
+import io.strategiz.social.data.entity.FallbackPolicy;
+import io.strategiz.social.data.entity.Spark;
+import io.strategiz.social.data.entity.SparkPriority;
+import io.strategiz.social.data.entity.SparkState;
+import io.strategiz.social.data.entity.Tactic;
+import io.strategiz.social.data.entity.TacticState;
+import io.strategiz.social.data.repository.CheckpointRepository;
+import io.strategiz.social.data.repository.DevicePreferenceRepository;
+import io.strategiz.social.data.repository.ExecutionLogRepository;
+import io.strategiz.social.data.repository.SparkRepository;
+import io.strategiz.social.data.repository.TacticRepository;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+/**
+ * Orchestrates the Spark lifecycle: creation, device routing, progress tracking, checkpoint
+ * handling, and completion.
+ */
+@Service
+public class SparkService {
+
+	private static final Logger log = LoggerFactory.getLogger(SparkService.class);
+
+	private final SparkRepository sparkRepository;
+
+	private final TacticRepository tacticRepository;
+
+	private final CheckpointRepository checkpointRepository;
+
+	private final ExecutionLogRepository executionLogRepository;
+
+	private final DevicePreferenceRepository devicePreferenceRepository;
+
+	private final DeviceRoutingService deviceRoutingService;
+
+	private final ActivityBroadcaster activityBroadcaster;
+
+	public SparkService(SparkRepository sparkRepository, TacticRepository tacticRepository,
+			CheckpointRepository checkpointRepository, ExecutionLogRepository executionLogRepository,
+			DevicePreferenceRepository devicePreferenceRepository, DeviceRoutingService deviceRoutingService,
+			ActivityBroadcaster activityBroadcaster) {
+		this.sparkRepository = sparkRepository;
+		this.tacticRepository = tacticRepository;
+		this.checkpointRepository = checkpointRepository;
+		this.executionLogRepository = executionLogRepository;
+		this.devicePreferenceRepository = devicePreferenceRepository;
+		this.deviceRoutingService = deviceRoutingService;
+		this.activityBroadcaster = activityBroadcaster;
+	}
+
+	/** Create a new spark from user input. */
+	public Spark createSpark(String userId, String title, String description, String type, SparkPriority priority,
+			CheckpointPolicy checkpointPolicy, List<String> repoAccess, String schedule) {
+		String sparkId = UUID.randomUUID().toString();
+
+		Spark spark = new Spark();
+		spark.setId(sparkId);
+		spark.setUserId(userId);
+		spark.setTitle(title);
+		spark.setDescription(description);
+		spark.setType(type);
+		spark.setStatus(SparkState.PENDING);
+		spark.setPriority(priority != null ? priority : SparkPriority.NORMAL);
+		spark.setCheckpointPolicy(checkpointPolicy != null ? checkpointPolicy : CheckpointPolicy.CHECKPOINT_MAJOR);
+		spark.setRepoAccess(repoAccess != null ? repoAccess : List.of());
+		spark.setSchedule(schedule);
+		spark.setCreatedAt(Instant.now());
+		sparkRepository.save(spark, sparkId);
+
+		log.info("[SPARK] Created spark={} type={} for user={}", sparkId, type, userId);
+		return spark;
+	}
+
+	/** Route a spark to the best available device based on user preferences. */
+	public Optional<DeviceRegistration> routeSpark(String sparkId, String userId) {
+		Optional<Spark> opt = sparkRepository.findById(sparkId);
+		if (opt.isEmpty()) {
+			return Optional.empty();
+		}
+		Spark spark = opt.get();
+		spark.setStatus(SparkState.ROUTING);
+		sparkRepository.save(spark, spark.getId());
+
+		// Check user device preferences for this spark type
+		Optional<DeviceRegistration> device = findPreferredDevice(userId, spark.getType());
+
+		if (device.isEmpty()) {
+			// Fallback: route to any available online device
+			device = deviceRoutingService.selectDevice(userId, null);
+		}
+
+		if (device.isPresent()) {
+			spark.setDeviceId(device.get().getId());
+			spark.setStatus(SparkState.EXECUTING);
+			sparkRepository.save(spark, spark.getId());
+			log.info("[SPARK] Routed spark={} to device={}", sparkId, device.get().getId());
+		}
+		else {
+			log.warn("[SPARK] No available device for spark={} user={}", sparkId, userId);
+		}
+
+		return device;
+	}
+
+	/** Update spark progress from device. */
+	public void onSparkProgress(String sparkId, SparkState status, long tokensDelta) {
+		sparkRepository.findById(sparkId).ifPresent(spark -> {
+			spark.setStatus(status);
+			spark.setTotalTokens(spark.getTotalTokens() + tokensDelta);
+			sparkRepository.save(spark, spark.getId());
+
+			broadcastSparkUpdate(spark);
+		});
+	}
+
+	/** Create a checkpoint for user approval. */
+	public Checkpoint onSparkCheckpoint(String sparkId, String tacticId, String title, String description,
+			List<Map<String, Object>> findings, List<String> options) {
+		String checkpointId = UUID.randomUUID().toString();
+
+		Checkpoint checkpoint = new Checkpoint();
+		checkpoint.setId(checkpointId);
+		checkpoint.setSparkId(sparkId);
+		checkpoint.setTacticId(tacticId);
+		checkpoint.setTitle(title);
+		checkpoint.setDescription(description);
+		checkpoint.setFindings(findings);
+		checkpoint.setOptions(options);
+		checkpoint.setCreatedAt(Instant.now());
+		checkpointRepository.save(checkpoint, checkpointId);
+
+		// Update spark status to CHECKPOINT
+		sparkRepository.findById(sparkId).ifPresent(spark -> {
+			spark.setStatus(SparkState.CHECKPOINT);
+			sparkRepository.save(spark, spark.getId());
+			broadcastSparkUpdate(spark);
+		});
+
+		log.info("[SPARK] Checkpoint created id={} for spark={}", checkpointId, sparkId);
+		return checkpoint;
+	}
+
+	/** Store results and mark spark as completed. */
+	public void onSparkCompleted(String sparkId, Map<String, Object> result, long totalTokens) {
+		sparkRepository.findById(sparkId).ifPresent(spark -> {
+			spark.setStatus(SparkState.COMPLETED);
+			spark.setResult(result);
+			spark.setTotalTokens(totalTokens);
+			spark.setCompletedAt(Instant.now());
+			sparkRepository.save(spark, spark.getId());
+
+			broadcastSparkUpdate(spark);
+			log.info("[SPARK] Completed spark={} tokens={}", sparkId, totalTokens);
+		});
+	}
+
+	/** Cancel a spark and cascade to all tactics. */
+	public boolean cancelSpark(String sparkId, String userId) {
+		Optional<Spark> opt = sparkRepository.findById(sparkId);
+		if (opt.isEmpty()) {
+			return false;
+		}
+		Spark spark = opt.get();
+		if (!spark.getUserId().equals(userId)) {
+			return false;
+		}
+		if (spark.getStatus() == SparkState.COMPLETED || spark.getStatus() == SparkState.CANCELLED) {
+			return false;
+		}
+
+		spark.setStatus(SparkState.CANCELLED);
+		spark.setCompletedAt(Instant.now());
+		sparkRepository.save(spark, spark.getId());
+
+		// Cancel all tactics
+		List<Tactic> tactics = tacticRepository.findBySparkId(sparkId);
+		for (Tactic tactic : tactics) {
+			if (tactic.getStatus() != TacticState.COMPLETED && tactic.getStatus() != TacticState.FAILED) {
+				tactic.setStatus(TacticState.FAILED);
+				tactic.setCompletedAt(Instant.now());
+				tacticRepository.save(tactic, tactic.getId());
+			}
+		}
+
+		broadcastSparkUpdate(spark);
+		log.info("[SPARK] Cancelled spark={}", sparkId);
+		return true;
+	}
+
+	/** Soft-delete a spark. */
+	public boolean deleteSpark(String sparkId, String userId) {
+		Optional<Spark> opt = sparkRepository.findById(sparkId);
+		if (opt.isEmpty()) {
+			return false;
+		}
+		Spark spark = opt.get();
+		if (!spark.getUserId().equals(userId)) {
+			return false;
+		}
+		spark.setActive(false);
+		sparkRepository.save(spark, spark.getId());
+		log.info("[SPARK] Soft-deleted spark={}", sparkId);
+		return true;
+	}
+
+	/** Update a spark's mutable fields. */
+	public Optional<Spark> updateSpark(String sparkId, String userId, String title, String description,
+			SparkPriority priority, CheckpointPolicy checkpointPolicy, List<String> repoAccess) {
+		Optional<Spark> opt = sparkRepository.findById(sparkId);
+		if (opt.isEmpty() || !opt.get().getUserId().equals(userId)) {
+			return Optional.empty();
+		}
+		Spark spark = opt.get();
+		if (title != null) {
+			spark.setTitle(title);
+		}
+		if (description != null) {
+			spark.setDescription(description);
+		}
+		if (priority != null) {
+			spark.setPriority(priority);
+		}
+		if (checkpointPolicy != null) {
+			spark.setCheckpointPolicy(checkpointPolicy);
+		}
+		if (repoAccess != null) {
+			spark.setRepoAccess(repoAccess);
+		}
+		sparkRepository.save(spark, spark.getId());
+		return Optional.of(spark);
+	}
+
+	/** Get a spark by ID, ensuring it belongs to the user. */
+	public Optional<Spark> getSpark(String sparkId, String userId) {
+		return sparkRepository.findById(sparkId).filter(s -> s.getUserId().equals(userId)).filter(Spark::isActive);
+	}
+
+	/** List active sparks for a user (paginated via limit). */
+	public List<Spark> listSparks(String userId, int limit) {
+		return sparkRepository.findRecentByUserId(userId, limit);
+	}
+
+	/** Get tactics for a spark. */
+	public List<Tactic> getTactics(String sparkId) {
+		return tacticRepository.findBySparkId(sparkId);
+	}
+
+	/** Get execution logs for a spark. */
+	public List<ExecutionLog> getLogs(String sparkId) {
+		return executionLogRepository.findBySparkId(sparkId);
+	}
+
+	/** Get all checkpoints for a user (pending ones first). */
+	public List<Checkpoint> getCheckpointsForUser(String userId) {
+		List<Spark> sparks = sparkRepository.findActiveByUserId(userId);
+		return sparks.stream()
+			.flatMap(s -> checkpointRepository.findBySparkId(s.getId()).stream())
+			.sorted((a, b) -> {
+				// Pending (no decision) first
+				boolean aPending = a.getUserDecision() == null;
+				boolean bPending = b.getUserDecision() == null;
+				if (aPending != bPending) {
+					return aPending ? -1 : 1;
+				}
+				return b.getCreatedAt().compareTo(a.getCreatedAt());
+			})
+			.toList();
+	}
+
+	/** Get a specific checkpoint. */
+	public Optional<Checkpoint> getCheckpoint(String checkpointId) {
+		return checkpointRepository.findById(checkpointId);
+	}
+
+	/** Decide on a checkpoint (approve/reject/modify). */
+	public Optional<Checkpoint> decideCheckpoint(String checkpointId, String userId, CheckpointDecision decision,
+			String feedback) {
+		Optional<Checkpoint> opt = checkpointRepository.findById(checkpointId);
+		if (opt.isEmpty()) {
+			return Optional.empty();
+		}
+		Checkpoint checkpoint = opt.get();
+
+		// Verify ownership via spark
+		Optional<Spark> spark = sparkRepository.findById(checkpoint.getSparkId());
+		if (spark.isEmpty() || !spark.get().getUserId().equals(userId)) {
+			return Optional.empty();
+		}
+
+		checkpoint.setUserDecision(decision);
+		checkpoint.setUserFeedback(feedback);
+		checkpoint.setDecidedAt(Instant.now());
+		checkpointRepository.save(checkpoint, checkpoint.getId());
+
+		// Resume spark execution
+		spark.ifPresent(s -> {
+			s.setStatus(SparkState.EXECUTING);
+			sparkRepository.save(s, s.getId());
+			broadcastSparkUpdate(s);
+		});
+
+		log.info("[SPARK] Checkpoint {} decided: {} for spark={}", checkpointId, decision,
+				checkpoint.getSparkId());
+		return Optional.of(checkpoint);
+	}
+
+	private Optional<DeviceRegistration> findPreferredDevice(String userId, String sparkType) {
+		if (sparkType == null) {
+			return Optional.empty();
+		}
+		List<DevicePreference> preferences = devicePreferenceRepository.findAllByUserId(userId);
+		Optional<DevicePreference> pref = preferences.stream()
+			.filter(p -> sparkType.equals(p.getSparkType()))
+			.findFirst();
+
+		if (pref.isEmpty()) {
+			return Optional.empty();
+		}
+
+		DevicePreference preference = pref.get();
+		Optional<DeviceRegistration> device = deviceRoutingService.getOnlineDevice(preference.getPreferredDeviceId(),
+				userId);
+
+		if (device.isEmpty() && preference.getFallbackPolicy() == FallbackPolicy.ANY_AVAILABLE) {
+			return deviceRoutingService.selectDevice(userId, null);
+		}
+
+		return device;
+	}
+
+	private void broadcastSparkUpdate(Spark spark) {
+		activityBroadcaster.broadcastActivity(spark.getUserId(),
+				Map.of("type", "spark_update", "sparkId", spark.getId(), "status", spark.getStatus().name()));
+	}
+
+}
