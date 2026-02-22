@@ -6,6 +6,10 @@ plugins {
 dependencies {
     implementation(project(":service-social"))
     implementation(project(":service-agent"))
+    implementation(project(":service-spark"))
+    implementation(project(":service-checkpoint"))
+    implementation(project(":service-repo"))
+    implementation(project(":service-token"))
     implementation(project(":business-social"))
     implementation(project(":business-agent"))
     implementation(project(":data-social"))
