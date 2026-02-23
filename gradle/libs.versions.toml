@@ -40,6 +40,11 @@ strategiz-framework-llm-router = { module = "io.strategiz:framework-llm-router",
 strategiz-client-openai-direct = { module = "io.strategiz:client-openai-direct", version.ref = "strategiz" }
 strategiz-client-grok-direct = { module = "io.strategiz:client-grok-direct", version.ref = "strategiz" }
 
+# Auth modules (reused from strategiz)
+strategiz-service-auth = { module = "io.strategiz:service-auth", version.ref = "strategiz" }
+strategiz-service-framework-base = { module = "io.strategiz:service-framework-base", version.ref = "strategiz" }
+strategiz-business-token-auth = { module = "io.strategiz:business-token-auth", version.ref = "strategiz" }
+
 # External
 bucket4j-core = { module = "com.bucket4j:bucket4j-core", version.ref = "bucket4j" }
 springdoc-openapi = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }

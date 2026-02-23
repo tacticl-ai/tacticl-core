@@ -33,6 +33,11 @@ dependencies {
     implementation(libs.strategiz.client.openai.direct)
     implementation(libs.strategiz.client.grok.direct)
 
+    // Auth (reused from strategiz — all /v1/auth/* endpoints)
+    implementation(libs.strategiz.service.auth)
+    implementation(libs.strategiz.service.framework.base)
+    implementation(libs.strategiz.business.token.auth)
+
     // Spring Boot
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.security)

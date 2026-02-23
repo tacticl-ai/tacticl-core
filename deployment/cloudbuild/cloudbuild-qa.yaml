@@ -25,6 +25,11 @@ steps:
         mvn install -f client/pom.xml -N -DskipTests -q
         echo "=== Installing shared libraries ==="
         mvn install -pl framework/framework-exception,framework/framework-logging,framework/framework-secrets,framework/framework-authorization,framework/framework-token-issuance,framework/framework-resilience,framework/framework-api-docs,framework/framework-llm-router,client/client-framework-base,client/client-anthropic-direct,client/client-openai-direct,client/client-grok-direct -am -DskipTests -q -Dspotbugs.skip=true -Dcheckstyle.skip=true
+        echo "=== Installing auth modules ==="
+        mvn install -f service/pom.xml -N -DskipTests -q
+        mvn install -f business/pom.xml -N -DskipTests -q
+        mvn install -f data/pom.xml -N -DskipTests -q
+        mvn install -pl service/service-auth,service/service-framework-base,business/business-token-auth -am -DskipTests -q -Dspotbugs.skip=true -Dcheckstyle.skip=true -Dspring-javaformat.skip=true
         echo "=== Maven install succeeded ==="
         echo "=== Building tacticl-core with Gradle ==="
         cd /workspace
