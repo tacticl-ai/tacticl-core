@@ -7,6 +7,8 @@ dependencies {
     implementation(project(":client-twitter"))
     implementation(project(":client-linkedin"))
     implementation(project(":client-instagram"))
+    implementation(project(":client-google"))
+    implementation(project(":client-github"))
 
     // Strategiz shared frameworks
     implementation(libs.strategiz.client.base)

@@ -16,6 +16,8 @@ dependencies {
     implementation(project(":client-twitter"))
     implementation(project(":client-linkedin"))
     implementation(project(":client-instagram"))
+    implementation(project(":client-google"))
+    implementation(project(":client-github"))
     implementation(project(":client-siliconflow"))
     implementation(project(":client-brave-search"))
     implementation(project(":client-jina"))

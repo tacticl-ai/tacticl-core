@@ -141,7 +141,9 @@ public class CredentialService {
 			return switch (platform.toLowerCase()) {
 				case "x" -> PlatformType.TWITTER;
 				case "youtube" -> PlatformType.YOUTUBE;
-				case "gmail" -> null; // Gmail uses Google OAuth, stored separately
+				case "gmail" -> PlatformType.GMAIL;
+				case "github" -> PlatformType.GITHUB;
+				case "facebook", "fb" -> PlatformType.FACEBOOK;
 				default -> null;
 			};
 		}

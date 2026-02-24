@@ -2,6 +2,8 @@ package io.strategiz.social.business.publish;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.strategiz.social.client.github.config.GitHubConfig;
+import io.strategiz.social.client.google.config.GoogleConfig;
 import io.strategiz.social.client.instagram.config.InstagramConfig;
 import io.strategiz.social.client.linkedin.config.LinkedInConfig;
 import io.strategiz.social.client.twitter.config.TwitterConfig;
@@ -34,15 +36,22 @@ public class OAuthTokenExchangeService {
 
 	private final InstagramConfig instagramConfig;
 
+	private final GoogleConfig googleConfig;
+
+	private final GitHubConfig gitHubConfig;
+
 	private final SocialIntegrationRepository integrationRepository;
 
 	private final RestClient restClient;
 
 	public OAuthTokenExchangeService(Optional<TwitterConfig> twitterConfig, Optional<LinkedInConfig> linkedInConfig,
-			Optional<InstagramConfig> instagramConfig, SocialIntegrationRepository integrationRepository) {
+			Optional<InstagramConfig> instagramConfig, Optional<GoogleConfig> googleConfig,
+			Optional<GitHubConfig> gitHubConfig, SocialIntegrationRepository integrationRepository) {
 		this.twitterConfig = twitterConfig.orElse(null);
 		this.linkedInConfig = linkedInConfig.orElse(null);
 		this.instagramConfig = instagramConfig.orElse(null);
+		this.googleConfig = googleConfig.orElse(null);
+		this.gitHubConfig = gitHubConfig.orElse(null);
 		this.integrationRepository = integrationRepository;
 		this.restClient = RestClient.create();
 	}
@@ -64,6 +73,8 @@ public class OAuthTokenExchangeService {
 			case TWITTER -> exchangeTwitterToken(code, codeVerifier, redirectUri);
 			case LINKEDIN -> exchangeLinkedInToken(code, codeVerifier, redirectUri);
 			case INSTAGRAM -> exchangeInstagramToken(code, redirectUri);
+			case YOUTUBE -> exchangeGoogleToken(code, codeVerifier, redirectUri);
+			case GITHUB -> exchangeGitHubToken(code, redirectUri);
 			default -> throw new IllegalArgumentException("Unsupported platform for OAuth: " + platform);
 		};
 
@@ -109,6 +120,7 @@ public class OAuthTokenExchangeService {
 		return switch (platform) {
 			case TWITTER -> refreshTwitterToken(refreshToken);
 			case LINKEDIN -> refreshLinkedInToken(refreshToken);
+			case YOUTUBE -> refreshGoogleToken(refreshToken);
 			default -> throw new IllegalArgumentException("Token refresh not supported for: " + platform);
 		};
 	}
@@ -211,6 +223,71 @@ public class OAuthTokenExchangeService {
 		TokenResponse response = restClient.post()
 			.uri("https://api.instagram.com/oauth/access_token")
 			.contentType(MediaType.APPLICATION_FORM_URLENCODED)
+			.body(params)
+			.retrieve()
+			.body(TokenResponse.class);
+
+		return toAuthTokens(response);
+	}
+
+	private AuthTokens exchangeGoogleToken(String code, String codeVerifier, String redirectUri) {
+		if (googleConfig == null) {
+			throw new IllegalStateException("Google is not enabled — set tacticl.google.enabled=true");
+		}
+		MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+		params.add("grant_type", "authorization_code");
+		params.add("code", code);
+		params.add("redirect_uri", redirectUri);
+		params.add("client_id", googleConfig.getClientId());
+		params.add("client_secret", googleConfig.getClientSecret());
+		if (codeVerifier != null) {
+			params.add("code_verifier", codeVerifier);
+		}
+
+		TokenResponse response = restClient.post()
+			.uri("https://oauth2.googleapis.com/token")
+			.contentType(MediaType.APPLICATION_FORM_URLENCODED)
+			.body(params)
+			.retrieve()
+			.body(TokenResponse.class);
+
+		return toAuthTokens(response);
+	}
+
+	private AuthTokens refreshGoogleToken(String refreshToken) {
+		if (googleConfig == null) {
+			throw new IllegalStateException("Google is not enabled — set tacticl.google.enabled=true");
+		}
+		MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+		params.add("grant_type", "refresh_token");
+		params.add("refresh_token", refreshToken);
+		params.add("client_id", googleConfig.getClientId());
+		params.add("client_secret", googleConfig.getClientSecret());
+
+		TokenResponse response = restClient.post()
+			.uri("https://oauth2.googleapis.com/token")
+			.contentType(MediaType.APPLICATION_FORM_URLENCODED)
+			.body(params)
+			.retrieve()
+			.body(TokenResponse.class);
+
+		return toAuthTokens(response);
+	}
+
+	private AuthTokens exchangeGitHubToken(String code, String redirectUri) {
+		if (gitHubConfig == null) {
+			throw new IllegalStateException("GitHub is not enabled — set tacticl.github.enabled=true");
+		}
+		MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+		params.add("client_id", gitHubConfig.getClientId());
+		params.add("client_secret", gitHubConfig.getClientSecret());
+		params.add("code", code);
+		params.add("redirect_uri", redirectUri);
+
+		TokenResponse response = restClient.post()
+			.uri("https://github.com/login/oauth/access_token")
+			.contentType(MediaType.APPLICATION_FORM_URLENCODED)
+			.header("Accept", "application/json")
 			.body(params)
 			.retrieve()
 			.body(TokenResponse.class);

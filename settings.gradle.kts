@@ -14,6 +14,8 @@ include(
     "client-twitter",
     "client-linkedin",
     "client-instagram",
+    "client-google",
+    "client-github",
     "client-siliconflow",
     "client-brave-search",
     "client-jina"
