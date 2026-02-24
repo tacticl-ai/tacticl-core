@@ -63,8 +63,8 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
 			}
 
 			String userId = userOpt.get().getUserId();
-			// DevicePrincipal works for both - deviceId will be null for user connections
-			attributes.put("principal", new DevicePrincipal(userId, deviceId));
+			// WebSocketPrincipal works for both - deviceId will be null for user connections
+			attributes.put("principal", new WebSocketPrincipal(userId, deviceId));
 
 			if (isDeviceConnection) {
 				log.info("[WS-AUTH] Authenticated device: user={}, device={}", userId, deviceId);

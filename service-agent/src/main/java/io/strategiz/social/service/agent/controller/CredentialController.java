@@ -4,8 +4,11 @@ import io.strategiz.framework.authorization.annotation.RequireAuth;
 import io.strategiz.framework.authorization.context.AuthenticatedUser;
 import io.strategiz.social.business.agent.service.CredentialService;
 import io.strategiz.social.data.entity.SocialIntegration;
+import io.strategiz.social.service.agent.dto.AccountResponse;
+import io.strategiz.social.service.agent.dto.CredentialResponse;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,11 +32,20 @@ public class CredentialController {
 	/** Get credentials for a platform (used by devices during execution). */
 	@GetMapping("/credentials/{platform}")
 	@RequireAuth
-	public ResponseEntity<Map<String, Object>> getCredentials(@PathVariable String platform,
+	public ResponseEntity<CredentialResponse> getCredentials(@PathVariable String platform,
 			@io.strategiz.framework.authorization.annotation.AuthUser AuthenticatedUser user) {
-		return credentialService.getCredentials(user.getUserId(), platform)
-			.map(ResponseEntity::ok)
-			.orElse(ResponseEntity.notFound().build());
+		Optional<Map<String, Object>> credentials = credentialService.getCredentials(user.getUserId(), platform);
+		if (credentials.isEmpty()) {
+			return ResponseEntity.notFound().build();
+		}
+		Map<String, Object> creds = credentials.get();
+		CredentialResponse response = new CredentialResponse();
+		response.setPlatform((String) creds.get("platform"));
+		response.setUsername((String) creds.get("username"));
+		response.setPlatformUserId((String) creds.get("platformUserId"));
+		response.setConnected(true);
+		response.setTokenRefreshNeeded(Boolean.TRUE.equals(creds.get("tokenRefreshNeeded")));
+		return ResponseEntity.ok(response);
 	}
 
 	/** Register new credentials (used by devices after creating accounts). */
@@ -49,9 +61,11 @@ public class CredentialController {
 	/** List all connected accounts for the authenticated user. */
 	@GetMapping("/accounts")
 	@RequireAuth
-	public ResponseEntity<List<SocialIntegration>> listAccounts(
+	public ResponseEntity<List<AccountResponse>> listAccounts(
 			@io.strategiz.framework.authorization.annotation.AuthUser AuthenticatedUser user) {
-		return ResponseEntity.ok(credentialService.listAccounts(user.getUserId()));
+		List<SocialIntegration> integrations = credentialService.listAccounts(user.getUserId());
+		List<AccountResponse> accounts = integrations.stream().map(this::toAccountResponse).toList();
+		return ResponseEntity.ok(accounts);
 	}
 
 	/** Disconnect an account. */
@@ -61,6 +75,17 @@ public class CredentialController {
 			@io.strategiz.framework.authorization.annotation.AuthUser AuthenticatedUser user) {
 		boolean success = credentialService.disconnectAccount(user.getUserId(), integrationId);
 		return success ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+	}
+
+	private AccountResponse toAccountResponse(SocialIntegration si) {
+		AccountResponse response = new AccountResponse();
+		response.setId(si.getId());
+		response.setPlatform(si.getPlatform() != null ? si.getPlatform().name() : null);
+		response.setPlatformUsername(si.getPlatformUsername());
+		response.setActive(si.isActive());
+		response.setCreatedAt(si.getCreatedAt());
+		response.setUpdatedAt(si.getUpdatedAt());
+		return response;
 	}
 
 }

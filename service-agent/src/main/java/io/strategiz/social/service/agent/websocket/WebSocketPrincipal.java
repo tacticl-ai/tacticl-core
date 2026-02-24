@@ -2,14 +2,14 @@ package io.strategiz.social.service.agent.websocket;
 
 import java.security.Principal;
 
-/** Principal representing an authenticated device WebSocket connection. */
-public class DevicePrincipal implements Principal {
+/** Principal representing an authenticated WebSocket connection (device or user). */
+public class WebSocketPrincipal implements Principal {
 
 	private final String userId;
 
 	private final String deviceId;
 
-	public DevicePrincipal(String userId, String deviceId) {
+	public WebSocketPrincipal(String userId, String deviceId) {
 		this.userId = userId;
 		this.deviceId = deviceId;
 	}

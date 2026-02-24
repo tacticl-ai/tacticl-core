@@ -35,7 +35,7 @@ public class UserWebSocketHandler extends TextWebSocketHandler {
 
 	@Override
 	public void afterConnectionEstablished(WebSocketSession session) {
-		DevicePrincipal principal = (DevicePrincipal) session.getAttributes().get("principal");
+		WebSocketPrincipal principal = (WebSocketPrincipal) session.getAttributes().get("principal");
 		if (principal == null) {
 			try {
 				session.close(CloseStatus.POLICY_VIOLATION);
@@ -50,7 +50,7 @@ public class UserWebSocketHandler extends TextWebSocketHandler {
 
 	@Override
 	protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-		DevicePrincipal principal = (DevicePrincipal) session.getAttributes().get("principal");
+		WebSocketPrincipal principal = (WebSocketPrincipal) session.getAttributes().get("principal");
 		if (principal == null) {
 			return;
 		}
@@ -72,13 +72,13 @@ public class UserWebSocketHandler extends TextWebSocketHandler {
 
 	@Override
 	public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
-		DevicePrincipal principal = (DevicePrincipal) session.getAttributes().get("principal");
+		WebSocketPrincipal principal = (WebSocketPrincipal) session.getAttributes().get("principal");
 		if (principal != null) {
 			userSessionManager.removeSession(principal.getUserId(), session);
 		}
 	}
 
-	private void handleCheckpointDecision(JsonNode node, DevicePrincipal principal) {
+	private void handleCheckpointDecision(JsonNode node, WebSocketPrincipal principal) {
 		String checkpointId = node.has("checkpointId") ? node.get("checkpointId").asText() : null;
 		String decisionStr = node.has("decision") ? node.get("decision").asText() : null;
 		String feedback = node.has("feedback") ? node.get("feedback").asText() : null;

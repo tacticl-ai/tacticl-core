@@ -58,7 +58,7 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 
 	@Override
 	public void afterConnectionEstablished(WebSocketSession session) {
-		DevicePrincipal principal = (DevicePrincipal) session.getAttributes().get("principal");
+		WebSocketPrincipal principal = (WebSocketPrincipal) session.getAttributes().get("principal");
 		if (principal == null) {
 			try {
 				session.close(CloseStatus.POLICY_VIOLATION);
@@ -73,7 +73,7 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 
 	@Override
 	protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-		DevicePrincipal principal = (DevicePrincipal) session.getAttributes().get("principal");
+		WebSocketPrincipal principal = (WebSocketPrincipal) session.getAttributes().get("principal");
 		if (principal == null) {
 			return;
 		}
@@ -107,7 +107,7 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 	}
 
 	@SuppressWarnings("unchecked")
-	private void handleResult(JsonNode node, DevicePrincipal principal) {
+	private void handleResult(JsonNode node, WebSocketPrincipal principal) {
 		String commandId = node.has("commandId") ? node.get("commandId").asText() : null;
 		boolean success = node.has("success") && node.get("success").asBoolean();
 		String msg = node.has("message") ? node.get("message").asText() : "";
@@ -119,7 +119,7 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 	}
 
 	@SuppressWarnings("unchecked")
-	private void handleCapabilities(JsonNode node, DevicePrincipal principal) {
+	private void handleCapabilities(JsonNode node, WebSocketPrincipal principal) {
 		Map<String, Object> capabilities = objectMapper.convertValue(node, Map.class);
 		capabilities.remove("type");
 		log.info("[WS] Capabilities from device {}", principal.getDeviceId());
@@ -127,14 +127,14 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 	}
 
 	@SuppressWarnings("unchecked")
-	private void handleStatus(JsonNode node, DevicePrincipal principal) {
+	private void handleStatus(JsonNode node, WebSocketPrincipal principal) {
 		Map<String, Object> status = objectMapper.convertValue(node, Map.class);
 		status.remove("type");
 		registryService.updateConnectivity(principal.getDeviceId(), status);
 		sessionManager.updateHeartbeat(principal.getDeviceId());
 	}
 
-	private void handlePing(WebSocketSession session, DevicePrincipal principal) {
+	private void handlePing(WebSocketSession session, WebSocketPrincipal principal) {
 		sessionManager.updateHeartbeat(principal.getDeviceId());
 		try {
 			String pong = objectMapper
@@ -146,7 +146,7 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 		}
 	}
 
-	private void handleSparkAccepted(JsonNode node, DevicePrincipal principal) {
+	private void handleSparkAccepted(JsonNode node, WebSocketPrincipal principal) {
 		String sparkId = node.has("sparkId") ? node.get("sparkId").asText() : null;
 		if (sparkId == null) {
 			log.warn("[WS] spark_accepted missing sparkId from device {}", principal.getDeviceId());
@@ -157,7 +157,7 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 	}
 
 	@SuppressWarnings("unchecked")
-	private void handleSparkProgress(JsonNode node, DevicePrincipal principal) {
+	private void handleSparkProgress(JsonNode node, WebSocketPrincipal principal) {
 		String sparkId = node.has("sparkId") ? node.get("sparkId").asText() : null;
 		if (sparkId == null) {
 			log.warn("[WS] spark_progress missing sparkId from device {}", principal.getDeviceId());
@@ -190,7 +190,7 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 	}
 
 	@SuppressWarnings("unchecked")
-	private void handleSparkCheckpoint(JsonNode node, DevicePrincipal principal) {
+	private void handleSparkCheckpoint(JsonNode node, WebSocketPrincipal principal) {
 		String sparkId = node.has("sparkId") ? node.get("sparkId").asText() : null;
 		if (sparkId == null) {
 			log.warn("[WS] spark_checkpoint missing sparkId from device {}", principal.getDeviceId());
@@ -218,7 +218,7 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 	}
 
 	@SuppressWarnings("unchecked")
-	private void handleSparkCompleted(JsonNode node, DevicePrincipal principal) {
+	private void handleSparkCompleted(JsonNode node, WebSocketPrincipal principal) {
 		String sparkId = node.has("sparkId") ? node.get("sparkId").asText() : null;
 		if (sparkId == null) {
 			log.warn("[WS] spark_completed missing sparkId from device {}", principal.getDeviceId());
@@ -235,7 +235,7 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 		log.info("[WS] Spark completed: spark={} tokens={}", sparkId, totalTokens);
 	}
 
-	private void handleSparkFailed(JsonNode node, DevicePrincipal principal) {
+	private void handleSparkFailed(JsonNode node, WebSocketPrincipal principal) {
 		String sparkId = node.has("sparkId") ? node.get("sparkId").asText() : null;
 		if (sparkId == null) {
 			log.warn("[WS] spark_failed missing sparkId from device {}", principal.getDeviceId());
@@ -247,7 +247,7 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 		log.info("[WS] Spark failed: spark={} error={}", sparkId, error);
 	}
 
-	private void handleCredentialsRequest(JsonNode node, WebSocketSession session, DevicePrincipal principal) {
+	private void handleCredentialsRequest(JsonNode node, WebSocketSession session, WebSocketPrincipal principal) {
 		String platform = node.has("platform") ? node.get("platform").asText() : null;
 		String sparkId = node.has("sparkId") ? node.get("sparkId").asText() : null;
 		String requestId = node.has("requestId") ? node.get("requestId").asText() : null;
@@ -257,12 +257,21 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 			return;
 		}
 
-		// Verify device owns the spark
+		// Verify device owns the spark and is assigned to it
 		Optional<Spark> sparkOpt = sparkService.getSparkInternal(sparkId);
 		if (sparkOpt.isEmpty() || !sparkOpt.get().getUserId().equals(principal.getUserId())) {
 			log.warn("[WS] credentials_request denied: device {} not authorized for spark {}", principal.getDeviceId(),
 					sparkId);
 			sendCredentialsError(session, requestId, "Not authorized for this spark");
+			return;
+		}
+
+		// Verify that the requesting device is actually assigned to this spark
+		Spark spark = sparkOpt.get();
+		if (spark.getDeviceId() != null && !spark.getDeviceId().equals(principal.getDeviceId())) {
+			log.warn("[WS] credentials_request denied: device {} is not assigned to spark {} (assigned to {})",
+					principal.getDeviceId(), sparkId, spark.getDeviceId());
+			sendCredentialsError(session, requestId, "Device not assigned to this spark");
 			return;
 		}
 

@@ -25,10 +25,12 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
 	@Override
 	public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+		// TODO: Restrict to specific origins in production (e.g., "https://tacticl.io")
 		registry.addHandler(deviceWebSocketHandler, "/ws/device")
 			.setAllowedOriginPatterns("*")
 			.addInterceptors(authInterceptor);
 
+		// TODO: Restrict to specific origins in production (e.g., "https://tacticl.io")
 		registry.addHandler(userWebSocketHandler, "/ws/user")
 			.setAllowedOriginPatterns("*")
 			.addInterceptors(authInterceptor);

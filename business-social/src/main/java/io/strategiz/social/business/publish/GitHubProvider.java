@@ -2,6 +2,8 @@ package io.strategiz.social.business.publish;
 
 import io.strategiz.social.client.github.config.GitHubConfig;
 import io.strategiz.social.data.entity.PlatformType;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,10 +54,10 @@ public class GitHubProvider implements SocialMediaProvider {
 	public AuthUrl generateAuthUrl(String redirectUri, String state) {
 		// GitHub OAuth 2.0 does not support PKCE
 		String url = "https://github.com/login/oauth/authorize"
-				+ "?client_id=" + gitHubConfig.getClientId()
-				+ "&redirect_uri=" + redirectUri
-				+ "&state=" + state
-				+ "&scope=repo+user+read:org";
+				+ "?client_id=" + URLEncoder.encode(gitHubConfig.getClientId(), StandardCharsets.UTF_8)
+				+ "&redirect_uri=" + URLEncoder.encode(redirectUri, StandardCharsets.UTF_8)
+				+ "&state=" + URLEncoder.encode(state, StandardCharsets.UTF_8)
+				+ "&scope=" + URLEncoder.encode("repo user read:org", StandardCharsets.UTF_8);
 		return new AuthUrl(url, null);
 	}
 

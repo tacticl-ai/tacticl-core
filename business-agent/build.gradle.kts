@@ -11,6 +11,7 @@ dependencies {
     implementation(project(":client-jina"))
 
     // Strategiz shared frameworks
+    implementation(libs.strategiz.service.framework.base)
     implementation(libs.strategiz.framework.exception)
     implementation(libs.strategiz.framework.logging)
     implementation(libs.strategiz.framework.secrets)

@@ -38,8 +38,8 @@ public class DeviceSessionManager implements DeviceCommandDispatcher, ActivityBr
 	/** Maps deviceId to thread-safe WebSocketSession for sending commands. */
 	private final ConcurrentHashMap<String, WebSocketSession> deviceSessions = new ConcurrentHashMap<>();
 
-	/** Maps deviceId to DevicePrincipal. */
-	private final ConcurrentHashMap<String, DevicePrincipal> devicePrincipals = new ConcurrentHashMap<>();
+	/** Maps deviceId to WebSocketPrincipal. */
+	private final ConcurrentHashMap<String, WebSocketPrincipal> devicePrincipals = new ConcurrentHashMap<>();
 
 	/** Maps raw WebSocket session ID to deviceId for disconnect cleanup. */
 	private final ConcurrentHashMap<String, String> wsSessionToDevice = new ConcurrentHashMap<>();
@@ -52,7 +52,7 @@ public class DeviceSessionManager implements DeviceCommandDispatcher, ActivityBr
 	}
 
 	/** Register a new WebSocket session for a device. Closes any existing session for the same device. */
-	public void registerSession(WebSocketSession session, DevicePrincipal principal) {
+	public void registerSession(WebSocketSession session, WebSocketPrincipal principal) {
 		String deviceId = principal.getDeviceId();
 
 		// Close any existing session for this device (reconnection scenario)
@@ -149,14 +149,14 @@ public class DeviceSessionManager implements DeviceCommandDispatcher, ActivityBr
 	}
 
 	/** Get the principal for a connected device. */
-	public Optional<DevicePrincipal> getPrincipal(String deviceId) {
+	public Optional<WebSocketPrincipal> getPrincipal(String deviceId) {
 		return Optional.ofNullable(devicePrincipals.get(deviceId));
 	}
 
 	/** Broadcast an activity update to all devices owned by a user. */
 	@Override
 	public void broadcastActivity(String userId, Map<String, Object> activityPayload) {
-		for (Map.Entry<String, DevicePrincipal> entry : devicePrincipals.entrySet()) {
+		for (Map.Entry<String, WebSocketPrincipal> entry : devicePrincipals.entrySet()) {
 			if (entry.getValue().getUserId().equals(userId)) {
 				WebSocketSession session = deviceSessions.get(entry.getKey());
 				if (session != null && session.isOpen()) {

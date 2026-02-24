@@ -15,10 +15,11 @@ public class SocialIntegrationRepository extends FirestoreRepository<SocialInteg
 		super(firestore, SocialIntegration.class, "social_integrations");
 	}
 
-	/** Find integration by user and platform. */
+	/** Find integration by user and platform (active only). */
 	public Optional<SocialIntegration> findByUserIdAndPlatform(String userId, PlatformType platform) {
-		List<SocialIntegration> results = executeQuery(
-				getCollection().whereEqualTo("userId", userId).whereEqualTo("platform", platform.name()));
+		List<SocialIntegration> results = executeQuery(getCollection().whereEqualTo("userId", userId)
+			.whereEqualTo("platform", platform.name())
+			.whereEqualTo("isActive", true));
 		return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
 	}
 

@@ -9,6 +9,7 @@ dependencies {
     implementation(project(":data-social"))
 
     // Strategiz shared frameworks
+    implementation(libs.strategiz.service.framework.base)
     implementation(libs.strategiz.framework.authorization)
     implementation(libs.strategiz.framework.token.issuance)
     implementation(libs.strategiz.framework.exception)

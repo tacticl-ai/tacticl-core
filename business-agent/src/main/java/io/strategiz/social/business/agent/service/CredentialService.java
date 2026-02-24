@@ -1,5 +1,6 @@
 package io.strategiz.social.business.agent.service;
 
+import io.strategiz.service.base.BaseService;
 import io.strategiz.social.data.entity.PlatformType;
 import io.strategiz.social.data.entity.SocialIntegration;
 import io.strategiz.social.data.repository.SocialIntegrationRepository;
@@ -17,7 +18,9 @@ import org.springframework.stereotype.Service;
  * records. Devices request credentials on-demand during spark execution.
  */
 @Service
-public class CredentialService {
+public class CredentialService extends BaseService {
+
+	private static final String MODULE_NAME = "business-agent";
 
 	private static final Logger log = LoggerFactory.getLogger(CredentialService.class);
 
@@ -27,8 +30,16 @@ public class CredentialService {
 		this.integrationRepository = integrationRepository;
 	}
 
+	@Override
+	protected String getModuleName() {
+		return MODULE_NAME;
+	}
+
 	/** Get credentials for a specific platform for a user. */
 	public Optional<Map<String, Object>> getCredentials(String userId, String platform) {
+		log.warn("[CREDENTIALS-AUDIT] Credential access requested: userId={}, platform={}, module={}",
+				userId, platform, MODULE_NAME);
+
 		PlatformType platformType = parsePlatformType(platform);
 		if (platformType == null) {
 			log.warn("[CREDENTIALS] Unknown platform: {}", platform);
@@ -47,22 +58,29 @@ public class CredentialService {
 			return Optional.empty();
 		}
 
+		// Check if token refresh is needed and log a warning — the device will get a 401
+		// from the platform and can request a refresh via OAuthTokenExchangeService
+		if (si.isTokenRefreshNeeded()) {
+			log.warn("[CREDENTIALS] Token refresh needed for user={} platform={} — serving stale access token",
+					userId, platform);
+		}
+
 		Map<String, Object> credentials = new HashMap<>();
 		credentials.put("platform", platform);
 		if (si.getAccessToken() != null) {
 			credentials.put("oauthAccessToken", si.getAccessToken());
 		}
-		if (si.getRefreshToken() != null) {
-			credentials.put("oauthRefreshToken", si.getRefreshToken());
-		}
+		// SECURITY: Never send refresh tokens to clients — they are server-side only
 		if (si.getPlatformUsername() != null) {
 			credentials.put("username", si.getPlatformUsername());
 		}
 		if (si.getPlatformUserId() != null) {
 			credentials.put("platformUserId", si.getPlatformUserId());
 		}
+		credentials.put("tokenRefreshNeeded", si.isTokenRefreshNeeded());
 
-		log.info("[CREDENTIALS] Served credentials for user={} platform={}", userId, platform);
+		log.warn("[CREDENTIALS-AUDIT] Credentials served: userId={}, platform={}, tokenRefreshNeeded={}",
+				userId, platform, si.isTokenRefreshNeeded());
 		return Optional.of(credentials);
 	}
 

@@ -2,6 +2,8 @@ package io.strategiz.social.business.publish;
 
 import io.strategiz.social.client.google.config.GoogleConfig;
 import io.strategiz.social.data.entity.PlatformType;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
@@ -67,13 +69,13 @@ public class YouTubeProvider implements SocialMediaProvider {
 		String codeChallenge = OAuthPkceUtils.generateCodeChallenge(codeVerifier);
 		String url = "https://accounts.google.com/o/oauth2/v2/auth"
 				+ "?response_type=code"
-				+ "&client_id=" + googleConfig.getClientId()
-				+ "&redirect_uri=" + redirectUri
-				+ "&state=" + state
-				+ "&scope=" + YOUTUBE_SCOPES.replace(" ", "%20")
+				+ "&client_id=" + URLEncoder.encode(googleConfig.getClientId(), StandardCharsets.UTF_8)
+				+ "&redirect_uri=" + URLEncoder.encode(redirectUri, StandardCharsets.UTF_8)
+				+ "&state=" + URLEncoder.encode(state, StandardCharsets.UTF_8)
+				+ "&scope=" + URLEncoder.encode(YOUTUBE_SCOPES, StandardCharsets.UTF_8)
 				+ "&access_type=offline"
 				+ "&prompt=consent"
-				+ "&code_challenge=" + codeChallenge
+				+ "&code_challenge=" + URLEncoder.encode(codeChallenge, StandardCharsets.UTF_8)
 				+ "&code_challenge_method=S256";
 		return new AuthUrl(url, codeVerifier);
 	}
