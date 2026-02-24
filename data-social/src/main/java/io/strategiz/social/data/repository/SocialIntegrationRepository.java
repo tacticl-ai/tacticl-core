@@ -22,4 +22,9 @@ public class SocialIntegrationRepository extends FirestoreRepository<SocialInteg
 		return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
 	}
 
+	/** Find all integrations for a user. */
+	public List<SocialIntegration> findAllByUserId(String userId) {
+		return executeQuery(getCollection().whereEqualTo("userId", userId).whereEqualTo("isActive", true));
+	}
+
 }

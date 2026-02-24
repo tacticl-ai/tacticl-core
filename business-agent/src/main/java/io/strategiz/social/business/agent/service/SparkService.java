@@ -17,7 +17,6 @@ import io.strategiz.social.data.repository.DevicePreferenceRepository;
 import io.strategiz.social.data.repository.ExecutionLogRepository;
 import io.strategiz.social.data.repository.SparkRepository;
 import io.strategiz.social.data.repository.TacticRepository;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +28,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * Orchestrates the Spark lifecycle: creation, device routing, progress tracking, checkpoint
- * handling, and completion.
+ * handling, and completion. Broadcasts events to both devices and user browser sessions.
  */
 @Service
 public class SparkService {
@@ -50,10 +49,12 @@ public class SparkService {
 
 	private final ActivityBroadcaster activityBroadcaster;
 
+	private final Optional<UserBroadcaster> userBroadcaster;
+
 	public SparkService(SparkRepository sparkRepository, TacticRepository tacticRepository,
 			CheckpointRepository checkpointRepository, ExecutionLogRepository executionLogRepository,
 			DevicePreferenceRepository devicePreferenceRepository, DeviceRoutingService deviceRoutingService,
-			ActivityBroadcaster activityBroadcaster) {
+			ActivityBroadcaster activityBroadcaster, Optional<UserBroadcaster> userBroadcaster) {
 		this.sparkRepository = sparkRepository;
 		this.tacticRepository = tacticRepository;
 		this.checkpointRepository = checkpointRepository;
@@ -61,6 +62,7 @@ public class SparkService {
 		this.devicePreferenceRepository = devicePreferenceRepository;
 		this.deviceRoutingService = deviceRoutingService;
 		this.activityBroadcaster = activityBroadcaster;
+		this.userBroadcaster = userBroadcaster;
 	}
 
 	/** Create a new spark from user input. */
@@ -96,11 +98,12 @@ public class SparkService {
 		spark.setStatus(SparkState.ROUTING);
 		sparkRepository.save(spark, spark.getId());
 
-		// Check user device preferences for this spark type
+		broadcastToUser(spark.getUserId(),
+				Map.of("type", "spark_status", "sparkId", sparkId, "status", "ROUTING"));
+
 		Optional<DeviceRegistration> device = findPreferredDevice(userId, spark.getType());
 
 		if (device.isEmpty()) {
-			// Fallback: route to any available online device
 			device = deviceRoutingService.selectDevice(userId, null);
 		}
 
@@ -108,6 +111,10 @@ public class SparkService {
 			spark.setDeviceId(device.get().getId());
 			spark.setStatus(SparkState.EXECUTING);
 			sparkRepository.save(spark, spark.getId());
+
+			broadcastToUser(spark.getUserId(), Map.of("type", "spark_status", "sparkId", sparkId, "status",
+					"EXECUTING", "deviceName", device.get().getDeviceName()));
+
 			log.info("[SPARK] Routed spark={} to device={}", sparkId, device.get().getId());
 		}
 		else {
@@ -125,6 +132,8 @@ public class SparkService {
 			sparkRepository.save(spark, spark.getId());
 
 			broadcastSparkUpdate(spark);
+			broadcastToUser(spark.getUserId(), Map.of("type", "spark_progress", "sparkId", sparkId, "status",
+					status.name(), "totalTokens", spark.getTotalTokens()));
 		});
 	}
 
@@ -144,11 +153,13 @@ public class SparkService {
 		checkpoint.setCreatedAt(Instant.now());
 		checkpointRepository.save(checkpoint, checkpointId);
 
-		// Update spark status to CHECKPOINT
 		sparkRepository.findById(sparkId).ifPresent(spark -> {
 			spark.setStatus(SparkState.CHECKPOINT);
 			sparkRepository.save(spark, spark.getId());
 			broadcastSparkUpdate(spark);
+
+			broadcastToUser(spark.getUserId(), Map.of("type", "spark_checkpoint", "sparkId", sparkId,
+					"checkpointId", checkpointId, "title", title, "description", description));
 		});
 
 		log.info("[SPARK] Checkpoint created id={} for spark={}", checkpointId, sparkId);
@@ -165,6 +176,9 @@ public class SparkService {
 			sparkRepository.save(spark, spark.getId());
 
 			broadcastSparkUpdate(spark);
+			broadcastToUser(spark.getUserId(), Map.of("type", "spark_completed", "sparkId", sparkId,
+					"totalTokens", totalTokens));
+
 			log.info("[SPARK] Completed spark={} tokens={}", sparkId, totalTokens);
 		});
 	}
@@ -187,7 +201,6 @@ public class SparkService {
 		spark.setCompletedAt(Instant.now());
 		sparkRepository.save(spark, spark.getId());
 
-		// Cancel all tactics
 		List<Tactic> tactics = tacticRepository.findBySparkId(sparkId);
 		for (Tactic tactic : tactics) {
 			if (tactic.getStatus() != TacticState.COMPLETED && tactic.getStatus() != TacticState.FAILED) {
@@ -269,6 +282,9 @@ public class SparkService {
 			sparkRepository.save(spark, spark.getId());
 
 			broadcastSparkUpdate(spark);
+			broadcastToUser(spark.getUserId(),
+					Map.of("type", "spark_failed", "sparkId", sparkId, "error", errorMessage));
+
 			log.info("[SPARK] Failed spark={} error={}", sparkId, errorMessage);
 		});
 	}
@@ -318,7 +334,6 @@ public class SparkService {
 		return sparks.stream()
 			.flatMap(s -> checkpointRepository.findBySparkId(s.getId()).stream())
 			.sorted((a, b) -> {
-				// Pending (no decision) first
 				boolean aPending = a.getUserDecision() == null;
 				boolean bPending = b.getUserDecision() == null;
 				if (aPending != bPending) {
@@ -343,7 +358,6 @@ public class SparkService {
 		}
 		Checkpoint checkpoint = opt.get();
 
-		// Verify ownership via spark
 		Optional<Spark> spark = sparkRepository.findById(checkpoint.getSparkId());
 		if (spark.isEmpty() || !spark.get().getUserId().equals(userId)) {
 			return Optional.empty();
@@ -354,7 +368,6 @@ public class SparkService {
 		checkpoint.setDecidedAt(Instant.now());
 		checkpointRepository.save(checkpoint, checkpoint.getId());
 
-		// Resume spark execution
 		spark.ifPresent(s -> {
 			s.setStatus(SparkState.EXECUTING);
 			sparkRepository.save(s, s.getId());
@@ -393,6 +406,10 @@ public class SparkService {
 	private void broadcastSparkUpdate(Spark spark) {
 		activityBroadcaster.broadcastActivity(spark.getUserId(),
 				Map.of("type", "spark_update", "sparkId", spark.getId(), "status", spark.getStatus().name()));
+	}
+
+	private void broadcastToUser(String userId, Map<String, Object> payload) {
+		userBroadcaster.ifPresent(b -> b.broadcastToUser(userId, payload));
 	}
 
 }

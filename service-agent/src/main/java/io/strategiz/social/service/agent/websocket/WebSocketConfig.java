@@ -5,23 +5,31 @@ import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
-/** Raw WebSocket configuration for device communication. */
+/** Raw WebSocket configuration for device and user communication. */
 @Configuration
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
 
-	private final DeviceWebSocketHandler webSocketHandler;
+	private final DeviceWebSocketHandler deviceWebSocketHandler;
+
+	private final UserWebSocketHandler userWebSocketHandler;
 
 	private final WebSocketAuthInterceptor authInterceptor;
 
-	public WebSocketConfig(DeviceWebSocketHandler webSocketHandler, WebSocketAuthInterceptor authInterceptor) {
-		this.webSocketHandler = webSocketHandler;
+	public WebSocketConfig(DeviceWebSocketHandler deviceWebSocketHandler, UserWebSocketHandler userWebSocketHandler,
+			WebSocketAuthInterceptor authInterceptor) {
+		this.deviceWebSocketHandler = deviceWebSocketHandler;
+		this.userWebSocketHandler = userWebSocketHandler;
 		this.authInterceptor = authInterceptor;
 	}
 
 	@Override
 	public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-		registry.addHandler(webSocketHandler, "/ws/device")
+		registry.addHandler(deviceWebSocketHandler, "/ws/device")
+			.setAllowedOriginPatterns("*")
+			.addInterceptors(authInterceptor);
+
+		registry.addHandler(userWebSocketHandler, "/ws/user")
 			.setAllowedOriginPatterns("*")
 			.addInterceptors(authInterceptor);
 	}

@@ -4,13 +4,17 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.strategiz.social.business.agent.service.CredentialService;
 import io.strategiz.social.business.agent.service.DeviceCommandService;
 import io.strategiz.social.business.agent.service.DeviceRegistryService;
 import io.strategiz.social.business.agent.service.SparkService;
+import io.strategiz.social.data.entity.Spark;
 import io.strategiz.social.data.entity.SparkState;
 import io.strategiz.social.data.entity.TacticState;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -21,7 +25,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 /**
  * Handles raw WebSocket text messages from devices. Routes JSON messages by type to the appropriate
- * business service (command results, capability updates, status, heartbeat).
+ * business service (command results, capability updates, status, heartbeat, credential requests).
  */
 @Component
 public class DeviceWebSocketHandler extends TextWebSocketHandler {
@@ -38,12 +42,16 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 
 	private final SparkService sparkService;
 
+	private final CredentialService credentialService;
+
 	public DeviceWebSocketHandler(DeviceSessionManager sessionManager, DeviceCommandService commandService,
-			DeviceRegistryService registryService, SparkService sparkService) {
+			DeviceRegistryService registryService, SparkService sparkService,
+			CredentialService credentialService) {
 		this.sessionManager = sessionManager;
 		this.commandService = commandService;
 		this.registryService = registryService;
 		this.sparkService = sparkService;
+		this.credentialService = credentialService;
 		this.objectMapper = new ObjectMapper();
 		this.objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 	}
@@ -84,6 +92,7 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 				case "spark_checkpoint" -> handleSparkCheckpoint(node, principal);
 				case "spark_completed" -> handleSparkCompleted(node, principal);
 				case "spark_failed" -> handleSparkFailed(node, principal);
+				case "credentials_request" -> handleCredentialsRequest(node, session, principal);
 				default -> log.warn("[WS] Unknown message type '{}' from device {}", type, principal.getDeviceId());
 			}
 		}
@@ -161,7 +170,6 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 
 		sparkService.onSparkProgress(sparkId, status, tokensDelta);
 
-		// Sync tactic updates if present
 		if (node.has("tactics") && node.get("tactics").isArray()) {
 			for (JsonNode tacticNode : node.get("tactics")) {
 				String tacticId = tacticNode.has("tacticId") ? tacticNode.get("tacticId").asText() : null;
@@ -237,6 +245,57 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 		String error = node.has("error") ? node.get("error").asText() : "Unknown error";
 		sparkService.onSparkFailed(sparkId, error);
 		log.info("[WS] Spark failed: spark={} error={}", sparkId, error);
+	}
+
+	private void handleCredentialsRequest(JsonNode node, WebSocketSession session, DevicePrincipal principal) {
+		String platform = node.has("platform") ? node.get("platform").asText() : null;
+		String sparkId = node.has("sparkId") ? node.get("sparkId").asText() : null;
+		String requestId = node.has("requestId") ? node.get("requestId").asText() : null;
+
+		if (platform == null || sparkId == null) {
+			log.warn("[WS] credentials_request missing fields from device {}", principal.getDeviceId());
+			return;
+		}
+
+		// Verify device owns the spark
+		Optional<Spark> sparkOpt = sparkService.getSparkInternal(sparkId);
+		if (sparkOpt.isEmpty() || !sparkOpt.get().getUserId().equals(principal.getUserId())) {
+			log.warn("[WS] credentials_request denied: device {} not authorized for spark {}", principal.getDeviceId(),
+					sparkId);
+			sendCredentialsError(session, requestId, "Not authorized for this spark");
+			return;
+		}
+
+		Optional<Map<String, Object>> credentials = credentialService.getCredentials(principal.getUserId(), platform);
+		try {
+			Map<String, Object> response = new HashMap<>();
+			response.put("type", "credentials_response");
+			response.put("requestId", requestId);
+			if (credentials.isPresent()) {
+				response.put("credentials", credentials.get());
+				response.put("success", true);
+			}
+			else {
+				response.put("success", false);
+				response.put("error", "No credentials found for platform: " + platform);
+			}
+			session.sendMessage(new TextMessage(objectMapper.writeValueAsString(response)));
+			log.info("[WS] Credentials served for platform={} device={}", platform, principal.getDeviceId());
+		}
+		catch (Exception ex) {
+			log.error("[WS] Failed to send credentials response to device {}", principal.getDeviceId(), ex);
+		}
+	}
+
+	private void sendCredentialsError(WebSocketSession session, String requestId, String error) {
+		try {
+			Map<String, Object> response = Map.of("type", "credentials_response", "requestId",
+					requestId != null ? requestId : "", "success", false, "error", error);
+			session.sendMessage(new TextMessage(objectMapper.writeValueAsString(response)));
+		}
+		catch (Exception ex) {
+			log.error("[WS] Failed to send credentials error", ex);
+		}
 	}
 
 	private SparkState parseSparkState(String value, SparkState defaultState) {
