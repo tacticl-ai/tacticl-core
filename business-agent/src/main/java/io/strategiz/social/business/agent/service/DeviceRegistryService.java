@@ -149,6 +149,19 @@ public class DeviceRegistryService {
 		});
 	}
 
+	/** Update device spark routing preferences. Validates user ownership. */
+	public boolean updateSparkPreferences(String deviceId, String userId, Map<String, Object> preferences) {
+		Optional<DeviceRegistration> opt = getDevice(deviceId, userId);
+		if (opt.isEmpty()) {
+			return false;
+		}
+		DeviceRegistration device = opt.get();
+		device.setSparkPreferences(preferences);
+		deviceRepository.save(device, device.getId());
+		log.info("Spark preferences updated for device {} by user {}", deviceId, userId);
+		return true;
+	}
+
 	private String generateVerificationCode() {
 		return String.format("%06d", ThreadLocalRandom.current().nextInt(1000000));
 	}

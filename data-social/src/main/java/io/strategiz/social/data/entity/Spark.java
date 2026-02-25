@@ -47,6 +47,8 @@ public class Spark {
 
 	private BigDecimal estimatedCost;
 
+	private Map<String, String> models;
+
 	private boolean isActive;
 
 	private Instant createdAt;
@@ -189,6 +191,14 @@ public class Spark {
 
 	public void setEstimatedCost(BigDecimal estimatedCost) {
 		this.estimatedCost = estimatedCost;
+	}
+
+	public Map<String, String> getModels() {
+		return models;
+	}
+
+	public void setModels(Map<String, String> models) {
+		this.models = models;
 	}
 
 	public boolean isActive() {

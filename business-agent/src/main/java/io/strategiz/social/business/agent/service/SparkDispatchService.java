@@ -49,6 +49,9 @@ public class SparkDispatchService {
 		message.put("priority", spark.getPriority().name());
 		message.put("checkpointPolicy", spark.getCheckpointPolicy().name());
 		message.put("repoAccess", spark.getRepoAccess());
+		if (spark.getModels() != null && !spark.getModels().isEmpty()) {
+			message.put("models", spark.getModels());
+		}
 
 		dispatcher.dispatch(spark.getUserId(), deviceId, message);
 		log.info("[SPARK] Dispatched spark={} to device={}", spark.getId(), deviceId);
