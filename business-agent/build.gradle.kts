@@ -32,4 +32,5 @@ dependencies {
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.mockito.core)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
