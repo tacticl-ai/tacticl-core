@@ -3,19 +3,28 @@ package io.strategiz.social.service.agent.controller;
 import io.strategiz.framework.authorization.annotation.AuthUser;
 import io.strategiz.framework.authorization.annotation.RequireAuth;
 import io.strategiz.framework.authorization.context.AuthenticatedUser;
+import io.strategiz.social.business.agent.service.DevicePairingService;
 import io.strategiz.social.business.agent.service.DeviceRegistryService;
 import io.strategiz.social.data.entity.DeviceRegistration;
 import io.strategiz.social.data.entity.DeviceState;
 import io.strategiz.social.data.entity.DeviceType;
+import io.strategiz.social.data.entity.PairingCode;
+import io.strategiz.social.data.entity.PairingSession;
 import io.strategiz.social.data.repository.DeviceSessionRepository;
 import io.strategiz.social.service.agent.dto.DeviceRegistrationRequest;
 import io.strategiz.social.service.agent.dto.DeviceRegistrationResponse;
 import io.strategiz.social.service.agent.dto.DeviceStatusResponse;
 import io.strategiz.social.service.agent.dto.DeviceVerifyRequest;
+import io.strategiz.social.service.agent.dto.PairQrRequest;
+import io.strategiz.social.service.agent.dto.PairResponse;
+import io.strategiz.social.service.agent.dto.PairWithCodeRequest;
+import io.strategiz.social.service.agent.dto.PairingCodeResponse;
+import io.strategiz.social.service.agent.dto.PairingSessionResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +36,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** REST controller for device registration and management. */
@@ -39,10 +49,14 @@ public class DeviceController {
 
 	private final DeviceRegistryService registryService;
 
+	private final DevicePairingService pairingService;
+
 	private final DeviceSessionRepository sessionRepository;
 
-	public DeviceController(DeviceRegistryService registryService, DeviceSessionRepository sessionRepository) {
+	public DeviceController(DeviceRegistryService registryService, DevicePairingService pairingService,
+			DeviceSessionRepository sessionRepository) {
 		this.registryService = registryService;
+		this.pairingService = pairingService;
 		this.sessionRepository = sessionRepository;
 	}
 
@@ -140,6 +154,57 @@ public class DeviceController {
 		}
 
 		return ResponseEntity.noContent().build();
+	}
+
+	@PostMapping("/pairing-code")
+	@RequireAuth
+	@Operation(summary = "Generate device pairing code",
+			description = "Generate a 6-digit code for pairing a device. The code expires in 5 minutes.")
+	public ResponseEntity<PairingCodeResponse> createPairingCode(@AuthUser AuthenticatedUser user) {
+		log.info("Pairing code requested by user {}", user.getUserId());
+		PairingCode code = pairingService.generatePairingCode(user.getUserId());
+		return ResponseEntity.ok(new PairingCodeResponse(code.getCode(), 300));
+	}
+
+	@PostMapping("/pair")
+	@Operation(summary = "Pair device using pairing code",
+			description = "Pair a device by entering a 6-digit code. No authentication required.")
+	public ResponseEntity<PairResponse> pairWithCode(@Valid @RequestBody PairWithCodeRequest request) {
+		log.info("Pairing attempt with code for device '{}'", request.getDeviceName());
+		DevicePairingService.PairResult result = pairingService.pairWithCode(request.getCode(),
+				request.getDeviceName(), request.getDeviceType(), request.getPlatform(), request.getCapabilities());
+		return ResponseEntity.ok(new PairResponse(result.deviceId(), result.sessionToken()));
+	}
+
+	@PostMapping("/pairing-session")
+	@Operation(summary = "Create QR pairing session",
+			description = "Create a session for QR-based device pairing. No authentication required.")
+	public ResponseEntity<PairingSessionResponse> createPairingSession() {
+		log.info("QR pairing session creation requested");
+		PairingSession session = pairingService.createPairingSession();
+		return ResponseEntity.ok(new PairingSessionResponse(session.getId(), session.getSecret(), 300));
+	}
+
+	@PostMapping("/pair-qr")
+	@RequireAuth
+	@Operation(summary = "Confirm QR device pairing",
+			description = "Complete a QR-based pairing after scanning the code on a mobile device.")
+	public ResponseEntity<PairResponse> pairWithQr(@AuthUser AuthenticatedUser user,
+			@Valid @RequestBody PairQrRequest request) {
+		log.info("QR pairing confirmation by user {} for session {}", user.getUserId(), request.getSessionId());
+		DevicePairingService.PairResult result = pairingService.pairWithQr(request.getSessionId(), request.getSecret(),
+				user.getUserId(), request.getDeviceName(), request.getDeviceType(), request.getPlatform(),
+				request.getCapabilities());
+		return ResponseEntity.ok(new PairResponse(result.deviceId(), result.sessionToken()));
+	}
+
+	@GetMapping("/pairing-session/{id}/status")
+	@Operation(summary = "Check QR pairing session status",
+			description = "Poll for the status of a QR pairing session. No authentication required.")
+	public ResponseEntity<Map<String, Object>> getPairingSessionStatus(@PathVariable String id,
+			@RequestParam String secret) {
+		Map<String, Object> status = pairingService.getPairingSessionStatus(id, secret);
+		return ResponseEntity.ok(status);
 	}
 
 	private DeviceStatusResponse toStatusResponse(DeviceRegistration device) {
