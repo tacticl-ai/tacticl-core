@@ -3,6 +3,7 @@ package io.strategiz.social.service.agent.websocket;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.strategiz.social.business.agent.service.ActivityBroadcaster;
 import io.strategiz.social.business.agent.service.DeviceCommandDispatcher;
+import io.strategiz.social.business.agent.service.SparkService;
 import io.strategiz.social.data.entity.DeviceSession;
 import io.strategiz.social.data.repository.DeviceSessionRepository;
 import java.time.Instant;
@@ -12,6 +13,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -35,6 +37,8 @@ public class DeviceSessionManager implements DeviceCommandDispatcher, ActivityBr
 
 	private final DeviceSessionRepository sessionRepository;
 
+	private final SparkService sparkService;
+
 	/** Maps deviceId to thread-safe WebSocketSession for sending commands. */
 	private final ConcurrentHashMap<String, WebSocketSession> deviceSessions = new ConcurrentHashMap<>();
 
@@ -47,8 +51,9 @@ public class DeviceSessionManager implements DeviceCommandDispatcher, ActivityBr
 	/** Maps deviceId to Firestore session ID. */
 	private final ConcurrentHashMap<String, String> deviceFirestoreSessionMap = new ConcurrentHashMap<>();
 
-	public DeviceSessionManager(DeviceSessionRepository sessionRepository) {
+	public DeviceSessionManager(DeviceSessionRepository sessionRepository, @Lazy SparkService sparkService) {
 		this.sessionRepository = sessionRepository;
+		this.sparkService = sparkService;
 	}
 
 	/** Register a new WebSocket session for a device. Closes any existing session for the same device. */
@@ -83,6 +88,9 @@ public class DeviceSessionManager implements DeviceCommandDispatcher, ActivityBr
 		deviceFirestoreSessionMap.put(deviceId, fsSession.getId());
 
 		log.info("[WS] Session registered: device={}, user={}", deviceId, principal.getUserId());
+
+		// Dispatch any sparks that were queued while this device was offline
+		sparkService.dispatchQueuedSparks(deviceId, principal.getUserId());
 	}
 
 	/** Remove a WebSocket session on disconnect. Handles reconnection race conditions gracefully. */

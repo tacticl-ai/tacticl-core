@@ -56,11 +56,13 @@ public class SparkService {
 
 	private final SparkClassifierService sparkClassifierService;
 
+	private final SparkDispatchService sparkDispatchService;
+
 	public SparkService(SparkRepository sparkRepository, TacticRepository tacticRepository,
 			CheckpointRepository checkpointRepository, ExecutionLogRepository executionLogRepository,
 			DevicePreferenceRepository devicePreferenceRepository, DeviceRoutingService deviceRoutingService,
 			ActivityBroadcaster activityBroadcaster, Optional<UserBroadcaster> userBroadcaster,
-			SparkClassifierService sparkClassifierService) {
+			SparkClassifierService sparkClassifierService, SparkDispatchService sparkDispatchService) {
 		this.sparkRepository = sparkRepository;
 		this.tacticRepository = tacticRepository;
 		this.checkpointRepository = checkpointRepository;
@@ -70,6 +72,7 @@ public class SparkService {
 		this.activityBroadcaster = activityBroadcaster;
 		this.userBroadcaster = userBroadcaster;
 		this.sparkClassifierService = sparkClassifierService;
+		this.sparkDispatchService = sparkDispatchService;
 	}
 
 	/** Create a new spark from user input. */
@@ -142,16 +145,50 @@ public class SparkService {
 			spark.setStatus(SparkState.EXECUTING);
 			sparkRepository.save(spark, spark.getId());
 
-			broadcastToUser(spark.getUserId(), Map.of("type", "spark_status", "sparkId", sparkId, "status",
-					"EXECUTING", "deviceName", device.get().getDeviceName()));
+			boolean dispatched = sparkDispatchService.dispatchSpark(spark);
+			if (!dispatched) {
+				spark.setStatus(SparkState.QUEUED);
+				sparkRepository.save(spark, spark.getId());
 
-			log.info("[SPARK] Routed spark={} to device={}", sparkId, device.get().getId());
+				broadcastToUser(spark.getUserId(), Map.of("type", "spark_status", "sparkId", sparkId, "status",
+						"QUEUED", "deviceName", device.get().getDeviceName()));
+
+				log.warn("[SPARK] Device offline, spark {} queued for later dispatch", spark.getId());
+			}
+			else {
+				broadcastToUser(spark.getUserId(), Map.of("type", "spark_status", "sparkId", sparkId, "status",
+						"EXECUTING", "deviceName", device.get().getDeviceName()));
+
+				log.info("[SPARK] Routed spark={} to device={}", sparkId, device.get().getId());
+			}
 		}
 		else {
-			log.warn("[SPARK] No available device for spark={} user={}", sparkId, userId);
+			spark.setStatus(SparkState.QUEUED);
+			sparkRepository.save(spark, spark.getId());
+
+			broadcastToUser(spark.getUserId(),
+					Map.of("type", "spark_status", "sparkId", sparkId, "status", "QUEUED"));
+
+			log.warn("[SPARK] No available device for spark={} user={}, queued for later dispatch", sparkId, userId);
 		}
 
 		return device;
+	}
+
+	/** Dispatch any queued sparks assigned to a device that just connected. */
+	public void dispatchQueuedSparks(String deviceId, String userId) {
+		List<Spark> queued = sparkRepository.findByUserIdAndStatus(userId, SparkState.QUEUED);
+		for (Spark spark : queued) {
+			if (deviceId.equals(spark.getDeviceId())) {
+				log.info("[SPARK] Dispatching queued spark {} to device {}", spark.getId(), deviceId);
+				spark.setStatus(SparkState.EXECUTING);
+				sparkRepository.save(spark, spark.getId());
+				sparkDispatchService.dispatchSpark(spark);
+
+				broadcastToUser(userId, Map.of("type", "spark_status", "sparkId", spark.getId(), "status",
+						"EXECUTING"));
+			}
+		}
 	}
 
 	/** Update spark progress from device. */

@@ -48,6 +48,14 @@ public class SparkRepository extends FirestoreRepository<Spark> {
 			.toList();
 	}
 
+	/** Find sparks for a user with a specific status. */
+	public List<Spark> findByUserIdAndStatus(String userId, SparkState status) {
+		return findByField("userId", userId).stream()
+			.filter(s -> s.getStatus() == status)
+			.filter(Spark::isActive)
+			.toList();
+	}
+
 	/** Find recent sparks for a user (all states). */
 	public List<Spark> findRecentByUserId(String userId, int limit) {
 		List<Spark> all = findByField("userId", userId);
