@@ -1,5 +1,6 @@
 package io.strategiz.social.service.agent.websocket;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
@@ -16,23 +17,25 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
 	private final WebSocketAuthInterceptor authInterceptor;
 
+	private final String[] allowedOrigins;
+
 	public WebSocketConfig(DeviceWebSocketHandler deviceWebSocketHandler, UserWebSocketHandler userWebSocketHandler,
-			WebSocketAuthInterceptor authInterceptor) {
+			WebSocketAuthInterceptor authInterceptor,
+			@Value("${tacticl.websocket.allowed-origins:http://localhost:5173,http://localhost:3000}") String allowedOriginsConfig) {
 		this.deviceWebSocketHandler = deviceWebSocketHandler;
 		this.userWebSocketHandler = userWebSocketHandler;
 		this.authInterceptor = authInterceptor;
+		this.allowedOrigins = allowedOriginsConfig.split(",");
 	}
 
 	@Override
 	public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-		// TODO: Restrict to specific origins in production (e.g., "https://tacticl.io")
 		registry.addHandler(deviceWebSocketHandler, "/ws/device")
-			.setAllowedOriginPatterns("*")
+			.setAllowedOrigins(allowedOrigins)
 			.addInterceptors(authInterceptor);
 
-		// TODO: Restrict to specific origins in production (e.g., "https://tacticl.io")
 		registry.addHandler(userWebSocketHandler, "/ws/user")
-			.setAllowedOriginPatterns("*")
+			.setAllowedOrigins(allowedOrigins)
 			.addInterceptors(authInterceptor);
 	}
 

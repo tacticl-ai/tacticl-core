@@ -18,12 +18,15 @@ import io.strategiz.social.data.repository.ExecutionLogRepository;
 import io.strategiz.social.data.repository.SparkRepository;
 import io.strategiz.social.data.repository.TacticRepository;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Service;
 
 /**
@@ -51,10 +54,13 @@ public class SparkService {
 
 	private final Optional<UserBroadcaster> userBroadcaster;
 
+	private final SparkClassifierService sparkClassifierService;
+
 	public SparkService(SparkRepository sparkRepository, TacticRepository tacticRepository,
 			CheckpointRepository checkpointRepository, ExecutionLogRepository executionLogRepository,
 			DevicePreferenceRepository devicePreferenceRepository, DeviceRoutingService deviceRoutingService,
-			ActivityBroadcaster activityBroadcaster, Optional<UserBroadcaster> userBroadcaster) {
+			ActivityBroadcaster activityBroadcaster, Optional<UserBroadcaster> userBroadcaster,
+			SparkClassifierService sparkClassifierService) {
 		this.sparkRepository = sparkRepository;
 		this.tacticRepository = tacticRepository;
 		this.checkpointRepository = checkpointRepository;
@@ -63,6 +69,7 @@ public class SparkService {
 		this.deviceRoutingService = deviceRoutingService;
 		this.activityBroadcaster = activityBroadcaster;
 		this.userBroadcaster = userBroadcaster;
+		this.sparkClassifierService = sparkClassifierService;
 	}
 
 	/** Create a new spark from user input. */
@@ -70,22 +77,45 @@ public class SparkService {
 			CheckpointPolicy checkpointPolicy, List<String> repoAccess, String schedule) {
 		String sparkId = UUID.randomUUID().toString();
 
+		// Auto-classify type if not provided
+		String effectiveType = type;
+		if (effectiveType == null || effectiveType.isBlank()) {
+			effectiveType = sparkClassifierService.classifySparkType(title, description);
+			log.info("[SPARK] Auto-classified spark={} as type={}", sparkId, effectiveType);
+		}
+
 		Spark spark = new Spark();
 		spark.setId(sparkId);
 		spark.setUserId(userId);
 		spark.setTitle(title);
 		spark.setDescription(description);
-		spark.setType(type);
-		spark.setStatus(SparkState.PENDING);
+		spark.setType(effectiveType);
 		spark.setPriority(priority != null ? priority : SparkPriority.NORMAL);
 		spark.setCheckpointPolicy(checkpointPolicy != null ? checkpointPolicy : CheckpointPolicy.CHECKPOINT_MAJOR);
 		spark.setRepoAccess(repoAccess != null ? repoAccess : List.of());
 		spark.setSchedule(schedule);
 		spark.setCreatedAt(Instant.now());
+
+		// Handle scheduling
+		if (schedule != null && !schedule.isBlank()) {
+			spark.setNextRunAt(calculateNextRunAt(schedule));
+			spark.setStatus(SparkState.SCHEDULED);
+		}
+		else {
+			spark.setStatus(SparkState.PENDING);
+		}
+
 		sparkRepository.save(spark, sparkId);
 
-		log.info("[SPARK] Created spark={} type={} for user={}", sparkId, type, userId);
+		log.info("[SPARK] Created spark={} type={} for user={}", sparkId, effectiveType, userId);
 		return spark;
+	}
+
+	/** Calculate the next run time from a cron expression. */
+	public Instant calculateNextRunAt(String schedule) {
+		CronExpression cron = CronExpression.parse(schedule);
+		ZonedDateTime next = cron.next(ZonedDateTime.now(ZoneOffset.UTC));
+		return next != null ? next.toInstant() : null;
 	}
 
 	/** Route a spark to the best available device based on user preferences. */

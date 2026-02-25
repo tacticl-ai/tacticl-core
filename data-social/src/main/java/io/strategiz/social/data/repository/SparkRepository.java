@@ -3,6 +3,8 @@ package io.strategiz.social.data.repository;
 import com.google.cloud.firestore.Firestore;
 import io.strategiz.social.data.entity.Spark;
 import io.strategiz.social.data.entity.SparkState;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Repository;
 
@@ -28,6 +30,22 @@ public class SparkRepository extends FirestoreRepository<Spark> {
 	/** Find sparks by status. */
 	public List<Spark> findByStatus(SparkState status) {
 		return findByField("status", status.name());
+	}
+
+	/** Find scheduled sparks that are due for execution. */
+	public List<Spark> findScheduledDue(Instant now) {
+		List<Spark> scheduled = findByStatus(SparkState.SCHEDULED);
+		List<Spark> completed = findByStatus(SparkState.COMPLETED);
+
+		List<Spark> combined = new ArrayList<>();
+		combined.addAll(scheduled);
+		combined.addAll(completed);
+
+		return combined.stream()
+			.filter(Spark::isActive)
+			.filter(s -> s.getSchedule() != null && !s.getSchedule().isEmpty())
+			.filter(s -> s.getNextRunAt() != null && !s.getNextRunAt().isAfter(now))
+			.toList();
 	}
 
 	/** Find recent sparks for a user (all states). */
