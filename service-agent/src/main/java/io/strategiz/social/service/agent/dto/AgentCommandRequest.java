@@ -14,6 +14,8 @@ public class AgentCommandRequest {
 
 	private String model;
 
+	private String sparkType;
+
 	public String getText() {
 		return text;
 	}
@@ -44,6 +46,14 @@ public class AgentCommandRequest {
 
 	public void setModel(String model) {
 		this.model = model;
+	}
+
+	public String getSparkType() {
+		return sparkType;
+	}
+
+	public void setSparkType(String sparkType) {
+		this.sparkType = sparkType;
 	}
 
 }

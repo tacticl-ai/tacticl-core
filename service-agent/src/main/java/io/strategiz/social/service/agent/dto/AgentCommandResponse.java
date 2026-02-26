@@ -13,6 +13,14 @@ public class AgentCommandResponse {
 
 	private String model;
 
+	private boolean delegated;
+
+	private String deviceName;
+
+	private String sparkId;
+
+	private String sparkStatus;
+
 	public AgentCommandResponse() {
 	}
 
@@ -21,6 +29,19 @@ public class AgentCommandResponse {
 		this.toolsInvoked = toolsInvoked;
 		this.success = success;
 		this.model = model;
+	}
+
+	/** Create a delegated response (command routed to a device). */
+	public static AgentCommandResponse delegated(String sparkId, String sparkStatus, String deviceName) {
+		AgentCommandResponse resp = new AgentCommandResponse();
+		resp.responseText = "Routing to " + deviceName + "...";
+		resp.toolsInvoked = List.of();
+		resp.success = true;
+		resp.delegated = true;
+		resp.sparkId = sparkId;
+		resp.sparkStatus = sparkStatus;
+		resp.deviceName = deviceName;
+		return resp;
 	}
 
 	public String getResponseText() {
@@ -53,6 +74,38 @@ public class AgentCommandResponse {
 
 	public void setModel(String model) {
 		this.model = model;
+	}
+
+	public boolean isDelegated() {
+		return delegated;
+	}
+
+	public void setDelegated(boolean delegated) {
+		this.delegated = delegated;
+	}
+
+	public String getDeviceName() {
+		return deviceName;
+	}
+
+	public void setDeviceName(String deviceName) {
+		this.deviceName = deviceName;
+	}
+
+	public String getSparkId() {
+		return sparkId;
+	}
+
+	public void setSparkId(String sparkId) {
+		this.sparkId = sparkId;
+	}
+
+	public String getSparkStatus() {
+		return sparkStatus;
+	}
+
+	public void setSparkStatus(String sparkStatus) {
+		this.sparkStatus = sparkStatus;
 	}
 
 }
