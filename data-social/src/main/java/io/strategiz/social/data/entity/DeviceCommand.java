@@ -20,11 +20,7 @@ public class DeviceCommand {
 
 	private String sessionId;
 
-	private String askId;
-
-	private String taskId;
-
-	private String agentId;
+	private String sparkId;
 
 	private CommandType commandType;
 
@@ -148,28 +144,12 @@ public class DeviceCommand {
 		this.expiresAt = expiresAt;
 	}
 
-	public String getAskId() {
-		return askId;
+	public String getSparkId() {
+		return sparkId;
 	}
 
-	public void setAskId(String askId) {
-		this.askId = askId;
-	}
-
-	public String getTaskId() {
-		return taskId;
-	}
-
-	public void setTaskId(String taskId) {
-		this.taskId = taskId;
-	}
-
-	public String getAgentId() {
-		return agentId;
-	}
-
-	public void setAgentId(String agentId) {
-		this.agentId = agentId;
+	public void setSparkId(String sparkId) {
+		this.sparkId = sparkId;
 	}
 
 }

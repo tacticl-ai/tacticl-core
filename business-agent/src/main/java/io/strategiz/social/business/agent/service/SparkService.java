@@ -17,6 +17,8 @@ import io.strategiz.social.data.repository.DevicePreferenceRepository;
 import io.strategiz.social.data.repository.ExecutionLogRepository;
 import io.strategiz.social.data.repository.SparkRepository;
 import io.strategiz.social.data.repository.TacticRepository;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -298,33 +300,6 @@ public class SparkService {
 		return true;
 	}
 
-	/** Update a spark's mutable fields. */
-	public Optional<Spark> updateSpark(String sparkId, String userId, String title, String description,
-			SparkPriority priority, CheckpointPolicy checkpointPolicy, List<String> repoAccess) {
-		Optional<Spark> opt = sparkRepository.findById(sparkId);
-		if (opt.isEmpty() || !opt.get().getUserId().equals(userId)) {
-			return Optional.empty();
-		}
-		Spark spark = opt.get();
-		if (title != null) {
-			spark.setTitle(title);
-		}
-		if (description != null) {
-			spark.setDescription(description);
-		}
-		if (priority != null) {
-			spark.setPriority(priority);
-		}
-		if (checkpointPolicy != null) {
-			spark.setCheckpointPolicy(checkpointPolicy);
-		}
-		if (repoAccess != null) {
-			spark.setRepoAccess(repoAccess);
-		}
-		sparkRepository.save(spark, spark.getId());
-		return Optional.of(spark);
-	}
-
 	/** Get a spark by ID, ensuring it belongs to the user. */
 	public Optional<Spark> getSpark(String sparkId, String userId) {
 		return sparkRepository.findById(sparkId).filter(s -> s.getUserId().equals(userId)).filter(Spark::isActive);
@@ -332,6 +307,16 @@ public class SparkService {
 
 	/** List active sparks for a user (paginated via limit). */
 	public List<Spark> listSparks(String userId, int limit) {
+		return sparkRepository.findRecentByUserId(userId, limit);
+	}
+
+	/** Get non-terminal sparks for the activity dashboard. */
+	public List<Spark> getActiveSparks(String userId) {
+		return sparkRepository.findActiveByUserId(userId);
+	}
+
+	/** Get recently completed/failed/cancelled sparks for the activity dashboard. */
+	public List<Spark> getRecentSparks(String userId, int limit) {
 		return sparkRepository.findRecentByUserId(userId, limit);
 	}
 
@@ -353,6 +338,52 @@ public class SparkService {
 					Map.of("type", "spark_failed", "sparkId", sparkId, "error", errorMessage));
 
 			log.info("[SPARK] Failed spark={} error={}", sparkId, errorMessage);
+		});
+	}
+
+	/** Mark a spark as EXECUTING for cloud (in-process) execution. */
+	public void markRunning(String sparkId) {
+		sparkRepository.findById(sparkId).ifPresent(spark -> {
+			spark.setStatus(SparkState.EXECUTING);
+			sparkRepository.save(spark, spark.getId());
+			broadcastSparkUpdate(spark);
+			log.info("[SPARK] Cloud execution started for spark={}", sparkId);
+		});
+	}
+
+	/** Mark a spark as COMPLETED after cloud execution with cost estimation. */
+	public void markCloudCompleted(String sparkId, long totalTokens, String modelId) {
+		sparkRepository.findById(sparkId).ifPresent(spark -> {
+			spark.setStatus(SparkState.COMPLETED);
+			spark.setTotalTokens(totalTokens);
+			spark.setEstimatedCost(estimateCost(totalTokens, modelId));
+			spark.setCompletedAt(Instant.now());
+			sparkRepository.save(spark, spark.getId());
+
+			broadcastSparkUpdate(spark);
+			broadcastToUser(spark.getUserId(), Map.of("type", "spark_completed", "sparkId", sparkId,
+					"totalTokens", totalTokens));
+
+			log.info("[SPARK] Cloud execution completed spark={} tokens={}", sparkId, totalTokens);
+		});
+	}
+
+	/** Mark a spark as FAILED after cloud execution with error details and cost estimation. */
+	public void markCloudFailed(String sparkId, String errorMessage, long totalTokens, String modelId) {
+		sparkRepository.findById(sparkId).ifPresent(spark -> {
+			spark.setStatus(SparkState.FAILED);
+			spark.setResult(Map.of("error", errorMessage != null ? errorMessage : "Unknown error"));
+			spark.setTotalTokens(totalTokens);
+			spark.setEstimatedCost(estimateCost(totalTokens, modelId));
+			spark.setCompletedAt(Instant.now());
+			sparkRepository.save(spark, spark.getId());
+
+			broadcastSparkUpdate(spark);
+			broadcastToUser(spark.getUserId(),
+					Map.of("type", "spark_failed", "sparkId", sparkId, "error",
+							errorMessage != null ? errorMessage : "Unknown error"));
+
+			log.info("[SPARK] Cloud execution failed spark={} error={}", sparkId, errorMessage);
 		});
 	}
 
@@ -477,6 +508,25 @@ public class SparkService {
 
 	private void broadcastToUser(String userId, Map<String, Object> payload) {
 		userBroadcaster.ifPresent(b -> b.broadcastToUser(userId, payload));
+	}
+
+	private BigDecimal estimateCost(long tokens, String modelId) {
+		BigDecimal perMillionTokens;
+		String model = modelId != null ? modelId : "";
+		if (model.contains("opus")) {
+			perMillionTokens = new BigDecimal("75.00");
+		}
+		else if (model.contains("sonnet")) {
+			perMillionTokens = new BigDecimal("15.00");
+		}
+		else if (model.contains("haiku")) {
+			perMillionTokens = new BigDecimal("1.25");
+		}
+		else {
+			perMillionTokens = new BigDecimal("15.00");
+		}
+		return perMillionTokens.multiply(BigDecimal.valueOf(tokens))
+			.divide(BigDecimal.valueOf(1_000_000), 4, RoundingMode.HALF_UP);
 	}
 
 }

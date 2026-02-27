@@ -39,20 +39,22 @@ public class VoiceAgentService {
 
 	private final AgentAuditLogRepository auditLogRepository;
 
-	private final AskService askService;
+	private final SparkService sparkService;
 
 	public VoiceAgentService(LlmRouter llmRouter, AgentModelConfig modelConfig, ToolRegistry toolRegistry,
-			AgentSystemPrompt agentSystemPrompt, AgentAuditLogRepository auditLogRepository, AskService askService) {
+			AgentSystemPrompt agentSystemPrompt, AgentAuditLogRepository auditLogRepository,
+			SparkService sparkService) {
 		this.llmRouter = llmRouter;
 		this.modelConfig = modelConfig;
 		this.toolRegistry = toolRegistry;
 		this.agentSystemPrompt = agentSystemPrompt;
 		this.auditLogRepository = auditLogRepository;
-		this.askService = askService;
+		this.sparkService = sparkService;
 	}
 
 	/**
-	 * Execute a voice command through the agent loop.
+	 * Execute a voice command through the agent loop (cloud fallback path).
+	 * @param sparkId the spark ID (already created by the controller)
 	 * @param commandText the transcribed user command
 	 * @param userId the authenticated user ID
 	 * @param sessionId the conversation session ID
@@ -60,23 +62,17 @@ public class VoiceAgentService {
 	 * @param timezone user's timezone
 	 * @return the agent's text response
 	 */
-	public AgentResult execute(String commandText, String userId, String sessionId, List<String> connectedPlatforms,
-			String timezone, String modelOverride) {
+	public AgentResult execute(String sparkId, String commandText, String userId, String sessionId,
+			List<String> connectedPlatforms, String timezone, String modelOverride) {
 		long startTime = System.currentTimeMillis();
 		List<String> toolsInvoked = new ArrayList<>();
 		String effectiveModel = (modelOverride != null && !modelOverride.isBlank()) ? modelOverride
 				: modelConfig.getRoutingModel();
 
-		// Create ask for activity tracking
-		AskService.CreateAskResult askResult = askService.createAsk(userId, null, commandText, effectiveModel);
-		String askId = askResult.ask().getId();
-		String taskId = askResult.taskId();
-		String agentId = askResult.agentId();
-
-		AskContext.set(new AskContext(askId, taskId, agentId));
+		SparkContext.set(new SparkContext(sparkId));
 		try {
-			// Mark running when agent loop starts
-			askService.markRunning(askId);
+			// Mark spark as executing for cloud path
+			sparkService.markRunning(sparkId);
 
 			// 1. Build system prompt
 			String systemPrompt = agentSystemPrompt.buildSystemPrompt(userId, connectedPlatforms, timezone);
@@ -131,8 +127,8 @@ public class VoiceAgentService {
 			logAudit(userId, sessionId, commandText, toolsInvoked, finalResponse, true, null,
 					System.currentTimeMillis() - startTime);
 
-			// Mark ask completed
-			askService.markCompleted(askId, 0, effectiveModel);
+			// Mark spark completed
+			sparkService.markCloudCompleted(sparkId, 0, effectiveModel);
 
 			return AgentResult.success(finalResponse, toolsInvoked, effectiveModel);
 		}
@@ -142,13 +138,13 @@ public class VoiceAgentService {
 			logAudit(userId, sessionId, commandText, toolsInvoked, null, false, e.getMessage(),
 					System.currentTimeMillis() - startTime);
 
-			// Mark ask failed
-			askService.markFailed(askId, 0, effectiveModel);
+			// Mark spark failed
+			sparkService.markCloudFailed(sparkId, e.getMessage(), 0, effectiveModel);
 
 			return AgentResult.failure(errorMsg);
 		}
 		finally {
-			AskContext.clear();
+			SparkContext.clear();
 		}
 	}
 

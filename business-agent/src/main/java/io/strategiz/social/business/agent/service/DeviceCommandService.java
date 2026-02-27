@@ -34,18 +34,14 @@ public class DeviceCommandService {
 
 	private final DeviceCommandDispatcher dispatcher;
 
-	private final AskService askService;
-
 	/** In-memory latches for awaiting command results. Key = commandId. */
 	private final ConcurrentHashMap<String, CommandResult> resultMap = new ConcurrentHashMap<>();
 
 	private final ConcurrentHashMap<String, CountDownLatch> latchMap = new ConcurrentHashMap<>();
 
-	public DeviceCommandService(DeviceCommandRepository commandRepository, DeviceCommandDispatcher dispatcher,
-			AskService askService) {
+	public DeviceCommandService(DeviceCommandRepository commandRepository, DeviceCommandDispatcher dispatcher) {
 		this.commandRepository = commandRepository;
 		this.dispatcher = dispatcher;
-		this.askService = askService;
 	}
 
 	/** Create a command, persist it, and dispatch to the device via WebSocket. */
@@ -63,21 +59,14 @@ public class DeviceCommandService {
 		cmd.setCreatedAt(Instant.now());
 		cmd.setExpiresAt(Instant.now().plus(COMMAND_TTL));
 
-		// Set ask/task/agent context if available
-		AskContext ctx = AskContext.get();
+		// Set spark context if available
+		SparkContext ctx = SparkContext.get();
 		if (ctx != null) {
-			cmd.setAskId(ctx.getAskId());
-			cmd.setTaskId(ctx.getTaskId());
-			cmd.setAgentId(ctx.getAgentId());
+			cmd.setSparkId(ctx.getSparkId());
 		}
 
 		commandRepository.save(cmd, cmd.getId());
 		log.info("Command created: {} ({}) for device {}", cmd.getId(), commandType, deviceId);
-
-		// Record command in ask/task tracking
-		if (ctx != null) {
-			askService.recordCommand(ctx.getAskId(), ctx.getTaskId(), ctx.getAgentId(), cmd.getId());
-		}
 
 		// Prepare latch for synchronous wait
 		latchMap.put(cmd.getId(), new CountDownLatch(1));

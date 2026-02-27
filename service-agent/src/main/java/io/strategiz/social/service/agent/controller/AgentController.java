@@ -4,7 +4,6 @@ import io.strategiz.framework.authorization.annotation.AuthUser;
 import io.strategiz.framework.authorization.annotation.RequireAuth;
 import io.strategiz.framework.authorization.context.AuthenticatedUser;
 import io.strategiz.framework.llmrouter.LlmRouter;
-import io.strategiz.social.business.agent.service.AskService;
 import io.strategiz.social.business.agent.service.DeviceRoutingService;
 import io.strategiz.social.business.agent.service.SparkService;
 import io.strategiz.social.business.agent.service.TranscriptionService;
@@ -12,15 +11,12 @@ import io.strategiz.social.business.agent.service.UserProvisioningService;
 import io.strategiz.social.business.agent.service.VoiceAgentService;
 import io.strategiz.social.data.entity.ActionConfirmation;
 import io.strategiz.social.data.entity.AgentAuditLog;
-import io.strategiz.social.data.entity.Ask;
-import io.strategiz.social.data.entity.AskState;
 import io.strategiz.social.data.entity.DeviceRegistration;
 import io.strategiz.social.data.entity.SocialIntegration;
 import io.strategiz.social.data.entity.Spark;
 import io.strategiz.social.data.repository.ActionConfirmationRepository;
 import io.strategiz.social.data.repository.AgentAuditLogRepository;
 import io.strategiz.social.data.repository.SocialIntegrationRepository;
-import io.strategiz.social.service.agent.dto.ActivityResponse;
 import io.strategiz.social.service.agent.dto.AgentCommandRequest;
 import io.strategiz.social.service.agent.dto.AgentCommandResponse;
 import io.strategiz.social.service.agent.dto.AuditLogResponse;
@@ -30,7 +26,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -66,8 +61,6 @@ public class AgentController {
 
 	private final UserProvisioningService userProvisioningService;
 
-	private final AskService askService;
-
 	private final TranscriptionService transcriptionService;
 
 	private final SparkService sparkService;
@@ -77,7 +70,7 @@ public class AgentController {
 	public AgentController(VoiceAgentService voiceAgentService, LlmRouter llmRouter,
 			AgentAuditLogRepository auditLogRepository, ActionConfirmationRepository confirmationRepository,
 			SocialIntegrationRepository integrationRepository, UserProvisioningService userProvisioningService,
-			AskService askService, TranscriptionService transcriptionService, SparkService sparkService,
+			TranscriptionService transcriptionService, SparkService sparkService,
 			DeviceRoutingService deviceRoutingService) {
 		this.voiceAgentService = voiceAgentService;
 		this.llmRouter = llmRouter;
@@ -85,7 +78,6 @@ public class AgentController {
 		this.confirmationRepository = confirmationRepository;
 		this.integrationRepository = integrationRepository;
 		this.userProvisioningService = userProvisioningService;
-		this.askService = askService;
 		this.transcriptionService = transcriptionService;
 		this.sparkService = sparkService;
 		this.deviceRoutingService = deviceRoutingService;
@@ -94,8 +86,8 @@ public class AgentController {
 	@PostMapping("/command")
 	@RequireAuth
 	@Operation(summary = "Execute a voice command",
-			description = "Send a text command to the AI agent. Delegates to an online device if available, "
-					+ "otherwise processes in the cloud.")
+			description = "Send a text command to the AI agent. Always creates a Spark first, "
+					+ "then delegates to an online device if available, otherwise processes in the cloud.")
 	public ResponseEntity<AgentCommandResponse> executeCommand(@Valid @RequestBody AgentCommandRequest request,
 			@AuthUser AuthenticatedUser user) {
 		log.info("Agent command from user {}: {}", user.getUserId(),
@@ -104,9 +96,15 @@ public class AgentController {
 		// Ensure user record exists in Firestore
 		userProvisioningService.ensureUserExists(user.getUserId());
 
+		// Always create a Spark first
+		String commandText = request.getText();
+		String title = commandText.length() > 80 ? commandText.substring(0, 80) + "..." : commandText;
+		Spark spark = sparkService.createSpark(user.getUserId(), title, commandText, request.getSparkType(), null,
+				null, null, null);
+
 		// Try to delegate to an online device first
 		if (deviceRoutingService.hasOnlineDevice(user.getUserId())) {
-			Optional<AgentCommandResponse> delegated = delegateToDevice(request, user.getUserId());
+			Optional<AgentCommandResponse> delegated = delegateToDevice(spark, user.getUserId());
 			if (delegated.isPresent()) {
 				return ResponseEntity.ok(delegated.get());
 			}
@@ -114,17 +112,11 @@ public class AgentController {
 		}
 
 		// Fallback: process in the cloud via VoiceAgentService
-		return ResponseEntity.ok(executeInCloud(request, user.getUserId()));
+		return ResponseEntity.ok(executeInCloud(request, user.getUserId(), spark));
 	}
 
-	/** Delegate command to an online device via the Spark system. */
-	private Optional<AgentCommandResponse> delegateToDevice(AgentCommandRequest request, String userId) {
-		String commandText = request.getText();
-		String title = commandText.length() > 80 ? commandText.substring(0, 80) + "..." : commandText;
-
-		Spark spark = sparkService.createSpark(userId, title, commandText, request.getSparkType(), null, null, null,
-				null);
-
+	/** Delegate an already-created spark to an online device. */
+	private Optional<AgentCommandResponse> delegateToDevice(Spark spark, String userId) {
 		Optional<DeviceRegistration> device = sparkService.routeSpark(spark.getId(), userId);
 		if (device.isPresent()) {
 			String status = spark.getStatus() != null ? spark.getStatus().name() : "EXECUTING";
@@ -136,8 +128,8 @@ public class AgentController {
 		return Optional.empty();
 	}
 
-	/** Execute command in the cloud via VoiceAgentService. */
-	private AgentCommandResponse executeInCloud(AgentCommandRequest request, String userId) {
+	/** Execute command in the cloud via VoiceAgentService, tracking with the given spark. */
+	private AgentCommandResponse executeInCloud(AgentCommandRequest request, String userId, Spark spark) {
 		String sessionId = request.getSessionId() != null ? request.getSessionId() : UUID.randomUUID().toString();
 		String timezone = request.getTimezone() != null ? request.getTimezone() : "UTC";
 
@@ -148,11 +140,14 @@ public class AgentController {
 			.map(i -> i.getPlatform().getDisplayName())
 			.toList();
 
-		VoiceAgentService.AgentResult result = voiceAgentService.execute(request.getText(), userId, sessionId,
-				connectedPlatforms, timezone, request.getModel());
+		// VoiceAgentService handles markRunning/markCompleted/markFailed internally
+		VoiceAgentService.AgentResult result = voiceAgentService.execute(spark.getId(), request.getText(), userId,
+				sessionId, connectedPlatforms, timezone, request.getModel());
 
-		return new AgentCommandResponse(result.getResponseText(), result.getToolsInvoked(), result.isSuccess(),
-				result.getModel());
+		AgentCommandResponse response = new AgentCommandResponse(result.getResponseText(), result.getToolsInvoked(),
+				result.isSuccess(), result.getModel());
+		response.setSparkId(spark.getId());
+		return response;
 	}
 
 	@PostMapping("/confirm/{confirmationId}")
@@ -211,44 +206,6 @@ public class AgentController {
 		}).toList();
 
 		return ResponseEntity.ok(response);
-	}
-
-	@GetMapping("/activity")
-	@RequireAuth
-	@Operation(summary = "Get activity dashboard data",
-			description = "Returns active and recent asks with tasks and commands")
-	public ResponseEntity<ActivityResponse> getActivity(@AuthUser AuthenticatedUser user) {
-		List<Ask> active = askService.getActiveAsks(user.getUserId());
-		List<Ask> recent = askService.getRecentAsks(user.getUserId(), 10);
-
-		ActivityResponse response = new ActivityResponse();
-		response.setActiveAsks(active.stream()
-			.map(a -> askService.getAskDetail(a.getId(), user.getUserId()).orElse(Map.of()))
-			.toList());
-		response.setRecentAsks(recent.stream()
-			.filter(a -> a.getState() != AskState.PENDING && a.getState() != AskState.RUNNING)
-			.map(a -> askService.getAskDetail(a.getId(), user.getUserId()).orElse(Map.of()))
-			.limit(10)
-			.toList());
-		return ResponseEntity.ok(response);
-	}
-
-	@GetMapping("/asks/{askId}")
-	@RequireAuth
-	@Operation(summary = "Get ask detail")
-	public ResponseEntity<Map<String, Object>> getAskDetail(@PathVariable String askId,
-			@AuthUser AuthenticatedUser user) {
-		return askService.getAskDetail(askId, user.getUserId())
-			.map(ResponseEntity::ok)
-			.orElse(ResponseEntity.notFound().build());
-	}
-
-	@PostMapping("/asks/{askId}/cancel")
-	@RequireAuth
-	@Operation(summary = "Cancel an ask")
-	public ResponseEntity<Void> cancelAsk(@PathVariable String askId, @AuthUser AuthenticatedUser user) {
-		boolean cancelled = askService.cancelAsk(askId, user.getUserId());
-		return cancelled ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
 	}
 
 	@PostMapping(value = "/transcribe", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

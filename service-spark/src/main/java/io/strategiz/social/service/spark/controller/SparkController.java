@@ -5,40 +5,34 @@ import io.strategiz.framework.authorization.annotation.RequireAuth;
 import io.strategiz.framework.authorization.context.AuthenticatedUser;
 import io.strategiz.social.business.agent.service.SparkDispatchService;
 import io.strategiz.social.business.agent.service.SparkService;
-import io.strategiz.social.data.entity.CheckpointPolicy;
 import io.strategiz.social.data.entity.DeviceRegistration;
 import io.strategiz.social.data.entity.ExecutionLog;
 import io.strategiz.social.data.entity.Spark;
-import io.strategiz.social.data.entity.SparkPriority;
+import io.strategiz.social.data.entity.SparkState;
 import io.strategiz.social.data.entity.Tactic;
-import io.strategiz.social.service.spark.dto.CreateSparkRequest;
 import io.strategiz.social.service.spark.dto.ExecutionLogResponse;
+import io.strategiz.social.service.spark.dto.SparkActivityResponse;
 import io.strategiz.social.service.spark.dto.SparkResponse;
 import io.strategiz.social.service.spark.dto.TacticResponse;
-import io.strategiz.social.service.spark.dto.UpdateSparkRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** REST controller for spark CRUD and execution operations. */
+/** REST controller for spark read, execution, and lifecycle operations. */
 @RestController
 @RequestMapping("/api/sparks")
-@Tag(name = "Sparks", description = "Create, manage, and execute sparks")
+@Tag(name = "Sparks", description = "Manage and execute sparks")
 public class SparkController {
 
 	private static final Logger log = LoggerFactory.getLogger(SparkController.class);
@@ -52,30 +46,23 @@ public class SparkController {
 		this.sparkDispatchService = sparkDispatchService;
 	}
 
-	@PostMapping
+	@GetMapping("/activity")
 	@RequireAuth
-	@Operation(summary = "Create a new spark")
-	public ResponseEntity<SparkResponse> createSpark(@Valid @RequestBody CreateSparkRequest request,
-			@AuthUser AuthenticatedUser user) {
-		log.info("Create spark from user {}: {}", user.getUserId(),
-				request.getDescription().length() > 80 ? request.getDescription().substring(0, 80) + "..."
-						: request.getDescription());
+	@Operation(summary = "Get activity dashboard data",
+			description = "Returns active and recent sparks for the activity dashboard")
+	public ResponseEntity<SparkActivityResponse> getActivity(@AuthUser AuthenticatedUser user) {
+		List<Spark> active = sparkService.getActiveSparks(user.getUserId());
+		List<Spark> recent = sparkService.getRecentSparks(user.getUserId(), 10);
 
-		SparkPriority priority = parseEnum(SparkPriority.class, request.getPriority());
-		CheckpointPolicy policy = parseEnum(CheckpointPolicy.class, request.getCheckpointPolicy());
-
-		Spark spark = sparkService.createSpark(user.getUserId(), request.getTitle(), request.getDescription(),
-				request.getType(), priority, policy, request.getRepoAccess(), request.getSchedule());
-
-		// Auto-route and dispatch to an available device
-		Optional<DeviceRegistration> device = sparkService.routeSpark(spark.getId(), user.getUserId());
-		if (device.isPresent()) {
-			// Re-fetch spark after routing (status/deviceId updated)
-			spark = sparkService.getSparkInternal(spark.getId()).orElse(spark);
-			sparkDispatchService.dispatchSpark(spark);
-		}
-
-		return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(spark));
+		SparkActivityResponse response = new SparkActivityResponse();
+		response.setActiveSparks(active.stream().map(this::toResponse).toList());
+		response.setRecentSparks(recent.stream()
+			.filter(s -> s.getStatus() == SparkState.COMPLETED || s.getStatus() == SparkState.FAILED
+					|| s.getStatus() == SparkState.CANCELLED)
+			.map(this::toResponse)
+			.limit(10)
+			.toList());
+		return ResponseEntity.ok(response);
 	}
 
 	@GetMapping
@@ -96,20 +83,6 @@ public class SparkController {
 			.map(this::toResponse)
 			.map(ResponseEntity::ok)
 			.orElse(ResponseEntity.notFound().build());
-	}
-
-	@PutMapping("/{id}")
-	@RequireAuth
-	@Operation(summary = "Update a spark")
-	public ResponseEntity<SparkResponse> updateSpark(@PathVariable String id,
-			@Valid @RequestBody UpdateSparkRequest request, @AuthUser AuthenticatedUser user) {
-		SparkPriority priority = parseEnum(SparkPriority.class, request.getPriority());
-		CheckpointPolicy policy = parseEnum(CheckpointPolicy.class, request.getCheckpointPolicy());
-
-		Optional<Spark> updated = sparkService.updateSpark(id, user.getUserId(), request.getTitle(),
-				request.getDescription(), priority, policy, request.getRepoAccess());
-
-		return updated.map(this::toResponse).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
 	}
 
 	@DeleteMapping("/{id}")
@@ -240,18 +213,6 @@ public class SparkController {
 		r.setDurationMs(logEntry.getDurationMs());
 		r.setTimestamp(logEntry.getTimestamp());
 		return r;
-	}
-
-	private <E extends Enum<E>> E parseEnum(Class<E> enumClass, String value) {
-		if (value == null || value.isBlank()) {
-			return null;
-		}
-		try {
-			return Enum.valueOf(enumClass, value.toUpperCase());
-		}
-		catch (IllegalArgumentException e) {
-			return null;
-		}
 	}
 
 }
