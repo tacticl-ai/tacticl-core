@@ -37,9 +37,10 @@ client-base                — BaseHttpClient, RestTemplate patterns
 application/          → Spring Boot entry point (@EnableScheduling)
 service-social/       → Social media REST controllers, DTOs
 service-agent/        → Voice agent controller (POST /api/agent/command)
+service-spark/        → Spark CRUD, activity, tactics, logs (GET /api/sparks/*)
 business-social/      → Social logic (compose, schedule, publish, analytics, oauth)
-business-agent/       → Agent orchestration (VoiceAgentService, ToolRegistry, skills)
-data-social/          → Firestore entities (SocialPost, SocialIntegration, PlatformType)
+business-agent/       → Agent orchestration (VoiceAgentService, SparkService, ToolRegistry, skills)
+data-social/          → Firestore entities (Spark, Tactic, SocialPost, SocialIntegration, DeviceCommand)
 client-twitter/       → Twitter/X API v2 client
 client-linkedin/      → LinkedIn Marketing API client
 client-instagram/     → Instagram Graph API client
@@ -106,18 +107,57 @@ Tier 2 (2FA)      — Financial: purchases, subscriptions, spending > $X
 - Domain allowlist/blocklist controls which sites the agent can access
 - Spending limit ($0 default, user must explicitly enable)
 
-## Voice Agent Flow
+## Spark Lifecycle
+
+Every chat command is a **Spark** — the single top-level entity for all user requests. There is no manual spark creation; sparks are created exclusively via the chat/voice agent flow.
+
+```
+Chat message → POST /api/agent/command { text, sessionId }
+    → SparkService.createSpark() [ALWAYS — every command is a spark]
+    → SparkClassifierService auto-classifies type (code, social, research, devops, creative, data)
+    → Route decision:
+        a) Device online → SparkDispatchService → device decomposes into Tactics
+        b) No device    → VoiceAgentService cloud execution (no tactics)
+    → Spark tracked through completion (PENDING → EXECUTING → COMPLETED/FAILED)
+```
+
+### Spark State Machine
+```
+PENDING → ROUTING → QUEUED (no device) | EXECUTING (device found)
+PENDING → EXECUTING (cloud fallback, no device available)
+PENDING → SCHEDULED (if cron schedule set)
+EXECUTING → CHECKPOINT → EXECUTING (after user decision)
+EXECUTING → COMPLETED | FAILED
+Any → CANCELLED
+```
+
+### Spark → Tactic Relationship
+- **Spark**: User's raw input request (created from chat)
+- **Tactic**: Device-side decomposition of a spark into executable sub-tasks (created on-device only, not for cloud execution)
+- One spark can produce multiple tactics when a device breaks down the work
+
+### Key Services
+- `SparkService` — Full lifecycle: creation, routing, progress tracking, checkpoints, completion
+- `SparkContext` — ThreadLocal holding current sparkId during execution
+- `SparkClassifierService` — Auto-classifies spark type via Claude Haiku
+- `SparkDispatchService` — WebSocket dispatch to devices
+- `VoiceAgentService` — Cloud execution fallback (accepts sparkId, manages LLM agent loop)
+
+## Voice Agent Flow (Cloud Execution)
 
 ```
 Push-to-talk → expo-av → Whisper API (~500ms) → text
     → POST /api/agent/command { text, sessionId }
-    → VoiceAgentService:
-        1. Build system prompt (personality + user context + memory)
-        2. Get tools filtered by user's scopes/tier
-        3. Claude API with tool_use
-        4. Execute tool calls via ToolRegistry
-        5. Send tool_result back to Claude
-        6. Return final text response
+    → AgentController creates Spark, then:
+        → VoiceAgentService.execute(sparkId, ...):
+            1. SparkService.markRunning(sparkId)
+            2. Build system prompt (personality + user context + memory)
+            3. Get tools filtered by user's scopes/tier
+            4. Claude API with tool_use
+            5. Execute tool calls via ToolRegistry
+            6. Send tool_result back to Claude
+            7. SparkService.markCloudCompleted(sparkId, tokens, model)
+            8. Return final text response
     → Mobile app renders response + actions
 ```
 
@@ -166,10 +206,14 @@ gcloud builds submit --config deployment/cloudbuild/cloudbuild-prod.yaml .
 Key collections (see PRD-005 for full schemas):
 
 ```
+sparks/                    — Every chat command (top-level entity, replaces asks)
+tactics/                   — Device-side decomposition of sparks into sub-tasks
+execution_logs/            — Spark execution logs (tool calls, outputs, tokens)
+checkpoints/               — Spark checkpoints requiring user approval
 social_posts/              — Posts with state machine
 social_integrations/       — Connected platform accounts (OAuth tokens)
 generated_videos/          — AI video generation tracking
-browser_sessions/          — General browser automation sessions
+device_commands/            — Commands dispatched to devices (references sparkId)
 agent_audit_log/           — All agent commands logged
 users/{id}/agent_memory/   — Persistent memory (subcollection)
 action_confirmations/      — Pending action confirmations
@@ -177,6 +221,8 @@ agent_reminders/           — User reminders
 content_templates/         — Reusable post templates
 scheduled_batches/         — Batch scheduling groups
 ```
+
+**Removed collections** (unified into sparks): `asks/`, `agent_tasks/`, `agent_instances/`
 
 ## Troubleshooting
 
