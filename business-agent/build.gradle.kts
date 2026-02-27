@@ -10,15 +10,17 @@ dependencies {
     implementation(project(":client-brave-search"))
     implementation(project(":client-jina"))
 
-    // Strategiz shared frameworks
-    implementation(libs.strategiz.service.framework.base)
-    implementation(libs.strategiz.framework.exception)
-    implementation(libs.strategiz.framework.logging)
-    implementation(libs.strategiz.framework.secrets)
-    implementation(libs.strategiz.framework.token.issuance)
-    implementation(libs.strategiz.client.base)
+    // Cidadel shared infrastructure
+    implementation(libs.cidadel.service.framework.base)
+    implementation(libs.cidadel.framework.exception)
+    implementation(libs.cidadel.framework.logging)
+    implementation(libs.cidadel.framework.secrets)
+    implementation(libs.cidadel.framework.token.issuance)
+    implementation(libs.cidadel.client.base)
+    implementation(libs.cidadel.framework.llm.router)
+
+    // Strategiz product-specific libraries
     implementation(libs.strategiz.client.anthropic.direct)
-    implementation(libs.strategiz.framework.llm.router)
     implementation(libs.strategiz.client.openai.direct)
     implementation(libs.strategiz.client.grok.direct)
 

@@ -3,10 +3,10 @@ plugins {
 }
 
 dependencies {
-    // Strategiz shared frameworks
-    implementation(libs.strategiz.framework.exception)
-    implementation(libs.strategiz.framework.secrets)
-    implementation(libs.strategiz.client.base)
+    // Cidadel shared infrastructure
+    implementation(libs.cidadel.framework.exception)
+    implementation(libs.cidadel.framework.secrets)
+    implementation(libs.cidadel.client.base)
 
     // Spring Boot
     implementation(libs.spring.boot.starter.web)

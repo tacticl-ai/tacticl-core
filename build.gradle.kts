@@ -11,7 +11,16 @@ allprojects {
     repositories {
         mavenLocal()
         mavenCentral()
-        // Strategiz shared libraries from GitHub Packages
+        // Cidadel shared infrastructure from GitHub Packages
+        maven {
+            name = "CidadelPackages"
+            url = uri("https://maven.pkg.github.com/cuztomizer/cidadel-core")
+            credentials {
+                username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
+                password = project.findProperty("gpr.key") as String? ?: System.getenv("GITHUB_TOKEN")
+            }
+        }
+        // Strategiz product-specific libraries from GitHub Packages
         maven {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/strategiz-io/strategiz-core")

@@ -10,12 +10,12 @@ dependencies {
     implementation(project(":client-google"))
     implementation(project(":client-github"))
 
-    // Strategiz shared frameworks
-    implementation(libs.strategiz.client.base)
-    implementation(libs.strategiz.framework.exception)
-    implementation(libs.strategiz.framework.logging)
-    implementation(libs.strategiz.framework.secrets)
-    implementation(libs.strategiz.framework.resilience)
+    // Cidadel shared infrastructure
+    implementation(libs.cidadel.client.base)
+    implementation(libs.cidadel.framework.exception)
+    implementation(libs.cidadel.framework.logging)
+    implementation(libs.cidadel.framework.secrets)
+    implementation(libs.cidadel.framework.resilience)
 
     // Spring Boot
     implementation(libs.spring.boot.starter.web)

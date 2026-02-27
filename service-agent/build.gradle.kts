@@ -8,14 +8,15 @@ dependencies {
     implementation(project(":business-social"))
     implementation(project(":data-social"))
 
-    // Strategiz shared frameworks
-    implementation(libs.strategiz.service.framework.base)
-    implementation(libs.strategiz.framework.authorization)
-    implementation(libs.strategiz.framework.token.issuance)
-    implementation(libs.strategiz.framework.exception)
-    implementation(libs.strategiz.framework.logging)
-    implementation(libs.strategiz.framework.api.docs)
-    implementation(libs.strategiz.framework.llm.router)
+    // Cidadel shared infrastructure
+    implementation(libs.cidadel.service.framework.base)
+    implementation(libs.cidadel.framework.authorization)
+    implementation(libs.cidadel.framework.token.issuance)
+    implementation(libs.cidadel.framework.exception)
+    implementation(libs.cidadel.framework.logging)
+    implementation(libs.cidadel.framework.api.docs)
+    implementation(libs.cidadel.framework.llm.router)
+    implementation(libs.cidadel.client.base)
 
     // Spring Boot
     implementation(libs.spring.boot.starter.web)

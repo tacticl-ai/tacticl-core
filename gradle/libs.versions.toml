@@ -3,7 +3,10 @@
 spring-boot = "3.5.7"
 java = "21"
 
-# Strategiz shared libraries (from GitHub Packages)
+# Cidadel shared infrastructure (from GitHub Packages)
+cidadel = "0.1.0-SNAPSHOT"
+
+# Strategiz product-specific libraries (from GitHub Packages)
 strategiz = "1.0-SNAPSHOT"
 
 # External dependencies
@@ -27,21 +30,22 @@ spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-
 spring-boot-starter-oauth2-client = { module = "org.springframework.boot:spring-boot-starter-oauth2-client" }
 spring-boot-starter-websocket = { module = "org.springframework.boot:spring-boot-starter-websocket" }
 
-# Strategiz shared libraries
-strategiz-framework-authorization = { module = "io.strategiz:framework-authorization", version.ref = "strategiz" }
-strategiz-framework-token-issuance = { module = "io.strategiz:framework-token-issuance", version.ref = "strategiz" }
-strategiz-framework-exception = { module = "io.strategiz:framework-exception", version.ref = "strategiz" }
-strategiz-framework-logging = { module = "io.strategiz:framework-logging", version.ref = "strategiz" }
-strategiz-framework-secrets = { module = "io.strategiz:framework-secrets", version.ref = "strategiz" }
-strategiz-framework-resilience = { module = "io.strategiz:framework-resilience", version.ref = "strategiz" }
-strategiz-framework-api-docs = { module = "io.strategiz:framework-api-docs", version.ref = "strategiz" }
-strategiz-client-base = { module = "io.strategiz:client-framework-base", version.ref = "strategiz" }
+# Cidadel shared infrastructure (from cidadel-core GitHub Packages)
+cidadel-framework-authorization = { module = "io.cidadel:framework-authorization", version.ref = "cidadel" }
+cidadel-framework-token-issuance = { module = "io.cidadel:framework-token-issuance", version.ref = "cidadel" }
+cidadel-framework-exception = { module = "io.cidadel:framework-exception", version.ref = "cidadel" }
+cidadel-framework-logging = { module = "io.cidadel:framework-logging", version.ref = "cidadel" }
+cidadel-framework-secrets = { module = "io.cidadel:framework-secrets", version.ref = "cidadel" }
+cidadel-framework-resilience = { module = "io.cidadel:framework-resilience", version.ref = "cidadel" }
+cidadel-framework-api-docs = { module = "io.cidadel:framework-api-docs", version.ref = "cidadel" }
+cidadel-framework-llm-router = { module = "io.cidadel:framework-llm-router", version.ref = "cidadel" }
+cidadel-client-base = { module = "io.cidadel:client-framework-base", version.ref = "cidadel" }
+cidadel-service-framework-base = { module = "io.cidadel:service-framework-base", version.ref = "cidadel" }
+
+# Strategiz product-specific libraries (from strategiz-core GitHub Packages)
 strategiz-client-anthropic-direct = { module = "io.strategiz:client-anthropic-direct", version.ref = "strategiz" }
-strategiz-framework-llm-router = { module = "io.strategiz:framework-llm-router", version.ref = "strategiz" }
 strategiz-client-openai-direct = { module = "io.strategiz:client-openai-direct", version.ref = "strategiz" }
 strategiz-client-grok-direct = { module = "io.strategiz:client-grok-direct", version.ref = "strategiz" }
-
-# Auth modules (reused from strategiz)
 strategiz-service-auth = { module = "io.strategiz:service-auth", version.ref = "strategiz" }
 strategiz-service-framework-base = { module = "io.strategiz:service-framework-base", version.ref = "strategiz" }
 strategiz-business-token-auth = { module = "io.strategiz:business-token-auth", version.ref = "strategiz" }
