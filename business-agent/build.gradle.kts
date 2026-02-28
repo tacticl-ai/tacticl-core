@@ -27,6 +27,9 @@ dependencies {
     // Spring Boot
     implementation(libs.spring.boot.starter.web)
 
+    // Google Cloud Firestore (for UserDataPurgeService batch operations)
+    implementation(libs.google.cloud.firestore)
+
     // Jackson
     implementation(libs.jackson.databind)
 

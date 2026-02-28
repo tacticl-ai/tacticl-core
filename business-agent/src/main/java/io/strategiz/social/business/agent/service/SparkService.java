@@ -3,17 +3,14 @@ package io.strategiz.social.business.agent.service;
 import io.strategiz.social.data.entity.Checkpoint;
 import io.strategiz.social.data.entity.CheckpointDecision;
 import io.strategiz.social.data.entity.CheckpointPolicy;
-import io.strategiz.social.data.entity.DevicePreference;
 import io.strategiz.social.data.entity.DeviceRegistration;
 import io.strategiz.social.data.entity.ExecutionLog;
-import io.strategiz.social.data.entity.FallbackPolicy;
 import io.strategiz.social.data.entity.Spark;
 import io.strategiz.social.data.entity.SparkPriority;
 import io.strategiz.social.data.entity.SparkState;
 import io.strategiz.social.data.entity.Tactic;
 import io.strategiz.social.data.entity.TacticState;
 import io.strategiz.social.data.repository.CheckpointRepository;
-import io.strategiz.social.data.repository.DevicePreferenceRepository;
 import io.strategiz.social.data.repository.ExecutionLogRepository;
 import io.strategiz.social.data.repository.SparkRepository;
 import io.strategiz.social.data.repository.TacticRepository;
@@ -48,8 +45,6 @@ public class SparkService {
 
 	private final ExecutionLogRepository executionLogRepository;
 
-	private final DevicePreferenceRepository devicePreferenceRepository;
-
 	private final DeviceRoutingService deviceRoutingService;
 
 	private final ActivityBroadcaster activityBroadcaster;
@@ -62,14 +57,13 @@ public class SparkService {
 
 	public SparkService(SparkRepository sparkRepository, TacticRepository tacticRepository,
 			CheckpointRepository checkpointRepository, ExecutionLogRepository executionLogRepository,
-			DevicePreferenceRepository devicePreferenceRepository, DeviceRoutingService deviceRoutingService,
-			ActivityBroadcaster activityBroadcaster, Optional<UserBroadcaster> userBroadcaster,
-			SparkClassifierService sparkClassifierService, SparkDispatchService sparkDispatchService) {
+			DeviceRoutingService deviceRoutingService, ActivityBroadcaster activityBroadcaster,
+			Optional<UserBroadcaster> userBroadcaster, SparkClassifierService sparkClassifierService,
+			SparkDispatchService sparkDispatchService) {
 		this.sparkRepository = sparkRepository;
 		this.tacticRepository = tacticRepository;
 		this.checkpointRepository = checkpointRepository;
 		this.executionLogRepository = executionLogRepository;
-		this.devicePreferenceRepository = devicePreferenceRepository;
 		this.deviceRoutingService = deviceRoutingService;
 		this.activityBroadcaster = activityBroadcaster;
 		this.userBroadcaster = userBroadcaster;
@@ -481,24 +475,7 @@ public class SparkService {
 		if (sparkType == null) {
 			return Optional.empty();
 		}
-		List<DevicePreference> preferences = devicePreferenceRepository.findAllByUserId(userId);
-		Optional<DevicePreference> pref = preferences.stream()
-			.filter(p -> sparkType.equals(p.getSparkType()))
-			.findFirst();
-
-		if (pref.isEmpty()) {
-			return Optional.empty();
-		}
-
-		DevicePreference preference = pref.get();
-		Optional<DeviceRegistration> device = deviceRoutingService.getOnlineDevice(preference.getPreferredDeviceId(),
-				userId);
-
-		if (device.isEmpty() && preference.getFallbackPolicy() == FallbackPolicy.ANY_AVAILABLE) {
-			return deviceRoutingService.selectDevice(userId, null);
-		}
-
-		return device;
+		return deviceRoutingService.selectDevice(userId, sparkType);
 	}
 
 	private void broadcastSparkUpdate(Spark spark) {
