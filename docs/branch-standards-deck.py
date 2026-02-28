@@ -86,7 +86,7 @@ def add_slide_number(slide, num, total):
                  alignment=PP_ALIGN.RIGHT)
 
 
-TOTAL_SLIDES = 15
+TOTAL_SLIDES = 17
 
 # ============================================================
 # SLIDE 1 — Title
@@ -740,20 +740,17 @@ add_text_box(slide, Inches(7.2), Inches(4.4), Inches(4.8), Inches(0.4),
 
 lifecycle_a = [
     ("1. Pick up story", "Assign IS-1234 on project board"),
-    ("2. Create branch", "feature/IS-1234-signup-form from main/develop"),
+    ("2. Create branch", "feature/IS-1234-signup-form"),
     ("3. Develop", "Commit with conventional messages"),
-    ("4. Open PR", "PR title: feat(auth): IS-1234 Add signup form"),
-    ("5. Review + merge", "Squash-merge, delete branch, story \u2192 Done"),
+    ("4. Open PR", "feat(auth): IS-1234 Add signup form"),
+    ("5. Review + merge", "Squash-merge, delete branch, done"),
 ]
 for i, (step, detail) in enumerate(lifecycle_a):
     y = Inches(4.85) + i * Inches(0.42)
-    add_text_box(slide, Inches(7.2), y, Inches(2.2), Inches(0.35),
+    add_text_box(slide, Inches(7.2), y, Inches(2.0), Inches(0.35),
                  step, font_size=12, color=ACCENT_BLUE, bold=True)
-    add_text_box(slide, Inches(9.4), y, Inches(2.7), Inches(0.35),
+    add_text_box(slide, Inches(9.2), y, Inches(3.0), Inches(0.35),
                  detail, font_size=11, color=LIGHT_GRAY)
-
-# Traceability callout
-add_card(slide, Inches(7.0), Inches(7.0), Inches(5.1), Inches(0.0), CARD_BG)
 
 add_slide_number(slide, 10, TOTAL_SLIDES)
 
@@ -1111,6 +1108,245 @@ add_text_box(slide, Inches(1.2), Inches(6.82), Inches(10.5), Inches(0.4),
              font_size=14, color=ACCENT_ORANGE, bold=True)
 
 add_slide_number(slide, 15, TOTAL_SLIDES)
+
+# ============================================================
+# SLIDE 16 — Developer Touchpoints for Traceability
+# ============================================================
+slide = prs.slides.add_slide(prs.slide_layouts[6])
+set_slide_bg(slide, DARK_BG)
+add_accent_bar(slide, Inches(0), Inches(0), W, Inches(0.06), ACCENT_GREEN)
+
+add_text_box(slide, Inches(0.8), Inches(0.4), Inches(10), Inches(0.7),
+             "Developer Touchpoints for Traceability", font_size=32, color=WHITE, bold=True)
+
+add_text_box(slide, Inches(0.8), Inches(1.0), Inches(10), Inches(0.5),
+             "Only 2 manual steps required from developers — automation handles the rest", font_size=14, color=MID_GRAY)
+
+# -- YOU DO (left) --
+add_card(slide, Inches(0.8), Inches(1.5), Inches(7.5), Inches(5.7))
+add_accent_bar(slide, Inches(0.8), Inches(1.5), Inches(0.08), Inches(5.7), ACCENT_GREEN)
+
+add_text_box(slide, Inches(1.2), Inches(1.6), Inches(6.8), Inches(0.4),
+             "WHAT YOU DO  (2 manual steps)", font_size=16, color=ACCENT_GREEN, bold=True)
+
+# Step 1: Branch name
+step1_badge = add_card(slide, Inches(1.2), Inches(2.15), Inches(0.45), Inches(0.45), ACCENT_GREEN)
+add_text_box(slide, Inches(1.2), Inches(2.17), Inches(0.45), Inches(0.4),
+             "1", font_size=18, color=WHITE, bold=True, alignment=PP_ALIGN.CENTER)
+
+add_text_box(slide, Inches(1.8), Inches(2.15), Inches(6.2), Inches(0.45),
+             "Include the ticket ID in your branch name", font_size=16, color=WHITE, bold=True)
+
+# Branch type examples table
+branch_types = [
+    ("feature/", "IS-1234", "User story ID", "feature/IS-1234-add-profile", ACCENT_BLUE),
+    ("integration/", "IS-200", "Feature ID", "integration/IS-200-onboarding", ACCENT_PURPLE),
+    ("bugfix/", "IS-567", "Defect ID", "bugfix/IS-567-fix-login-timeout", ACCENT_ORANGE),
+    ("hotfix/", "IS-890", "Defect ID", "hotfix/IS-890-patch-auth-bypass", ACCENT_RED),
+    ("chore/", "IS-321", "Task ID", "chore/IS-321-upgrade-spring", MID_GRAY),
+    ("release/", "vX.Y.Z", "Version", "release/v2.4.0", ACCENT_GREEN),
+]
+
+# Table header
+y_tbl = Inches(2.75)
+add_text_box(slide, Inches(1.5), y_tbl, Inches(1.3), Inches(0.3),
+             "TYPE", font_size=10, color=ACCENT_BLUE, bold=True)
+add_text_box(slide, Inches(2.8), y_tbl, Inches(1.0), Inches(0.3),
+             "ID", font_size=10, color=ACCENT_BLUE, bold=True)
+add_text_box(slide, Inches(3.8), y_tbl, Inches(1.2), Inches(0.3),
+             "SOURCE", font_size=10, color=ACCENT_BLUE, bold=True)
+add_text_box(slide, Inches(5.2), y_tbl, Inches(3.0), Inches(0.3),
+             "EXAMPLE", font_size=10, color=ACCENT_BLUE, bold=True)
+add_accent_bar(slide, Inches(1.5), y_tbl + Inches(0.28), Inches(6.5), Inches(0.02), CARD_BG)
+
+for i, (prefix, ticket, source, example, color) in enumerate(branch_types):
+    y = y_tbl + Inches(0.38) + i * Inches(0.38)
+    if i % 2 == 0:
+        add_card(slide, Inches(1.4), y - Inches(0.03), Inches(6.7), Inches(0.36), CARD_BG)
+    add_text_box(slide, Inches(1.5), y, Inches(1.3), Inches(0.3),
+                 prefix, font_size=11, color=color, bold=True, font_name="Consolas")
+    add_text_box(slide, Inches(2.8), y, Inches(1.0), Inches(0.3),
+                 ticket, font_size=11, color=WHITE, font_name="Consolas")
+    add_text_box(slide, Inches(3.8), y, Inches(1.2), Inches(0.3),
+                 source, font_size=10, color=LIGHT_GRAY)
+    add_text_box(slide, Inches(5.2), y, Inches(3.0), Inches(0.3),
+                 example, font_size=10, color=WHITE, font_name="Consolas")
+
+# Step 2: PR title
+step2_y = Inches(5.2)
+step2_badge = add_card(slide, Inches(1.2), step2_y, Inches(0.45), Inches(0.45), ACCENT_GREEN)
+add_text_box(slide, Inches(1.2), step2_y + Inches(0.02), Inches(0.45), Inches(0.4),
+             "2", font_size=18, color=WHITE, bold=True, alignment=PP_ALIGN.CENTER)
+
+add_text_box(slide, Inches(1.8), step2_y, Inches(6.2), Inches(0.45),
+             "Include the ticket ID in your PR title", font_size=16, color=WHITE, bold=True)
+
+pr_examples = [
+    ("feat(auth): IS-1234 Add OAuth login flow", ACCENT_BLUE),
+    ("fix(api): IS-567 Resolve timeout on bulk export", ACCENT_ORANGE),
+    ("hotfix(payments): IS-890 Patch null pointer", ACCENT_RED),
+]
+
+for i, (ex, color) in enumerate(pr_examples):
+    y = step2_y + Inches(0.55) + i * Inches(0.4)
+    add_accent_bar(slide, Inches(1.5), y + Inches(0.05), Inches(0.06), Inches(0.25), color)
+    add_text_box(slide, Inches(1.8), y, Inches(6.2), Inches(0.35),
+                 ex, font_size=12, color=WHITE, font_name="Consolas")
+
+# -- AUTOMATION DOES (right) --
+add_card(slide, Inches(8.8), Inches(1.5), Inches(3.7), Inches(5.7))
+add_accent_bar(slide, Inches(8.8), Inches(1.5), Inches(0.08), Inches(5.7), ACCENT_PURPLE)
+
+add_text_box(slide, Inches(9.1), Inches(1.6), Inches(3.2), Inches(0.4),
+             "AUTOMATION HANDLES", font_size=14, color=ACCENT_PURPLE, bold=True)
+
+auto_items = [
+    ("Commit messages",
+     "prepare-commit-msg hook\nextracts ticket ID from\nbranch name and appends\nRefs: IS-1234 to every\ncommit automatically.",
+     ACCENT_PURPLE),
+    ("Branch name validation",
+     "CI rejects PRs from\nbranches that don't match\nthe naming pattern.",
+     ACCENT_BLUE),
+    ("PR title validation",
+     "CI checks that PR title\nfollows conventional\nformat with ticket ID.",
+     ACCENT_ORANGE),
+    ("Merge commit tagging",
+     "Squash-merge commit\nautomatically includes\nPR number and ticket ID.",
+     ACCENT_GREEN),
+]
+
+for i, (title, desc, accent) in enumerate(auto_items):
+    y = Inches(2.15) + i * Inches(1.2)
+    add_text_box(slide, Inches(9.1), y, Inches(3.2), Inches(0.3),
+                 title, font_size=12, color=accent, bold=True)
+    add_text_box(slide, Inches(9.1), y + Inches(0.3), Inches(3.2), Inches(0.85),
+                 desc, font_size=10, color=LIGHT_GRAY)
+
+# Bottom summary bar
+add_card(slide, Inches(0.8), Inches(7.35), Inches(11.5), Inches(0.0), CARD_BG)
+
+add_slide_number(slide, 16, TOTAL_SLIDES)
+
+# ============================================================
+# SLIDE 17 — Open Issue: Feature Branch Immutability
+# ============================================================
+slide = prs.slides.add_slide(prs.slide_layouts[6])
+set_slide_bg(slide, DARK_BG)
+add_accent_bar(slide, Inches(0), Inches(0), W, Inches(0.06), ACCENT_RED)
+
+add_text_box(slide, Inches(0.8), Inches(0.4), Inches(10), Inches(0.7),
+             "Open Issue: Feature Branch Traceability Gap", font_size=32, color=WHITE, bold=True)
+
+add_text_box(slide, Inches(0.8), Inches(1.0), Inches(10), Inches(0.5),
+             "Feature branches can be created and deleted within minutes — losing all traceability of work done against a user story",
+             font_size=14, color=ACCENT_RED)
+
+# -- Timeline scenario (top, full width) --
+add_card(slide, Inches(0.8), Inches(1.5), Inches(11.5), Inches(2.6))
+add_accent_bar(slide, Inches(0.8), Inches(1.5), Inches(11.5), Inches(0.06), ACCENT_RED)
+
+add_text_box(slide, Inches(1.2), Inches(1.65), Inches(10), Inches(0.4),
+             "SCENARIO: TRACEABILITY LOST IN UNDER AN HOUR", font_size=14, color=ACCENT_RED, bold=True)
+
+timeline = [
+    ("9:00 AM", "Create branch", "feature/IS-1234-\nadd-user-profile", ACCENT_GREEN,
+     "Traceability exists:\nbranch name links to\nuser story IS-1234"),
+    ("9:15 AM", "Commit work", "feat(user): add profile\nfeat(user): add avatar\nfeat(user): add settings", ACCENT_BLUE,
+     "Commits reference work\nbut ticket ID is only\nin the branch name"),
+    ("9:30 AM", "Squash-merge PR", "Merge PR #42\nBranch auto-deleted", ACCENT_ORANGE,
+     "Branch name gone.\nTicket ID only in\nGitHub PR metadata"),
+    ("9:45 AM", "Audit question", "\"What code changed\nfor IS-1234?\"", ACCENT_RED,
+     "Must search GitHub\nPR metadata — not in\nGit history itself"),
+]
+
+for i, (time, action, detail, accent, trace_status) in enumerate(timeline):
+    x = Inches(0.9) + i * Inches(2.9)
+    y = Inches(2.1)
+
+    # Time badge
+    time_badge = add_card(slide, x + Inches(0.3), y, Inches(1.2), Inches(0.35), accent)
+    add_text_box(slide, x + Inches(0.3), y + Inches(0.02), Inches(1.2), Inches(0.3),
+                 time, font_size=11, color=WHITE, bold=True, alignment=PP_ALIGN.CENTER)
+
+    add_text_box(slide, x + Inches(0.1), y + Inches(0.45), Inches(2.5), Inches(0.35),
+                 action, font_size=13, color=accent, bold=True)
+    add_text_box(slide, x + Inches(0.1), y + Inches(0.8), Inches(2.5), Inches(0.6),
+                 detail, font_size=10, color=WHITE, font_name="Consolas")
+    add_text_box(slide, x + Inches(0.1), y + Inches(1.45), Inches(2.5), Inches(0.6),
+                 trace_status, font_size=9, color=LIGHT_GRAY)
+
+    if i < len(timeline) - 1:
+        add_text_box(slide, x + Inches(2.55), y + Inches(0.7), Inches(0.4), Inches(0.4),
+                     "\u2192", font_size=20, color=MID_GRAY, alignment=PP_ALIGN.CENTER)
+
+# -- The Core Problem (bottom left) --
+add_card(slide, Inches(0.8), Inches(4.4), Inches(5.5), Inches(2.8))
+add_accent_bar(slide, Inches(0.8), Inches(4.4), Inches(0.08), Inches(2.8), ACCENT_RED)
+
+add_text_box(slide, Inches(1.2), Inches(4.5), Inches(4.8), Inches(0.4),
+             "WHY TRACEABILITY BREAKS", font_size=14, color=ACCENT_RED, bold=True)
+
+problems = [
+    ("\u2717  Branches are not immutable",
+     "A Git branch is just a pointer — it can be\n"
+     "created, renamed, or deleted at any time.\n"
+     "There is no durable record that it ever existed."),
+    ("\u2717  Deletion is the standard practice",
+     "Our own standard says \"delete branch after merge.\"\n"
+     "This means the ticket ID in the branch name is\n"
+     "intentionally destroyed as part of the workflow."),
+    ("\u2717  Squash-merge erases branch context",
+     "The squash commit on main contains no reference\n"
+     "to the original branch name or its ticket ID.\n"
+     "The link only survives in GitHub's PR metadata."),
+]
+
+for i, (title, desc) in enumerate(problems):
+    y = Inches(5.0) + i * Inches(0.72)
+    add_text_box(slide, Inches(1.3), y, Inches(4.8), Inches(0.3),
+                 title, font_size=12, color=ACCENT_ORANGE, bold=True)
+    add_text_box(slide, Inches(1.5), y + Inches(0.28), Inches(4.5), Inches(0.5),
+                 desc, font_size=10, color=LIGHT_GRAY)
+
+# -- Proposed Solution (bottom right) --
+add_card(slide, Inches(6.8), Inches(4.4), Inches(5.5), Inches(2.8))
+add_accent_bar(slide, Inches(6.8), Inches(4.4), Inches(0.08), Inches(2.8), ACCENT_GREEN)
+
+add_text_box(slide, Inches(7.2), Inches(4.5), Inches(3.5), Inches(0.4),
+             "PROPOSED SOLUTION", font_size=14, color=ACCENT_GREEN, bold=True)
+
+# To be built badge
+status_badge = add_card(slide, Inches(10.5), Inches(4.5), Inches(1.6), Inches(0.35), ACCENT_ORANGE)
+add_text_box(slide, Inches(10.5), Inches(4.52), Inches(1.6), Inches(0.3),
+             "TO BE EXPLORED", font_size=11, color=WHITE, bold=True, alignment=PP_ALIGN.CENTER)
+
+add_text_box(slide, Inches(7.2), Inches(4.95), Inches(4.8), Inches(0.5),
+             "CI Integration with Audit Logs on Every Branch",
+             font_size=15, color=WHITE, bold=True)
+
+add_text_box(slide, Inches(7.2), Inches(5.4), Inches(4.8), Inches(0.6),
+             "We need a CI integration that maintains audit logs\n"
+             "on every branch — capturing the full lifecycle of\n"
+             "development work tied to each user story.",
+             font_size=12, color=LIGHT_GRAY)
+
+add_text_box(slide, Inches(7.2), Inches(5.95), Inches(4.8), Inches(0.35),
+             "CI must log:", font_size=11, color=ACCENT_GREEN, bold=True)
+
+audit_items = [
+    "Branch created  \u2192  who, when, which user story",
+    "Every push       \u2192  commits, changes, author",
+    "PR opened         \u2192  reviewers, linked story, diff",
+    "PR merged         \u2192  approval, final state of work",
+    "Branch deleted  \u2192  when, by whom, merge status",
+]
+
+for i, item in enumerate(audit_items):
+    y = Inches(6.3) + i * Inches(0.25)
+    add_text_box(slide, Inches(7.4), y, Inches(4.5), Inches(0.25),
+                 item, font_size=10, color=LIGHT_GRAY, font_name="Consolas")
+
+add_slide_number(slide, 17, TOTAL_SLIDES)
 
 # ============================================================
 # Save
