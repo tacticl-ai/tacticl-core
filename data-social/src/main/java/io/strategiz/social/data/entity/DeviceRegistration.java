@@ -49,6 +49,8 @@ public class DeviceRegistration {
 
 	private Map<String, Object> sparkPreferences;
 
+	private DeviceSettings settings;
+
 	public String getId() {
 		return id;
 	}
@@ -191,6 +193,14 @@ public class DeviceRegistration {
 
 	public void setSparkPreferences(Map<String, Object> sparkPreferences) {
 		this.sparkPreferences = sparkPreferences;
+	}
+
+	public DeviceSettings getSettings() {
+		return settings;
+	}
+
+	public void setSettings(DeviceSettings settings) {
+		this.settings = settings;
 	}
 
 	/** Check if the device has a specific capability. */

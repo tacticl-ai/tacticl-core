@@ -75,7 +75,7 @@ public class PostPublisherJob {
 		}
 
 		String integrationId = post.getTargetIntegrationIds().get(0);
-		Optional<SocialIntegration> integration = integrationRepository.findById(integrationId);
+		Optional<SocialIntegration> integration = integrationRepository.findById(post.getUserId(), integrationId);
 		if (integration.isEmpty()) {
 			handleFailure(post, "Integration not found: " + integrationId);
 			return;

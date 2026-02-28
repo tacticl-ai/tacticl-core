@@ -85,7 +85,7 @@ public class RepoController {
 		grant.setRepoFullName(request.getRepoFullName());
 		grant.setAccessLevel(accessLevel);
 		grant.setGrantedAt(Instant.now());
-		repoGrantRepository.save(grant, grantId);
+		repoGrantRepository.save(user.getUserId(), grant, grantId);
 
 		return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(grant));
 	}
@@ -94,14 +94,14 @@ public class RepoController {
 	@RequireAuth
 	@Operation(summary = "Revoke repo access")
 	public ResponseEntity<Void> revokeRepo(@PathVariable String id, @AuthUser AuthenticatedUser user) {
-		Optional<RepoGrant> opt = repoGrantRepository.findById(id);
-		if (opt.isEmpty() || !opt.get().getUserId().equals(user.getUserId())) {
+		Optional<RepoGrant> opt = repoGrantRepository.findById(user.getUserId(), id);
+		if (opt.isEmpty()) {
 			return ResponseEntity.notFound().build();
 		}
 
 		RepoGrant grant = opt.get();
 		grant.setActive(false);
-		repoGrantRepository.save(grant, grant.getId());
+		repoGrantRepository.save(user.getUserId(), grant, grant.getId());
 
 		log.info("Revoked repo grant {} for user {}", id, user.getUserId());
 		return ResponseEntity.noContent().build();

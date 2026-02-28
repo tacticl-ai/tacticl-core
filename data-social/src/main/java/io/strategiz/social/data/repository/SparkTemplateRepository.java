@@ -5,9 +5,9 @@ import io.strategiz.social.data.entity.SparkTemplate;
 import java.util.List;
 import org.springframework.stereotype.Repository;
 
-/** Repository for spark_templates Firestore collection. */
+/** Repository for spark_templates subcollection under tacticl_users/{userId}/. */
 @Repository
-public class SparkTemplateRepository extends FirestoreRepository<SparkTemplate> {
+public class SparkTemplateRepository extends FirestoreSubcollectionRepository<SparkTemplate> {
 
 	public SparkTemplateRepository(Firestore firestore) {
 		super(firestore, SparkTemplate.class, "spark_templates");
@@ -15,7 +15,7 @@ public class SparkTemplateRepository extends FirestoreRepository<SparkTemplate> 
 
 	/** Find all active templates for a user. */
 	public List<SparkTemplate> findActiveByUserId(String userId) {
-		List<SparkTemplate> all = findByField("userId", userId);
+		List<SparkTemplate> all = findAll(userId);
 		return all.stream().filter(SparkTemplate::isActive).toList();
 	}
 

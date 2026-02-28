@@ -1,5 +1,6 @@
 package io.strategiz.social.business.agent.service;
 
+import io.strategiz.social.data.entity.UserConfig;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -14,9 +15,11 @@ import org.springframework.stereotype.Component;
 public class AgentSystemPrompt {
 
 	private final DeviceRoutingService deviceRoutingService;
+	private final UserConfigService userConfigService;
 
-	public AgentSystemPrompt(DeviceRoutingService deviceRoutingService) {
+	public AgentSystemPrompt(DeviceRoutingService deviceRoutingService, UserConfigService userConfigService) {
 		this.deviceRoutingService = deviceRoutingService;
+		this.userConfigService = userConfigService;
 	}
 
 	private static final String BASE_PROMPT = """
@@ -101,6 +104,21 @@ public class AgentSystemPrompt {
 		// Add connected device context
 		prompt.append("\n## Connected Devices\n");
 		prompt.append(deviceRoutingService.buildDeviceContext(userId));
+
+		// Add user configuration context
+		prompt.append("\n## User Configuration\n");
+		UserConfig config = userConfigService.getConfig(userId);
+		prompt.append("- Max concurrent sparks: ").append(config.getMaxConcurrentSparks()).append("\n");
+		prompt.append("- Spending limit: $").append(config.getSpendingLimit()).append("\n");
+		if (!config.getDomainAllowlist().isEmpty()) {
+			prompt.append("- Allowed domains: ").append(String.join(", ", config.getDomainAllowlist())).append("\n");
+		}
+		if (!config.getDomainBlocklist().isEmpty()) {
+			prompt.append("- Blocked domains: ").append(String.join(", ", config.getDomainBlocklist())).append("\n");
+		}
+		if (!config.getConfirmationOverrides().isEmpty()) {
+			prompt.append("- Confirmation overrides: ").append(config.getConfirmationOverrides()).append("\n");
+		}
 
 		return prompt.toString();
 	}

@@ -118,7 +118,7 @@ public class DevicePairingService {
 		device.setCapabilities(capabilities);
 		device.setActive(true);
 		device.setCreatedAt(Instant.now());
-		deviceRepository.save(device, deviceId);
+		deviceRepository.save(pairingCode.getUserId(), device, deviceId);
 
 		// Generate PASETO session token with userId as sub (for WebSocket interceptor)
 		String sessionToken = tokenIssuer.createAuthenticationToken(pairingCode.getUserId(),
@@ -187,7 +187,7 @@ public class DevicePairingService {
 		device.setCapabilities(capabilities);
 		device.setActive(true);
 		device.setCreatedAt(Instant.now());
-		deviceRepository.save(device, deviceId);
+		deviceRepository.save(userId, device, deviceId);
 
 		// Generate PASETO session token with userId as sub (for WebSocket interceptor)
 		String sessionToken = tokenIssuer.createAuthenticationToken(userId, List.of("device_pairing"), "1",

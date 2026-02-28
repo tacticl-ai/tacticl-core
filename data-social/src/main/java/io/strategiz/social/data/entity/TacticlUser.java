@@ -18,6 +18,8 @@ public class TacticlUser {
 
 	private boolean onboardingComplete;
 
+	private UserConfig config;
+
 	public String getId() {
 		return id;
 	}
@@ -48,6 +50,14 @@ public class TacticlUser {
 
 	public void setOnboardingComplete(boolean onboardingComplete) {
 		this.onboardingComplete = onboardingComplete;
+	}
+
+	public UserConfig getConfig() {
+		return config;
+	}
+
+	public void setConfig(UserConfig config) {
+		this.config = config;
 	}
 
 }

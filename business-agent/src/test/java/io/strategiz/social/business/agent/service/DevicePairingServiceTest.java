@@ -140,7 +140,7 @@ class DevicePairingServiceTest {
 
 		// Verify device was saved
 		ArgumentCaptor<DeviceRegistration> deviceCaptor = ArgumentCaptor.forClass(DeviceRegistration.class);
-		verify(deviceRepository).save(deviceCaptor.capture(), anyString());
+		verify(deviceRepository).save(anyString(), deviceCaptor.capture(), anyString());
 		DeviceRegistration savedDevice = deviceCaptor.getValue();
 		assertEquals(userId, savedDevice.getUserId());
 		assertEquals("My MacBook", savedDevice.getDeviceName());
@@ -162,7 +162,7 @@ class DevicePairingServiceTest {
 				() -> devicePairingService.pairWithCode(code, "Device", "MACOS", "macos", Map.of()));
 
 		assertEquals("Invalid or expired pairing code", ex.getMessage());
-		verify(deviceRepository, never()).save(any(), anyString());
+		verify(deviceRepository, never()).save(anyString(), any(), anyString());
 	}
 
 	@Test
@@ -175,7 +175,7 @@ class DevicePairingServiceTest {
 				() -> devicePairingService.pairWithCode(code, "Device", "MACOS", "macos", Map.of()));
 
 		assertEquals("Invalid or expired pairing code", ex.getMessage());
-		verify(deviceRepository, never()).save(any(), anyString());
+		verify(deviceRepository, never()).save(anyString(), any(), anyString());
 	}
 
 	@Test
@@ -189,7 +189,7 @@ class DevicePairingServiceTest {
 				() -> devicePairingService.pairWithCode(code, "Device", "MACOS", "macos", Map.of()));
 
 		assertEquals("Invalid or expired pairing code", ex.getMessage());
-		verify(deviceRepository, never()).save(any(), anyString());
+		verify(deviceRepository, never()).save(anyString(), any(), anyString());
 	}
 
 	// ========== createPairingSession ==========
@@ -239,7 +239,7 @@ class DevicePairingServiceTest {
 
 		// Verify device was saved
 		ArgumentCaptor<DeviceRegistration> deviceCaptor = ArgumentCaptor.forClass(DeviceRegistration.class);
-		verify(deviceRepository).save(deviceCaptor.capture(), anyString());
+		verify(deviceRepository).save(anyString(), deviceCaptor.capture(), anyString());
 		DeviceRegistration savedDevice = deviceCaptor.getValue();
 		assertEquals(userId, savedDevice.getUserId());
 		assertEquals("My iPhone", savedDevice.getDeviceName());
@@ -272,7 +272,7 @@ class DevicePairingServiceTest {
 						"macos", Map.of()));
 
 		assertEquals("Invalid pairing session secret", ex.getMessage());
-		verify(deviceRepository, never()).save(any(), anyString());
+		verify(deviceRepository, never()).save(anyString(), any(), anyString());
 	}
 
 	@Test
@@ -292,7 +292,7 @@ class DevicePairingServiceTest {
 						"macos", Map.of()));
 
 		assertEquals("Pairing session has expired", ex.getMessage());
-		verify(deviceRepository, never()).save(any(), anyString());
+		verify(deviceRepository, never()).save(anyString(), any(), anyString());
 	}
 
 	@Test
@@ -312,7 +312,7 @@ class DevicePairingServiceTest {
 						"macos", Map.of()));
 
 		assertEquals("Pairing session is no longer available", ex.getMessage());
-		verify(deviceRepository, never()).save(any(), anyString());
+		verify(deviceRepository, never()).save(anyString(), any(), anyString());
 	}
 
 	// ========== getPairingSessionStatus ==========

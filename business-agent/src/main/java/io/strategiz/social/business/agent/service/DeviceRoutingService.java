@@ -65,7 +65,7 @@ public class DeviceRoutingService {
 
 	/** Select a specific device by ID, verifying it's online and owned by the user. */
 	public Optional<DeviceRegistration> getOnlineDevice(String deviceId, String userId) {
-		Optional<DeviceRegistration> device = deviceRepository.findById(deviceId)
+		Optional<DeviceRegistration> device = deviceRepository.findById(userId, deviceId)
 			.filter(d -> d.getUserId().equals(userId))
 			.filter(d -> d.getState() == DeviceState.ACTIVE);
 

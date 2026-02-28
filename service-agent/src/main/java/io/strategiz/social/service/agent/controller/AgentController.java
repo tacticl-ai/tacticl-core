@@ -134,7 +134,7 @@ public class AgentController {
 		String timezone = request.getTimezone() != null ? request.getTimezone() : "UTC";
 
 		// Get connected platforms for system prompt context
-		List<SocialIntegration> integrations = integrationRepository.findByUserId(userId);
+		List<SocialIntegration> integrations = integrationRepository.findAllByUserId(userId);
 		List<String> connectedPlatforms = integrations.stream()
 			.filter(i -> !i.isDisabled())
 			.map(i -> i.getPlatform().getDisplayName())

@@ -78,7 +78,7 @@ public class TokenController {
 		token.setTokenRef(tokenRef);
 		token.setUsageLimits(request.getUsageLimits());
 		token.setCurrentUsage(Map.of("todayTokens", 0, "monthTokens", 0));
-		tokenRepository.save(token, tokenId);
+		tokenRepository.save(user.getUserId(), token, tokenId);
 
 		return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(token));
 	}
@@ -87,14 +87,14 @@ public class TokenController {
 	@RequireAuth
 	@Operation(summary = "Remove a token")
 	public ResponseEntity<Void> deleteToken(@PathVariable String id, @AuthUser AuthenticatedUser user) {
-		Optional<AgentToken> opt = tokenRepository.findById(id);
-		if (opt.isEmpty() || !opt.get().getUserId().equals(user.getUserId())) {
+		Optional<AgentToken> opt = tokenRepository.findById(user.getUserId(), id);
+		if (opt.isEmpty()) {
 			return ResponseEntity.notFound().build();
 		}
 
 		AgentToken token = opt.get();
 		token.setActive(false);
-		tokenRepository.save(token, token.getId());
+		tokenRepository.save(user.getUserId(), token, token.getId());
 
 		log.info("Deleted token {} for user {}", id, user.getUserId());
 		return ResponseEntity.noContent().build();
@@ -104,8 +104,8 @@ public class TokenController {
 	@RequireAuth
 	@Operation(summary = "Get token usage stats")
 	public ResponseEntity<TokenResponse> getTokenUsage(@PathVariable String id, @AuthUser AuthenticatedUser user) {
-		Optional<AgentToken> opt = tokenRepository.findById(id);
-		if (opt.isEmpty() || !opt.get().getUserId().equals(user.getUserId())) {
+		Optional<AgentToken> opt = tokenRepository.findById(user.getUserId(), id);
+		if (opt.isEmpty()) {
 			return ResponseEntity.notFound().build();
 		}
 

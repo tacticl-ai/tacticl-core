@@ -123,14 +123,14 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 		Map<String, Object> capabilities = objectMapper.convertValue(node, Map.class);
 		capabilities.remove("type");
 		log.info("[WS] Capabilities from device {}", principal.getDeviceId());
-		registryService.updateCapabilities(principal.getDeviceId(), capabilities);
+		registryService.updateCapabilities(principal.getDeviceId(), principal.getUserId(), capabilities);
 	}
 
 	@SuppressWarnings("unchecked")
 	private void handleStatus(JsonNode node, WebSocketPrincipal principal) {
 		Map<String, Object> status = objectMapper.convertValue(node, Map.class);
 		status.remove("type");
-		registryService.updateConnectivity(principal.getDeviceId(), status);
+		registryService.updateConnectivity(principal.getDeviceId(), principal.getUserId(), status);
 		sessionManager.updateHeartbeat(principal.getDeviceId());
 	}
 

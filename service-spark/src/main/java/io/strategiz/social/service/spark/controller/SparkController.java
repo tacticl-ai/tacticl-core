@@ -206,6 +206,7 @@ public class SparkController {
 		r.setId(logEntry.getId());
 		r.setSparkId(logEntry.getSparkId());
 		r.setTacticId(logEntry.getTacticId());
+		r.setUserId(logEntry.getUserId());
 		r.setToolName(logEntry.getToolName());
 		r.setToolInput(logEntry.getToolInput());
 		r.setToolOutput(logEntry.getToolOutput());

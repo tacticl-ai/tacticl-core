@@ -12,6 +12,8 @@ public class ExecutionLogResponse {
 
 	private String tacticId;
 
+	private String userId;
+
 	private String toolName;
 
 	private Map<String, Object> toolInput;
@@ -46,6 +48,14 @@ public class ExecutionLogResponse {
 
 	public void setTacticId(String tacticId) {
 		this.tacticId = tacticId;
+	}
+
+	public String getUserId() {
+		return userId;
+	}
+
+	public void setUserId(String userId) {
+		this.userId = userId;
 	}
 
 	public String getToolName() {

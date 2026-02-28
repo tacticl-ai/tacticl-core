@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
 
-/** Repository for social_integrations Firestore collection. */
+/** Repository for social_integrations subcollection under tacticl_users/{userId}/. */
 @Repository
-public class SocialIntegrationRepository extends FirestoreRepository<SocialIntegration> {
+public class SocialIntegrationRepository extends FirestoreSubcollectionRepository<SocialIntegration> {
 
 	public SocialIntegrationRepository(Firestore firestore) {
 		super(firestore, SocialIntegration.class, "social_integrations");
@@ -17,15 +17,16 @@ public class SocialIntegrationRepository extends FirestoreRepository<SocialInteg
 
 	/** Find integration by user and platform (active only). */
 	public Optional<SocialIntegration> findByUserIdAndPlatform(String userId, PlatformType platform) {
-		List<SocialIntegration> results = executeQuery(getCollection().whereEqualTo("userId", userId)
-			.whereEqualTo("platform", platform.name())
-			.whereEqualTo("isActive", true));
+		List<SocialIntegration> results = executeQuery(
+			getCollectionForUser(userId)
+				.whereEqualTo("platform", platform.name())
+				.whereEqualTo("isActive", true));
 		return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
 	}
 
-	/** Find all integrations for a user. */
+	/** Find all integrations for a user (active only). */
 	public List<SocialIntegration> findAllByUserId(String userId) {
-		return executeQuery(getCollection().whereEqualTo("userId", userId).whereEqualTo("isActive", true));
+		return executeQuery(getCollectionForUser(userId).whereEqualTo("isActive", true));
 	}
 
 }

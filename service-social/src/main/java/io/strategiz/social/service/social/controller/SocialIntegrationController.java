@@ -38,7 +38,7 @@ public class SocialIntegrationController {
 	@RequireAuth
 	@Operation(summary = "List connected accounts", description = "List all connected social media integrations")
 	public ResponseEntity<List<IntegrationResponse>> listIntegrations(@AuthUser AuthenticatedUser user) {
-		List<SocialIntegration> integrations = integrationRepository.findByUserId(user.getUserId());
+		List<SocialIntegration> integrations = integrationRepository.findAllByUserId(user.getUserId());
 		return ResponseEntity.ok(integrations.stream().map(this::toResponse).toList());
 	}
 
@@ -47,8 +47,8 @@ public class SocialIntegrationController {
 	@Operation(summary = "Get integration", description = "Get details of a specific connected account")
 	public ResponseEntity<IntegrationResponse> getIntegration(@PathVariable String integrationId,
 			@AuthUser AuthenticatedUser user) {
-		Optional<SocialIntegration> integration = integrationRepository.findById(integrationId);
-		if (integration.isEmpty() || !integration.get().getUserId().equals(user.getUserId())) {
+		Optional<SocialIntegration> integration = integrationRepository.findById(user.getUserId(), integrationId);
+		if (integration.isEmpty()) {
 			return ResponseEntity.notFound().build();
 		}
 		return ResponseEntity.ok(toResponse(integration.get()));
@@ -60,8 +60,8 @@ public class SocialIntegrationController {
 			description = "Disconnect a social media account by marking it inactive")
 	public ResponseEntity<Void> disconnectIntegration(@PathVariable String integrationId,
 			@AuthUser AuthenticatedUser user) {
-		Optional<SocialIntegration> integration = integrationRepository.findById(integrationId);
-		if (integration.isEmpty() || !integration.get().getUserId().equals(user.getUserId())) {
+		Optional<SocialIntegration> integration = integrationRepository.findById(user.getUserId(), integrationId);
+		if (integration.isEmpty()) {
 			return ResponseEntity.notFound().build();
 		}
 
@@ -70,7 +70,7 @@ public class SocialIntegrationController {
 		integ.setAccessToken(null);
 		integ.setRefreshToken(null);
 		integ.setUpdatedAt(Instant.now());
-		integrationRepository.save(integ, integ.getId());
+		integrationRepository.save(user.getUserId(), integ, integ.getId());
 
 		log.info("Disconnected {} integration {} for user {}", integ.getPlatform(), integrationId, user.getUserId());
 		return ResponseEntity.noContent().build();
