@@ -16,6 +16,12 @@ steps:
         GH_TOKEN=$(echo -n "$${GITHUB_TOKEN}" | tr -d '[:space:]')
         export GITHUB_TOKEN="$${GH_TOKEN}"
         export GITHUB_ACTOR=cuztomizer
+        echo "=== Cloning cidadel-core ==="
+        git clone --depth 1 "https://x-access-token:$${GH_TOKEN}@github.com/cuztomizer/cidadel-core.git" /tmp/cidadel-core
+        cd /tmp/cidadel-core
+        chmod +x gradlew
+        ./gradlew publishToMavenLocal -x test --no-daemon
+        echo "=== Cidadel-core installed to mavenLocal ==="
         echo "=== Cloning strategiz-core ==="
         git clone --depth 1 "https://x-access-token:$${GH_TOKEN}@github.com/strategiz-io/strategiz-core.git" /tmp/strategiz-core
         cd /tmp/strategiz-core
