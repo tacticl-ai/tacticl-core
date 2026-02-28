@@ -33,3 +33,6 @@ bin/
 # Logs
 *.log
 logs/
+
+# Worktrees
+.worktrees/
