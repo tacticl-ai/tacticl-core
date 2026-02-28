@@ -91,7 +91,10 @@ public class DeviceRoutingService {
 	public String buildDeviceContext(String userId) {
 		List<DeviceRegistration> devices = deviceRepository.findActiveByUserId(userId);
 		if (devices.isEmpty()) {
-			return "- No devices registered. Guide the user to set up device integration.\n";
+			return "No devices registered yet. You can still use cloud tools (web search, "
+					+ "content generation, social posting, etc.), but for tasks that require "
+					+ "device access (running code, opening apps, file management), guide the "
+					+ "user to set up device integration in the Tacticl app.\n";
 		}
 
 		Set<String> onlineDeviceIds = sessionRepository.findActiveByUserId(userId)
@@ -99,15 +102,20 @@ public class DeviceRoutingService {
 			.map(s -> s.getDeviceId())
 			.collect(Collectors.toSet());
 
+		boolean anyOnline = false;
+
 		StringBuilder sb = new StringBuilder();
 		for (DeviceRegistration device : devices) {
 			boolean online = onlineDeviceIds.contains(device.getId());
+			if (online) {
+				anyOnline = true;
+			}
 			sb.append("- \"")
 				.append(device.getDeviceName())
 				.append("\" (")
 				.append(device.getDeviceType().getDisplayName())
 				.append(", ")
-				.append(online ? "online" : "offline")
+				.append(online ? "ONLINE — available for task dispatch" : "offline")
 				.append(", ")
 				.append(device.getBatteryLevel())
 				.append("% battery");
@@ -118,7 +126,7 @@ public class DeviceRoutingService {
 			sb.append(")\n");
 
 			if (device.getCapabilities() != null && !device.getCapabilities().isEmpty()) {
-				sb.append("  Can: ");
+				sb.append("  Capabilities: ");
 				sb.append(device.getCapabilities()
 					.entrySet()
 					.stream()
@@ -134,6 +142,13 @@ public class DeviceRoutingService {
 				sb.append("\n");
 			}
 		}
+
+		if (!anyOnline) {
+			sb.append("\nAll devices are currently offline. For tasks requiring device access, "
+					+ "let the user know they need a device online. Use your cloud tools for "
+					+ "what you can handle now.\n");
+		}
+
 		return sb.toString();
 	}
 
