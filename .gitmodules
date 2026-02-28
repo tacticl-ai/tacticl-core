@@ -1,0 +1,3 @@
+[submodule "cidadel-core"]
+	path = cidadel-core
+	url = https://github.com/cuztomizer/cidadel-core.git
