@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.bucket4j.Bucket;
-import io.cidadel.framework.exception.CidadelException;
+import io.strategiz.framework.exception.CidadelException;
 import io.strategiz.social.client.siliconflow.config.SiliconFlowConfig;
 import io.strategiz.social.client.siliconflow.dto.VideoGenerationResponse;
 import io.strategiz.social.client.siliconflow.dto.VideoStatusResponse;

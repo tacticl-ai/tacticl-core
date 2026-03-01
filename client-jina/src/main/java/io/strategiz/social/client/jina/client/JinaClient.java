@@ -1,7 +1,7 @@
 package io.strategiz.social.client.jina.client;
 
 import io.github.bucket4j.Bucket;
-import io.cidadel.framework.exception.CidadelException;
+import io.strategiz.framework.exception.CidadelException;
 import io.strategiz.social.client.jina.config.JinaConfig;
 import io.strategiz.social.client.jina.exception.JinaErrorDetails;
 import java.net.URI;

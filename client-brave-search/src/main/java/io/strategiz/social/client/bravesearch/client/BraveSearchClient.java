@@ -3,7 +3,7 @@ package io.strategiz.social.client.bravesearch.client;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.bucket4j.Bucket;
-import io.cidadel.framework.exception.CidadelException;
+import io.strategiz.framework.exception.CidadelException;
 import io.strategiz.social.client.bravesearch.config.BraveSearchConfig;
 import io.strategiz.social.client.bravesearch.dto.BraveSearchResponse;
 import io.strategiz.social.client.bravesearch.dto.BraveSearchResult;

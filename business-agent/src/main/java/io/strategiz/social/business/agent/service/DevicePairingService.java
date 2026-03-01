@@ -1,6 +1,6 @@
 package io.strategiz.social.business.agent.service;
 
-import io.cidadel.framework.token.issuer.PasetoTokenIssuer;
+import io.strategiz.framework.token.issuer.PasetoTokenIssuer;
 import io.strategiz.social.data.entity.DeviceRegistration;
 import io.strategiz.social.data.entity.DeviceState;
 import io.strategiz.social.data.entity.DeviceType;

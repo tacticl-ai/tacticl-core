@@ -3,7 +3,7 @@ package io.strategiz.social.business.agent.skill;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.cidadel.client.base.llm.model.ToolDefinition;
+import io.strategiz.client.base.llm.model.ToolDefinition;
 import io.strategiz.social.business.publish.PostContent;
 import io.strategiz.social.business.publish.PostValidationResult;
 import io.strategiz.social.business.publish.PublishResult;

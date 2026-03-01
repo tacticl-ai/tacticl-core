@@ -1,7 +1,7 @@
 package io.strategiz.social.business.agent.service;
 
-import io.cidadel.client.base.llm.model.LlmResponse;
-import io.cidadel.framework.llmrouter.LlmRouter;
+import io.strategiz.client.base.llm.model.LlmResponse;
+import io.strategiz.framework.llmrouter.LlmRouter;
 import io.strategiz.social.business.agent.config.AgentModelConfig;
 import java.util.List;
 import java.util.Set;

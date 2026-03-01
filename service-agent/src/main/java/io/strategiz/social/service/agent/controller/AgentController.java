@@ -1,9 +1,9 @@
 package io.strategiz.social.service.agent.controller;
 
-import io.cidadel.framework.authorization.annotation.AuthUser;
-import io.cidadel.framework.authorization.annotation.RequireAuth;
-import io.cidadel.framework.authorization.context.AuthenticatedUser;
-import io.cidadel.framework.llmrouter.LlmRouter;
+import io.strategiz.framework.authorization.annotation.AuthUser;
+import io.strategiz.framework.authorization.annotation.RequireAuth;
+import io.strategiz.framework.authorization.context.AuthenticatedUser;
+import io.strategiz.framework.llmrouter.LlmRouter;
 import io.strategiz.social.business.agent.service.DeviceRoutingService;
 import io.strategiz.social.business.agent.service.SparkService;
 import io.strategiz.social.business.agent.service.TranscriptionService;

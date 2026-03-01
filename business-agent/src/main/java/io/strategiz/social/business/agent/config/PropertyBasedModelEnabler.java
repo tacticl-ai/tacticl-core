@@ -2,7 +2,7 @@ package io.strategiz.social.business.agent.config;
 
 import java.util.Set;
 
-import io.cidadel.framework.llmrouter.LlmModelEnabler;
+import io.strategiz.framework.llmrouter.LlmModelEnabler;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;

@@ -1,6 +1,6 @@
 package io.strategiz.social.client.bravesearch.config;
 
-import io.cidadel.framework.secrets.controller.SecretManager;
+import io.strategiz.framework.secrets.controller.SecretManager;
 import jakarta.annotation.PostConstruct;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;

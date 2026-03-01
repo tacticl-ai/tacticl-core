@@ -1,6 +1,6 @@
 package io.strategiz.social.business.agent.service;
 
-import io.cidadel.client.base.llm.model.ToolDefinition;
+import io.strategiz.client.base.llm.model.ToolDefinition;
 import io.strategiz.social.business.agent.skill.AgentSkill;
 import java.util.Collection;
 import java.util.LinkedHashMap;

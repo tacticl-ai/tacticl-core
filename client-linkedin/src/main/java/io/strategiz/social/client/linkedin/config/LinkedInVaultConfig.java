@@ -1,6 +1,6 @@
 package io.strategiz.social.client.linkedin.config;
 
-import io.cidadel.framework.secrets.controller.SecretManager;
+import io.strategiz.framework.secrets.controller.SecretManager;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

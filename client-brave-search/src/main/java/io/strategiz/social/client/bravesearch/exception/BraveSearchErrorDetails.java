@@ -1,6 +1,6 @@
 package io.strategiz.social.client.bravesearch.exception;
 
-import io.cidadel.framework.exception.ErrorDetails;
+import io.strategiz.framework.exception.ErrorDetails;
 import org.springframework.http.HttpStatus;
 
 /** Error definitions for Brave Search API client. */

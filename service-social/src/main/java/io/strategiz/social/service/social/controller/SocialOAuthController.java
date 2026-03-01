@@ -1,8 +1,8 @@
 package io.strategiz.social.service.social.controller;
 
-import io.cidadel.framework.authorization.annotation.AuthUser;
-import io.cidadel.framework.authorization.annotation.RequireAuth;
-import io.cidadel.framework.authorization.context.AuthenticatedUser;
+import io.strategiz.framework.authorization.annotation.AuthUser;
+import io.strategiz.framework.authorization.annotation.RequireAuth;
+import io.strategiz.framework.authorization.context.AuthenticatedUser;
 import io.strategiz.social.business.publish.AuthUrl;
 import io.strategiz.social.business.publish.OAuthTokenExchangeService;
 import io.strategiz.social.business.publish.SocialMediaProviderFactory;

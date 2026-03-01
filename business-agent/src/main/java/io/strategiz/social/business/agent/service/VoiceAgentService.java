@@ -1,10 +1,10 @@
 package io.strategiz.social.business.agent.service;
 
-import io.cidadel.client.base.llm.model.LlmMessage;
-import io.cidadel.client.base.llm.model.LlmResponse;
-import io.cidadel.client.base.llm.model.ToolResultMessage;
-import io.cidadel.client.base.llm.model.ToolUseBlock;
-import io.cidadel.framework.llmrouter.LlmRouter;
+import io.strategiz.client.base.llm.model.LlmMessage;
+import io.strategiz.client.base.llm.model.LlmResponse;
+import io.strategiz.client.base.llm.model.ToolResultMessage;
+import io.strategiz.client.base.llm.model.ToolUseBlock;
+import io.strategiz.framework.llmrouter.LlmRouter;
 import io.strategiz.social.business.agent.config.AgentModelConfig;
 import io.strategiz.social.business.agent.skill.AgentSkill;
 import io.strategiz.social.data.entity.AgentAuditLog;

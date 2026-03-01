@@ -1,8 +1,8 @@
 package io.strategiz.social.client.instagram.client;
 
 import io.github.bucket4j.Bucket;
-import io.cidadel.client.base.http.BaseHttpClient;
-import io.cidadel.framework.exception.CidadelException;
+import io.strategiz.client.base.http.BaseHttpClient;
+import io.strategiz.framework.exception.CidadelException;
 import io.strategiz.social.client.instagram.config.InstagramConfig;
 import io.strategiz.social.client.instagram.dto.InstagramMediaResponse;
 import io.strategiz.social.client.instagram.dto.InstagramPublishResponse;

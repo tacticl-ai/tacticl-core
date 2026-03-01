@@ -1,7 +1,7 @@
 package io.strategiz.social.service.agent.controller;
 
-import io.cidadel.framework.authorization.annotation.RequireAuth;
-import io.cidadel.framework.authorization.context.AuthenticatedUser;
+import io.strategiz.framework.authorization.annotation.RequireAuth;
+import io.strategiz.framework.authorization.context.AuthenticatedUser;
 import io.strategiz.social.business.agent.service.CredentialService;
 import io.strategiz.social.data.entity.SocialIntegration;
 import io.strategiz.social.service.agent.dto.AccountResponse;

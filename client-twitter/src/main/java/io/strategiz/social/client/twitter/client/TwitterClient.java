@@ -3,7 +3,7 @@ package io.strategiz.social.client.twitter.client;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.bucket4j.Bucket;
-import io.cidadel.framework.exception.CidadelException;
+import io.strategiz.framework.exception.CidadelException;
 import io.strategiz.social.client.twitter.dto.TweetResponse;
 import io.strategiz.social.client.twitter.dto.TwitterUser;
 import io.strategiz.social.client.twitter.exception.TwitterErrorDetails;

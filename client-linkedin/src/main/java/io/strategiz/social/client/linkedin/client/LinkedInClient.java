@@ -3,7 +3,7 @@ package io.strategiz.social.client.linkedin.client;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.bucket4j.Bucket;
-import io.cidadel.framework.exception.CidadelException;
+import io.strategiz.framework.exception.CidadelException;
 import io.strategiz.social.client.linkedin.config.LinkedInConfig;
 import io.strategiz.social.client.linkedin.dto.LinkedInShareResponse;
 import io.strategiz.social.client.linkedin.dto.LinkedInUser;

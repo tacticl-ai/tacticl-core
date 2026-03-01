@@ -3,7 +3,7 @@ package io.strategiz.social.business.agent.skill;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.cidadel.client.base.llm.model.ToolDefinition;
+import io.strategiz.client.base.llm.model.ToolDefinition;
 import org.springframework.stereotype.Component;
 
 /** Skill to generate social media content using Claude. Tier 0: auto-execute. */

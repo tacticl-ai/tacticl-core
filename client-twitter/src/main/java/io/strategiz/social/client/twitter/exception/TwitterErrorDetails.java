@@ -1,6 +1,6 @@
 package io.strategiz.social.client.twitter.exception;
 
-import io.cidadel.framework.exception.ErrorDetails;
+import io.strategiz.framework.exception.ErrorDetails;
 import org.springframework.http.HttpStatus;
 
 /**

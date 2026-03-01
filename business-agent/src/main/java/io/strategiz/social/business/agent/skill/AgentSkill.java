@@ -1,7 +1,7 @@
 package io.strategiz.social.business.agent.skill;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.cidadel.client.base.llm.model.ToolDefinition;
+import io.strategiz.client.base.llm.model.ToolDefinition;
 
 /**
  * Defines a skill (capability) that the voice agent can invoke. Each skill maps to a
