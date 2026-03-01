@@ -18,7 +18,10 @@ include(
     "client-github",
     "client-siliconflow",
     "client-brave-search",
-    "client-jina"
+    "client-jina",
+    "client-gcs",
+    "data-browser",
+    "business-browser"
 )
 
 // Version catalog auto-discovered from gradle/libs.versions.toml

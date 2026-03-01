@@ -5,6 +5,7 @@ plugins {
 dependencies {
     // Internal modules
     implementation(project(":data-social"))
+    implementation(project(":data-browser"))
     implementation(project(":business-social"))
     implementation(project(":client-siliconflow"))
     implementation(project(":client-brave-search"))
@@ -19,10 +20,10 @@ dependencies {
     implementation(libs.cidadel.client.base)
     implementation(libs.cidadel.framework.llm.router)
 
-    // Strategiz product-specific libraries
-    implementation(libs.strategiz.client.anthropic.direct)
-    implementation(libs.strategiz.client.openai.direct)
-    implementation(libs.strategiz.client.grok.direct)
+    // Cidadel LLM clients
+    implementation(libs.cidadel.client.anthropic.direct)
+    implementation(libs.cidadel.client.openai.direct)
+    implementation(libs.cidadel.client.grok.direct)
 
     // Spring Boot
     implementation(libs.spring.boot.starter.web)

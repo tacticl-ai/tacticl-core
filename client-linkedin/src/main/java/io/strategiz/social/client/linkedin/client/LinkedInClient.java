@@ -3,7 +3,7 @@ package io.strategiz.social.client.linkedin.client;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.bucket4j.Bucket;
-import io.strategiz.framework.exception.StrategizException;
+import io.cidadel.framework.exception.CidadelException;
 import io.strategiz.social.client.linkedin.config.LinkedInConfig;
 import io.strategiz.social.client.linkedin.dto.LinkedInShareResponse;
 import io.strategiz.social.client.linkedin.dto.LinkedInUser;
@@ -69,7 +69,7 @@ public class LinkedInClient {
 	 * @param text the share text content
 	 * @param userAccessToken the user's OAuth2 access token with w_member_social scope
 	 * @return LinkedInShareResponse containing the post ID and activity URN
-	 * @throws StrategizException if the share creation fails
+	 * @throws CidadelException if the share creation fails
 	 */
 	public LinkedInShareResponse createShare(String text, String userAccessToken) {
 		waitForRateLimit();
@@ -93,18 +93,18 @@ public class LinkedInClient {
 				.onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
 					HttpStatus status = HttpStatus.valueOf(res.getStatusCode().value());
 					if (status == HttpStatus.UNAUTHORIZED) {
-						throw new StrategizException(LinkedInErrorDetails.UNAUTHORIZED, MODULE_NAME,
+						throw new CidadelException(LinkedInErrorDetails.UNAUTHORIZED, MODULE_NAME,
 								"LinkedIn access token is invalid or expired");
 					}
 					if (status == HttpStatus.TOO_MANY_REQUESTS) {
-						throw new StrategizException(LinkedInErrorDetails.RATE_LIMIT_EXCEEDED, MODULE_NAME,
+						throw new CidadelException(LinkedInErrorDetails.RATE_LIMIT_EXCEEDED, MODULE_NAME,
 								"LinkedIn API rate limit exceeded");
 					}
-					throw new StrategizException(LinkedInErrorDetails.SHARE_FAILED, MODULE_NAME,
+					throw new CidadelException(LinkedInErrorDetails.SHARE_FAILED, MODULE_NAME,
 							String.format("LinkedIn API returned %s", status));
 				})
 				.onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
-					throw new StrategizException(LinkedInErrorDetails.SHARE_FAILED, MODULE_NAME,
+					throw new CidadelException(LinkedInErrorDetails.SHARE_FAILED, MODULE_NAME,
 							"LinkedIn API server error");
 				})
 				.body(LinkedInShareResponse.class);
@@ -113,12 +113,12 @@ public class LinkedInClient {
 			return response;
 
 		}
-		catch (StrategizException e) {
+		catch (CidadelException e) {
 			throw e;
 		}
 		catch (Exception e) {
 			log.error("Failed to create LinkedIn share: {}", e.getMessage(), e);
-			throw new StrategizException(LinkedInErrorDetails.SHARE_FAILED, MODULE_NAME, e,
+			throw new CidadelException(LinkedInErrorDetails.SHARE_FAILED, MODULE_NAME, e,
 					"Failed to create LinkedIn share: " + e.getMessage());
 		}
 	}
@@ -128,7 +128,7 @@ public class LinkedInClient {
 	 * @param userAccessToken the user's OAuth2 access token with openid and profile
 	 * scopes
 	 * @return LinkedInUser containing sub, name, email, and picture
-	 * @throws StrategizException if the profile retrieval fails
+	 * @throws CidadelException if the profile retrieval fails
 	 */
 	public LinkedInUser getUserProfile(String userAccessToken) {
 		waitForRateLimit();
@@ -143,14 +143,14 @@ public class LinkedInClient {
 				.onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
 					HttpStatus status = HttpStatus.valueOf(res.getStatusCode().value());
 					if (status == HttpStatus.UNAUTHORIZED) {
-						throw new StrategizException(LinkedInErrorDetails.UNAUTHORIZED, MODULE_NAME,
+						throw new CidadelException(LinkedInErrorDetails.UNAUTHORIZED, MODULE_NAME,
 								"LinkedIn access token is invalid or expired");
 					}
-					throw new StrategizException(LinkedInErrorDetails.PROFILE_FAILED, MODULE_NAME,
+					throw new CidadelException(LinkedInErrorDetails.PROFILE_FAILED, MODULE_NAME,
 							String.format("LinkedIn API returned %s", status));
 				})
 				.onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
-					throw new StrategizException(LinkedInErrorDetails.PROFILE_FAILED, MODULE_NAME,
+					throw new CidadelException(LinkedInErrorDetails.PROFILE_FAILED, MODULE_NAME,
 							"LinkedIn API server error");
 				})
 				.body(LinkedInUser.class);
@@ -159,12 +159,12 @@ public class LinkedInClient {
 			return user;
 
 		}
-		catch (StrategizException e) {
+		catch (CidadelException e) {
 			throw e;
 		}
 		catch (Exception e) {
 			log.error("Failed to fetch LinkedIn user profile: {}", e.getMessage(), e);
-			throw new StrategizException(LinkedInErrorDetails.PROFILE_FAILED, MODULE_NAME, e,
+			throw new CidadelException(LinkedInErrorDetails.PROFILE_FAILED, MODULE_NAME, e,
 					"Failed to fetch LinkedIn user profile: " + e.getMessage());
 		}
 	}
@@ -223,7 +223,7 @@ public class LinkedInClient {
 		}
 		catch (Exception e) {
 			log.error("Failed to build UGC post body: {}", e.getMessage(), e);
-			throw new StrategizException(LinkedInErrorDetails.SHARE_FAILED, MODULE_NAME, e,
+			throw new CidadelException(LinkedInErrorDetails.SHARE_FAILED, MODULE_NAME, e,
 					"Failed to serialize UGC post body");
 		}
 	}
@@ -235,7 +235,7 @@ public class LinkedInClient {
 				log.debug("LinkedIn rate limit reached, waiting for token...");
 				boolean acquired = rateLimiter.asBlocking().tryConsume(1, Duration.ofSeconds(10));
 				if (!acquired) {
-					throw new StrategizException(LinkedInErrorDetails.RATE_LIMIT_EXCEEDED, MODULE_NAME,
+					throw new CidadelException(LinkedInErrorDetails.RATE_LIMIT_EXCEEDED, MODULE_NAME,
 							"Rate limit exceeded for LinkedIn API");
 				}
 			}
@@ -243,7 +243,7 @@ public class LinkedInClient {
 		catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 			log.error("Interrupted while waiting for LinkedIn rate limiter", e);
-			throw new StrategizException(LinkedInErrorDetails.RATE_LIMIT_EXCEEDED, MODULE_NAME, e,
+			throw new CidadelException(LinkedInErrorDetails.RATE_LIMIT_EXCEEDED, MODULE_NAME, e,
 					"Rate limiter interrupted");
 		}
 	}

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.bucket4j.Bucket;
-import io.strategiz.framework.exception.StrategizException;
+import io.cidadel.framework.exception.CidadelException;
 import io.strategiz.social.client.siliconflow.config.SiliconFlowConfig;
 import io.strategiz.social.client.siliconflow.dto.VideoGenerationResponse;
 import io.strategiz.social.client.siliconflow.dto.VideoStatusResponse;
@@ -66,7 +66,7 @@ public class SiliconFlowClient {
 		}
 		catch (Exception e) {
 			logger.error("Failed to submit video generation", e);
-			throw new StrategizException(SiliconFlowErrorDetails.VIDEO_GENERATION_FAILED, MODULE_NAME, e.getMessage());
+			throw new CidadelException(SiliconFlowErrorDetails.VIDEO_GENERATION_FAILED, MODULE_NAME, e.getMessage());
 		}
 	}
 
@@ -94,13 +94,13 @@ public class SiliconFlowClient {
 		}
 		catch (Exception e) {
 			logger.error("Failed to check video status", e);
-			throw new StrategizException(SiliconFlowErrorDetails.STATUS_CHECK_FAILED, MODULE_NAME, e.getMessage());
+			throw new CidadelException(SiliconFlowErrorDetails.STATUS_CHECK_FAILED, MODULE_NAME, e.getMessage());
 		}
 	}
 
 	private void checkRateLimit() {
 		if (!rateLimiter.tryConsume(1)) {
-			throw new StrategizException(SiliconFlowErrorDetails.RATE_LIMIT_EXCEEDED, MODULE_NAME);
+			throw new CidadelException(SiliconFlowErrorDetails.RATE_LIMIT_EXCEEDED, MODULE_NAME);
 		}
 	}
 

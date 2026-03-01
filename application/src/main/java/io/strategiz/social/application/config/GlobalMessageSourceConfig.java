@@ -9,7 +9,7 @@ import org.springframework.context.support.ResourceBundleMessageSource;
 /**
  * Global MessageSource configuration that aggregates all module message sources. This
  * ensures that error messages from all modules are properly resolved by the
- * {@link io.strategiz.framework.exception.ErrorMessageService}.
+ * {@link io.cidadel.framework.exception.ErrorMessageService}.
  */
 @Configuration
 public class GlobalMessageSourceConfig {

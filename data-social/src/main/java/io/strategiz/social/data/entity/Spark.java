@@ -49,6 +49,12 @@ public class Spark {
 
 	private Map<String, String> models;
 
+	private ExecutionMode executionMode;
+
+	private String browserSessionId;
+
+	private long browserMinutesUsed;
+
 	private boolean isActive;
 
 	private Instant createdAt;
@@ -62,6 +68,7 @@ public class Spark {
 		this.repoAccess = new ArrayList<>();
 		this.totalTokens = 0;
 		this.estimatedCost = BigDecimal.ZERO;
+		this.browserMinutesUsed = 0;
 		this.isActive = true;
 	}
 
@@ -199,6 +206,30 @@ public class Spark {
 
 	public void setModels(Map<String, String> models) {
 		this.models = models;
+	}
+
+	public ExecutionMode getExecutionMode() {
+		return executionMode;
+	}
+
+	public void setExecutionMode(ExecutionMode executionMode) {
+		this.executionMode = executionMode;
+	}
+
+	public String getBrowserSessionId() {
+		return browserSessionId;
+	}
+
+	public void setBrowserSessionId(String browserSessionId) {
+		this.browserSessionId = browserSessionId;
+	}
+
+	public long getBrowserMinutesUsed() {
+		return browserMinutesUsed;
+	}
+
+	public void setBrowserMinutesUsed(long browserMinutesUsed) {
+		this.browserMinutesUsed = browserMinutesUsed;
 	}
 
 	public boolean isActive() {

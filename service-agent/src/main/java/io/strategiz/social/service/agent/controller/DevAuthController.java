@@ -1,6 +1,6 @@
 package io.strategiz.social.service.agent.controller;
 
-import io.strategiz.framework.token.issuer.PasetoTokenIssuer;
+import io.cidadel.framework.token.issuer.PasetoTokenIssuer;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Duration;

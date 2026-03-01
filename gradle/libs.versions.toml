@@ -6,15 +6,13 @@ java = "21"
 # Cidadel shared infrastructure (from GitHub Packages)
 cidadel = "0.1.0-SNAPSHOT"
 
-# Strategiz product-specific libraries (from GitHub Packages)
-strategiz = "1.0-SNAPSHOT"
-
 # External dependencies
 bucket4j = "8.10.1"
 springdoc = "2.8.0"
 resilience4j = "2.2.0"
 jackson = "2.18.0"
 google-cloud-firestore = "3.28.0"
+playwright = "1.49.0"
 
 # Testing
 junit = "5.12.2"
@@ -42,13 +40,20 @@ cidadel-framework-llm-router = { module = "io.cidadel:framework-llm-router", ver
 cidadel-client-base = { module = "io.cidadel:client-framework-base", version.ref = "cidadel" }
 cidadel-service-framework-base = { module = "io.cidadel:service-framework-base", version.ref = "cidadel" }
 
-# Strategiz product-specific libraries (from strategiz-core GitHub Packages)
-strategiz-client-anthropic-direct = { module = "io.strategiz:client-anthropic-direct", version.ref = "strategiz" }
-strategiz-client-openai-direct = { module = "io.strategiz:client-openai-direct", version.ref = "strategiz" }
-strategiz-client-grok-direct = { module = "io.strategiz:client-grok-direct", version.ref = "strategiz" }
-strategiz-service-auth = { module = "io.strategiz:service-auth", version.ref = "strategiz" }
-strategiz-service-framework-base = { module = "io.strategiz:service-framework-base", version.ref = "strategiz" }
-strategiz-business-token-auth = { module = "io.strategiz:business-token-auth", version.ref = "strategiz" }
+# Cidadel auth + LLM clients (from cidadel-core GitHub Packages)
+cidadel-client-anthropic-direct = { module = "io.cidadel:client-anthropic-direct", version.ref = "cidadel" }
+cidadel-client-openai-direct = { module = "io.cidadel:client-openai-direct", version.ref = "cidadel" }
+cidadel-client-grok-direct = { module = "io.cidadel:client-grok-direct", version.ref = "cidadel" }
+cidadel-service-auth = { module = "io.cidadel:service-auth", version.ref = "cidadel" }
+cidadel-business-auth = { module = "io.cidadel:business-auth", version.ref = "cidadel" }
+cidadel-data-auth = { module = "io.cidadel:data-auth", version.ref = "cidadel" }
+cidadel-data-user = { module = "io.cidadel:data-user", version.ref = "cidadel" }
+cidadel-data-session = { module = "io.cidadel:data-session", version.ref = "cidadel" }
+cidadel-data-product = { module = "io.cidadel:data-product", version.ref = "cidadel" }
+cidadel-data-framework-base = { module = "io.cidadel:data-framework-base", version.ref = "cidadel" }
+cidadel-client-google = { module = "io.cidadel:client-google", version.ref = "cidadel" }
+cidadel-client-facebook = { module = "io.cidadel:client-facebook", version.ref = "cidadel" }
+cidadel-client-sms = { module = "io.cidadel:client-sms", version.ref = "cidadel" }
 
 # External
 bucket4j-core = { module = "com.bucket4j:bucket4j-core", version.ref = "bucket4j" }
@@ -57,6 +62,7 @@ jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
 httpclient = { module = "org.apache.httpcomponents:httpclient", version = "4.5.14" }
 google-cloud-firestore = { module = "com.google.cloud:google-cloud-firestore", version.ref = "google-cloud-firestore" }
+playwright = { module = "com.microsoft.playwright:playwright", version.ref = "playwright" }
 
 # Testing
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }

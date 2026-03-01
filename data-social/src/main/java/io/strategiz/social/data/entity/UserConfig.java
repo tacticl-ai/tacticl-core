@@ -22,6 +22,10 @@ public class UserConfig {
 
 	private Map<String, Integer> confirmationOverrides = new HashMap<>();
 
+	private ExecutionPreference executionPreference = ExecutionPreference.DEVICE_FIRST;
+
+	private BrowserSettings browserSettings;
+
 	public UserConfig() {
 	}
 
@@ -67,6 +71,22 @@ public class UserConfig {
 
 	public void setConfirmationOverrides(Map<String, Integer> confirmationOverrides) {
 		this.confirmationOverrides = confirmationOverrides;
+	}
+
+	public ExecutionPreference getExecutionPreference() {
+		return executionPreference;
+	}
+
+	public void setExecutionPreference(ExecutionPreference executionPreference) {
+		this.executionPreference = executionPreference;
+	}
+
+	public BrowserSettings getBrowserSettings() {
+		return browserSettings;
+	}
+
+	public void setBrowserSettings(BrowserSettings browserSettings) {
+		this.browserSettings = browserSettings;
 	}
 
 }

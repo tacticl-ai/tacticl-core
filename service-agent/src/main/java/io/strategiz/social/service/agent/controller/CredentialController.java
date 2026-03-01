@@ -1,7 +1,7 @@
 package io.strategiz.social.service.agent.controller;
 
-import io.strategiz.framework.authorization.annotation.RequireAuth;
-import io.strategiz.framework.authorization.context.AuthenticatedUser;
+import io.cidadel.framework.authorization.annotation.RequireAuth;
+import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.strategiz.social.business.agent.service.CredentialService;
 import io.strategiz.social.data.entity.SocialIntegration;
 import io.strategiz.social.service.agent.dto.AccountResponse;
@@ -33,7 +33,7 @@ public class CredentialController {
 	@GetMapping("/credentials/{platform}")
 	@RequireAuth
 	public ResponseEntity<CredentialResponse> getCredentials(@PathVariable String platform,
-			@io.strategiz.framework.authorization.annotation.AuthUser AuthenticatedUser user) {
+			@io.cidadel.framework.authorization.annotation.AuthUser AuthenticatedUser user) {
 		Optional<Map<String, Object>> credentials = credentialService.getCredentials(user.getUserId(), platform);
 		if (credentials.isEmpty()) {
 			return ResponseEntity.notFound().build();
@@ -53,7 +53,7 @@ public class CredentialController {
 	@RequireAuth
 	public ResponseEntity<Map<String, String>> registerCredentials(@PathVariable String platform,
 			@RequestBody Map<String, String> credentials,
-			@io.strategiz.framework.authorization.annotation.AuthUser AuthenticatedUser user) {
+			@io.cidadel.framework.authorization.annotation.AuthUser AuthenticatedUser user) {
 		SocialIntegration si = credentialService.registerCredentials(user.getUserId(), platform, credentials);
 		return ResponseEntity.ok(Map.of("id", si.getId(), "platform", platform, "status", "registered"));
 	}
@@ -62,7 +62,7 @@ public class CredentialController {
 	@GetMapping("/accounts")
 	@RequireAuth
 	public ResponseEntity<List<AccountResponse>> listAccounts(
-			@io.strategiz.framework.authorization.annotation.AuthUser AuthenticatedUser user) {
+			@io.cidadel.framework.authorization.annotation.AuthUser AuthenticatedUser user) {
 		List<SocialIntegration> integrations = credentialService.listAccounts(user.getUserId());
 		List<AccountResponse> accounts = integrations.stream().map(this::toAccountResponse).toList();
 		return ResponseEntity.ok(accounts);
@@ -72,7 +72,7 @@ public class CredentialController {
 	@DeleteMapping("/accounts/{integrationId}")
 	@RequireAuth
 	public ResponseEntity<Void> disconnectAccount(@PathVariable String integrationId,
-			@io.strategiz.framework.authorization.annotation.AuthUser AuthenticatedUser user) {
+			@io.cidadel.framework.authorization.annotation.AuthUser AuthenticatedUser user) {
 		boolean success = credentialService.disconnectAccount(user.getUserId(), integrationId);
 		return success ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
 	}

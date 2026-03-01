@@ -3,7 +3,7 @@ package io.strategiz.social.business.agent.skill;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.strategiz.client.base.llm.model.ToolDefinition;
+import io.cidadel.client.base.llm.model.ToolDefinition;
 import io.strategiz.social.client.jina.client.JinaClient;
 import java.util.Optional;
 import org.slf4j.Logger;

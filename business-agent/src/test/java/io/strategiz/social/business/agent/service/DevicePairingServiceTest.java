@@ -15,7 +15,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.strategiz.framework.token.issuer.PasetoTokenIssuer;
+import io.cidadel.framework.token.issuer.PasetoTokenIssuer;
 import io.strategiz.social.data.entity.DeviceRegistration;
 import io.strategiz.social.data.entity.PairingCode;
 import io.strategiz.social.data.entity.PairingSession;

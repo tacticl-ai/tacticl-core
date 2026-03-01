@@ -1,19 +1,22 @@
 package io.strategiz.social.service.agent.controller;
 
-import io.strategiz.framework.authorization.annotation.AuthUser;
-import io.strategiz.framework.authorization.annotation.RequireAuth;
-import io.strategiz.framework.authorization.context.AuthenticatedUser;
-import io.strategiz.framework.llmrouter.LlmRouter;
+import io.cidadel.framework.authorization.annotation.AuthUser;
+import io.cidadel.framework.authorization.annotation.RequireAuth;
+import io.cidadel.framework.authorization.context.AuthenticatedUser;
+import io.cidadel.framework.llmrouter.LlmRouter;
 import io.strategiz.social.business.agent.service.DeviceRoutingService;
 import io.strategiz.social.business.agent.service.SparkService;
 import io.strategiz.social.business.agent.service.TranscriptionService;
 import io.strategiz.social.business.agent.service.UserProvisioningService;
 import io.strategiz.social.business.agent.service.VoiceAgentService;
+import io.strategiz.social.business.agent.service.UserConfigService;
 import io.strategiz.social.data.entity.ActionConfirmation;
 import io.strategiz.social.data.entity.AgentAuditLog;
 import io.strategiz.social.data.entity.DeviceRegistration;
+import io.strategiz.social.data.entity.ExecutionPreference;
 import io.strategiz.social.data.entity.SocialIntegration;
 import io.strategiz.social.data.entity.Spark;
+import io.strategiz.social.data.entity.UserConfig;
 import io.strategiz.social.data.repository.ActionConfirmationRepository;
 import io.strategiz.social.data.repository.AgentAuditLogRepository;
 import io.strategiz.social.data.repository.SocialIntegrationRepository;
@@ -71,11 +74,14 @@ public class AgentController {
 
 	private final SetupActionDetector setupActionDetector;
 
+	private final UserConfigService userConfigService;
+
 	public AgentController(VoiceAgentService voiceAgentService, LlmRouter llmRouter,
 			AgentAuditLogRepository auditLogRepository, ActionConfirmationRepository confirmationRepository,
 			SocialIntegrationRepository integrationRepository, UserProvisioningService userProvisioningService,
 			TranscriptionService transcriptionService, SparkService sparkService,
-			DeviceRoutingService deviceRoutingService, SetupActionDetector setupActionDetector) {
+			DeviceRoutingService deviceRoutingService, SetupActionDetector setupActionDetector,
+			UserConfigService userConfigService) {
 		this.voiceAgentService = voiceAgentService;
 		this.llmRouter = llmRouter;
 		this.auditLogRepository = auditLogRepository;
@@ -86,6 +92,7 @@ public class AgentController {
 		this.sparkService = sparkService;
 		this.deviceRoutingService = deviceRoutingService;
 		this.setupActionDetector = setupActionDetector;
+		this.userConfigService = userConfigService;
 	}
 
 	@PostMapping("/command")
@@ -107,17 +114,42 @@ public class AgentController {
 		Spark spark = sparkService.createSpark(user.getUserId(), title, commandText, request.getSparkType(), null,
 				null, null, null);
 
-		// Try to delegate to an online device first
-		if (deviceRoutingService.hasOnlineDevice(user.getUserId())) {
-			Optional<AgentCommandResponse> delegated = delegateToDevice(spark, user.getUserId());
-			if (delegated.isPresent()) {
-				return ResponseEntity.ok(delegated.get());
-			}
-			// If routing failed (no device matched after preferences), fall through to cloud
+		// Route based on user's execution preference (smart defaults)
+		UserConfig config = userConfigService.getConfig(user.getUserId());
+		ExecutionPreference pref;
+		if (config.getExecutionPreference() != null) {
+			pref = config.getExecutionPreference();
+		}
+		else {
+			// Smart default: cloud if no devices registered, device-first if devices exist
+			boolean hasDevices = deviceRoutingService.hasRegisteredDevices(user.getUserId());
+			pref = hasDevices ? ExecutionPreference.DEVICE_FIRST : ExecutionPreference.CLOUD_ONLY;
 		}
 
-		// Fallback: process in the cloud via VoiceAgentService
-		return ResponseEntity.ok(executeInCloud(request, user.getUserId(), spark));
+		switch (pref) {
+			case CLOUD_ONLY:
+				// Never try device, go straight to cloud (with browser skills if enabled)
+				log.info("Routing spark={} to cloud (CLOUD_ONLY preference)", spark.getId());
+				return ResponseEntity.ok(executeInCloud(request, user.getUserId(), spark));
+
+			case CLOUD_FIRST:
+				// Try cloud first — agent has browser skills and cloud tools
+				log.info("Routing spark={} to cloud first (CLOUD_FIRST preference)", spark.getId());
+				return ResponseEntity.ok(executeInCloud(request, user.getUserId(), spark));
+
+			case DEVICE_FIRST:
+			default:
+				// Existing behavior: try device first, fall back to cloud
+				if (deviceRoutingService.hasOnlineDevice(user.getUserId())) {
+					Optional<AgentCommandResponse> delegated = delegateToDevice(spark, user.getUserId());
+					if (delegated.isPresent()) {
+						return ResponseEntity.ok(delegated.get());
+					}
+					// If routing failed (no device matched after preferences), fall through
+				}
+				// Fall back to cloud (now with browser skills available)
+				return ResponseEntity.ok(executeInCloud(request, user.getUserId(), spark));
+		}
 	}
 
 	/** Delegate an already-created spark to an online device. */

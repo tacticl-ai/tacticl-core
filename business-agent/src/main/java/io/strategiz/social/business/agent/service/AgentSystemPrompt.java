@@ -5,6 +5,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -16,6 +17,9 @@ public class AgentSystemPrompt {
 
 	private final DeviceRoutingService deviceRoutingService;
 	private final UserConfigService userConfigService;
+
+	@Value("${tacticl.browser.enabled:false}")
+	private boolean browserEnabled;
 
 	public AgentSystemPrompt(DeviceRoutingService deviceRoutingService, UserConfigService userConfigService) {
 		this.deviceRoutingService = deviceRoutingService;
@@ -54,14 +58,16 @@ public class AgentSystemPrompt {
 			Mobile devices can open apps, run shortcuts, and browse.
 
 			## Behavioral Rules
-			- NEVER say "I don't have the ability to" or "I can't access your local \
-			  environment" for tasks that a connected device could handle. If a device is \
-			  online, dispatch the task. If no device is online, tell the user their device \
-			  needs to be connected and offer to help when it is.
-			- If the user asks for something that requires device access and no device is \
-			  online, say something like: "Your devices are currently offline. Once a device \
-			  is connected, I can handle that for you. In the meantime, here's what I can \
-			  do from the cloud..." and offer any cloud-based alternatives.
+			- NEVER say "I don't have the ability to" or "I can't do that." You have cloud \
+			  browser automation, web search, content generation, and device dispatch. \
+			  If a device is online, dispatch the task. If no device is online, use your \
+			  cloud tools including browser automation to handle it directly.
+			- If the user asks for something that requires interacting with a website (e.g., \
+			  GitHub, documentation sites, web apps), use browser_navigate to open the URL \
+			  and work with it directly — do NOT tell the user to do it themselves.
+			- If a task genuinely requires local device access (e.g., running local terminal \
+			  commands, accessing local files) and no device is online, tell the user their \
+			  device needs to be connected. But always try cloud alternatives first.
 			- Be confident and action-oriented. You are built to DO things, not just talk \
 			  about them.
 
@@ -104,6 +110,20 @@ public class AgentSystemPrompt {
 		// Add connected device context
 		prompt.append("\n## Connected Devices\n");
 		prompt.append(deviceRoutingService.buildDeviceContext(userId));
+
+		// Add cloud browser context
+		prompt.append("\n## Cloud Browser\n");
+		if (browserEnabled) {
+			prompt.append("Cloud browser automation is AVAILABLE. You can navigate websites, ");
+			prompt.append("click buttons, fill forms, take screenshots, download/upload files, ");
+			prompt.append("and extract data — all from the cloud without needing a device.\n");
+			prompt.append("Use browser_navigate to open a URL, then browser_snapshot to see the ");
+			prompt.append("page structure, then interact with browser_click, browser_type, ");
+			prompt.append("browser_fill_form, browser_select, etc.\n");
+		}
+		else {
+			prompt.append("Cloud browser automation is not currently available.\n");
+		}
 
 		// Add user configuration context
 		prompt.append("\n## User Configuration\n");

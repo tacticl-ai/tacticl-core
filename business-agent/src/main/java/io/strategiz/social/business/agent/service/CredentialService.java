@@ -1,6 +1,6 @@
 package io.strategiz.social.business.agent.service;
 
-import io.strategiz.service.base.BaseService;
+import io.cidadel.service.base.BaseService;
 import io.strategiz.social.data.entity.PlatformType;
 import io.strategiz.social.data.entity.SocialIntegration;
 import io.strategiz.social.data.repository.SocialIntegrationRepository;

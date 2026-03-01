@@ -1,8 +1,8 @@
 package io.strategiz.social.service.repo.controller;
 
-import io.strategiz.framework.authorization.annotation.AuthUser;
-import io.strategiz.framework.authorization.annotation.RequireAuth;
-import io.strategiz.framework.authorization.context.AuthenticatedUser;
+import io.cidadel.framework.authorization.annotation.AuthUser;
+import io.cidadel.framework.authorization.annotation.RequireAuth;
+import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.strategiz.social.data.entity.AccessLevel;
 import io.strategiz.social.data.entity.RepoGrant;
 import io.strategiz.social.data.entity.RepoProvider;

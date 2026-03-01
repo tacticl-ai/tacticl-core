@@ -21,6 +21,9 @@ dependencies {
     implementation(project(":client-siliconflow"))
     implementation(project(":client-brave-search"))
     implementation(project(":client-jina"))
+    implementation(project(":client-gcs"))
+    implementation(project(":data-browser"))
+    implementation(project(":business-browser"))
 
     // Cidadel shared infrastructure
     implementation(libs.cidadel.framework.authorization)
@@ -32,15 +35,23 @@ dependencies {
     implementation(libs.cidadel.framework.api.docs)
     implementation(libs.cidadel.framework.llm.router)
 
-    // Strategiz product-specific libraries
-    implementation(libs.strategiz.client.anthropic.direct)
-    implementation(libs.strategiz.client.openai.direct)
-    implementation(libs.strategiz.client.grok.direct)
+    // Cidadel LLM clients
+    implementation(libs.cidadel.client.anthropic.direct)
+    implementation(libs.cidadel.client.openai.direct)
+    implementation(libs.cidadel.client.grok.direct)
 
-    // Auth (reused from strategiz — all /v1/auth/* endpoints)
-    implementation(libs.strategiz.service.auth)
-    implementation(libs.strategiz.service.framework.base)
-    implementation(libs.strategiz.business.token.auth)
+    // Cidadel auth (all /v1/auth/* endpoints)
+    implementation(libs.cidadel.service.auth)
+    implementation(libs.cidadel.service.framework.base)
+    implementation(libs.cidadel.business.auth)
+    implementation(libs.cidadel.data.auth)
+    implementation(libs.cidadel.data.user)
+    implementation(libs.cidadel.data.session)
+    implementation(libs.cidadel.data.product)
+    implementation(libs.cidadel.data.framework.base)
+    implementation(libs.cidadel.client.google)
+    implementation(libs.cidadel.client.facebook)
+    implementation(libs.cidadel.client.sms)
 
     // Spring Boot
     implementation(libs.spring.boot.starter.web)

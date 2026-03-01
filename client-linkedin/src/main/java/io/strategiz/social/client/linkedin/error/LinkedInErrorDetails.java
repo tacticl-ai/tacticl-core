@@ -1,6 +1,6 @@
 package io.strategiz.social.client.linkedin.error;
 
-import io.strategiz.framework.exception.ErrorDetails;
+import io.cidadel.framework.exception.ErrorDetails;
 import org.springframework.http.HttpStatus;
 
 /**
@@ -8,7 +8,7 @@ import org.springframework.http.HttpStatus;
  * integration with the Strategiz exception framework.
  *
  * <p>
- * Usage: throw new StrategizException(LinkedInErrorDetails.SHARE_FAILED,
+ * Usage: throw new CidadelException(LinkedInErrorDetails.SHARE_FAILED,
  * "client-linkedin");
  */
 public enum LinkedInErrorDetails implements ErrorDetails {

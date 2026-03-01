@@ -4,15 +4,14 @@ availableSecrets:
       env: 'GITHUB_TOKEN'
 
 steps:
-  # Step 0: Clone strategiz-core, install shared libs, then build tacticl-core with Gradle
-  # Both Maven and Gradle run in the same container to avoid cross-container cache issues
+  # Step 0: Clone cidadel-core, publish to mavenLocal, then build tacticl-core
+  # All shared infrastructure (framework, auth, LLM clients) comes from cidadel-core
   - name: 'maven:3.9-eclipse-temurin-21'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
         set -eo pipefail
-        # Strip trailing whitespace/newlines from secret and re-export for child processes
         GH_TOKEN=$(echo -n "$${GITHUB_TOKEN}" | tr -d '[:space:]')
         export GITHUB_TOKEN="$${GH_TOKEN}"
         export GITHUB_ACTOR=cuztomizer
@@ -22,21 +21,6 @@ steps:
         chmod +x gradlew
         ./gradlew publishToMavenLocal -x test --no-daemon
         echo "=== Cidadel-core installed to mavenLocal ==="
-        echo "=== Cloning strategiz-core ==="
-        git clone --depth 1 "https://x-access-token:$${GH_TOKEN}@github.com/strategiz-io/strategiz-core.git" /tmp/strategiz-core
-        cd /tmp/strategiz-core
-        echo "=== Installing parent POMs ==="
-        mvn install -N -DskipTests -q
-        mvn install -f framework/pom.xml -N -DskipTests -q
-        mvn install -f client/pom.xml -N -DskipTests -q
-        echo "=== Installing shared libraries ==="
-        mvn install -pl framework/framework-exception,framework/framework-logging,framework/framework-secrets,framework/framework-authorization,framework/framework-token-issuance,framework/framework-resilience,framework/framework-api-docs,framework/framework-llm-router,client/client-framework-base,client/client-anthropic-direct,client/client-openai-direct,client/client-grok-direct -am -DskipTests -q -Dspotbugs.skip=true -Dcheckstyle.skip=true
-        echo "=== Installing auth modules ==="
-        mvn install -f service/pom.xml -N -DskipTests -q
-        mvn install -f business/pom.xml -N -DskipTests -q
-        mvn install -f data/pom.xml -N -DskipTests -q
-        mvn install -pl service/service-auth,service/service-framework-base,business/business-token-auth -am -DskipTests -q -Dspotbugs.skip=true -Dcheckstyle.skip=true -Dspring-javaformat.skip=true
-        echo "=== Maven install succeeded ==="
         echo "=== Building tacticl-core with Gradle ==="
         cd /workspace
         chmod +x gradlew
@@ -62,8 +46,10 @@ steps:
       - '--image=us-east1-docker.pkg.dev/$PROJECT_ID/tacticl-core/tacticl-core:$BUILD_ID'
       - '--region=us-east1'
       - '--platform=managed'
-      - '--memory=4Gi'
-      - '--set-env-vars=SPRING_PROFILES_ACTIVE=prod,STRATEGIZ_VAULT_ADDRESS=https://strategiz-vault-43628135674.us-east1.run.app'
+      - '--memory=8Gi'
+      - '--cpu=4'
+      - '--min-instances=1'
+      - '--set-env-vars=SPRING_PROFILES_ACTIVE=prod,STRATEGIZ_VAULT_ADDRESS=https://strategiz-vault-43628135674.us-east1.run.app,BROWSER_ENABLED=true'
       - '--set-secrets=VAULT_TOKEN=vault-root-token:latest'
       - '--allow-unauthenticated'
       - '--timeout=3600'

@@ -87,6 +87,11 @@ public class DeviceRoutingService {
 		return !sessionRepository.findActiveByUserId(userId).isEmpty();
 	}
 
+	/** Check if the user has any registered (active) devices at all. */
+	public boolean hasRegisteredDevices(String userId) {
+		return !deviceRepository.findActiveByUserId(userId).isEmpty();
+	}
+
 	/** Build a summary of connected devices for the agent system prompt. */
 	public String buildDeviceContext(String userId) {
 		List<DeviceRegistration> devices = deviceRepository.findActiveByUserId(userId);

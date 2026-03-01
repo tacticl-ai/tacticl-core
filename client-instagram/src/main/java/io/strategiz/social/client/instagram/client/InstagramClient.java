@@ -1,8 +1,8 @@
 package io.strategiz.social.client.instagram.client;
 
 import io.github.bucket4j.Bucket;
-import io.strategiz.client.base.http.BaseHttpClient;
-import io.strategiz.framework.exception.StrategizException;
+import io.cidadel.client.base.http.BaseHttpClient;
+import io.cidadel.framework.exception.CidadelException;
 import io.strategiz.social.client.instagram.config.InstagramConfig;
 import io.strategiz.social.client.instagram.dto.InstagramMediaResponse;
 import io.strategiz.social.client.instagram.dto.InstagramPublishResponse;
@@ -69,7 +69,7 @@ public class InstagramClient extends BaseHttpClient {
 				.body(InstagramMediaResponse.class);
 
 			if (response == null || response.getId() == null) {
-				throw new StrategizException(InstagramErrorDetails.MEDIA_CREATION_FAILED,
+				throw new CidadelException(InstagramErrorDetails.MEDIA_CREATION_FAILED,
 						"Instagram API returned null response for media creation");
 			}
 
@@ -81,12 +81,12 @@ public class InstagramClient extends BaseHttpClient {
 			handleHttpError(ex, "media creation");
 			return null; // unreachable, handleHttpError always throws
 		}
-		catch (StrategizException ex) {
+		catch (CidadelException ex) {
 			throw ex;
 		}
 		catch (Exception ex) {
 			log.error("Failed to create Instagram media for user: {}", igUserId, ex);
-			throw new StrategizException(InstagramErrorDetails.MEDIA_CREATION_FAILED,
+			throw new CidadelException(InstagramErrorDetails.MEDIA_CREATION_FAILED,
 					String.format("Failed to create media: %s", ex.getMessage()), ex);
 		}
 	}
@@ -112,7 +112,7 @@ public class InstagramClient extends BaseHttpClient {
 				.body(InstagramPublishResponse.class);
 
 			if (response == null || response.getId() == null) {
-				throw new StrategizException(InstagramErrorDetails.PUBLISH_FAILED,
+				throw new CidadelException(InstagramErrorDetails.PUBLISH_FAILED,
 						"Instagram API returned null response for media publish");
 			}
 
@@ -124,12 +124,12 @@ public class InstagramClient extends BaseHttpClient {
 			handleHttpError(ex, "media publish");
 			return null; // unreachable
 		}
-		catch (StrategizException ex) {
+		catch (CidadelException ex) {
 			throw ex;
 		}
 		catch (Exception ex) {
 			log.error("Failed to publish Instagram media {} for user: {}", creationId, igUserId, ex);
-			throw new StrategizException(InstagramErrorDetails.PUBLISH_FAILED,
+			throw new CidadelException(InstagramErrorDetails.PUBLISH_FAILED,
 					String.format("Failed to publish media: %s", ex.getMessage()), ex);
 		}
 	}
@@ -151,7 +151,7 @@ public class InstagramClient extends BaseHttpClient {
 				.body(InstagramUser.class);
 
 			if (response == null || response.getId() == null) {
-				throw new StrategizException(InstagramErrorDetails.PROFILE_FAILED,
+				throw new CidadelException(InstagramErrorDetails.PROFILE_FAILED,
 						"Instagram API returned null response for user profile");
 			}
 
@@ -163,19 +163,19 @@ public class InstagramClient extends BaseHttpClient {
 			handleHttpError(ex, "profile retrieval");
 			return null; // unreachable
 		}
-		catch (StrategizException ex) {
+		catch (CidadelException ex) {
 			throw ex;
 		}
 		catch (Exception ex) {
 			log.error("Failed to fetch Instagram user profile", ex);
-			throw new StrategizException(InstagramErrorDetails.PROFILE_FAILED,
+			throw new CidadelException(InstagramErrorDetails.PROFILE_FAILED,
 					String.format("Failed to fetch user profile: %s", ex.getMessage()), ex);
 		}
 	}
 
 	/**
 	 * Consume a rate limit token, blocking if necessary.
-	 * @throws StrategizException if rate limit cannot be acquired within timeout
+	 * @throws CidadelException if rate limit cannot be acquired within timeout
 	 */
 	private void consumeRateLimit() {
 		try {
@@ -183,14 +183,14 @@ public class InstagramClient extends BaseHttpClient {
 				log.debug("Rate limit reached, waiting for token...");
 				boolean acquired = rateLimiter.asBlocking().tryConsume(1, Duration.ofSeconds(10));
 				if (!acquired) {
-					throw new StrategizException(InstagramErrorDetails.RATE_LIMIT_EXCEEDED,
+					throw new CidadelException(InstagramErrorDetails.RATE_LIMIT_EXCEEDED,
 							"Rate limit exceeded for Instagram Graph API");
 				}
 			}
 		}
 		catch (InterruptedException ex) {
 			Thread.currentThread().interrupt();
-			throw new StrategizException(InstagramErrorDetails.RATE_LIMIT_EXCEEDED, "Rate limiter interrupted", ex);
+			throw new CidadelException(InstagramErrorDetails.RATE_LIMIT_EXCEEDED, "Rate limiter interrupted", ex);
 		}
 	}
 
@@ -202,17 +202,17 @@ public class InstagramClient extends BaseHttpClient {
 	private void handleHttpError(HttpClientErrorException ex, String operation) {
 		if (ex.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
 			log.warn("Instagram API rate limit exceeded (429) during {}", operation);
-			throw new StrategizException(InstagramErrorDetails.RATE_LIMIT_EXCEEDED,
+			throw new CidadelException(InstagramErrorDetails.RATE_LIMIT_EXCEEDED,
 					"Instagram API rate limit exceeded", ex);
 		}
 		else if (ex.getStatusCode() == HttpStatus.UNAUTHORIZED || ex.getStatusCode() == HttpStatus.FORBIDDEN) {
 			log.error("Instagram API unauthorized ({}}) during {}", ex.getStatusCode().value(), operation);
-			throw new StrategizException(InstagramErrorDetails.UNAUTHORIZED,
+			throw new CidadelException(InstagramErrorDetails.UNAUTHORIZED,
 					String.format("Instagram API unauthorized: %s", ex.getMessage()), ex);
 		}
 		else {
 			log.error("Instagram API error during {}: {} - {}", operation, ex.getStatusCode(), ex.getMessage());
-			throw new StrategizException(InstagramErrorDetails.MEDIA_CREATION_FAILED,
+			throw new CidadelException(InstagramErrorDetails.MEDIA_CREATION_FAILED,
 					String.format("Instagram API error: %s", ex.getMessage()), ex);
 		}
 	}

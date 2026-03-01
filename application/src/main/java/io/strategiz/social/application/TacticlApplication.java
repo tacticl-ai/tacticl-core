@@ -4,18 +4,28 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@SpringBootApplication(scanBasePackages = { "io.strategiz.social", "io.strategiz.framework.exception",
-		"io.strategiz.framework.secrets", "io.strategiz.framework.authorization",
-		"io.strategiz.framework.logging", "io.strategiz.framework.llmrouter",
-		"io.strategiz.client.anthropic", "io.strategiz.client.openai", "io.strategiz.client.grok",
-		"io.strategiz.framework.token", "io.strategiz.framework.firebase", "io.strategiz.framework.apidocs",
-		"io.strategiz.service.auth", "io.strategiz.business.tokenauth", "io.strategiz.data.auth",
-		"io.strategiz.data.user", "io.strategiz.data.device", "io.strategiz.data.session",
-		"io.strategiz.data.framework", "io.strategiz.data.base", "io.strategiz.data.preferences",
-		"io.strategiz.data.featureflags", "io.strategiz.data.watchlist",
-		"io.strategiz.client.sendgrid", "io.strategiz.client.recaptcha", "io.strategiz.client.vault",
-		"io.strategiz.client.google", "io.strategiz.client.facebook", "io.strategiz.client.firebasesms",
-		"io.strategiz.client.webpush", "io.strategiz.business.risk" })
+@SpringBootApplication(scanBasePackages = {
+		// Tacticl product code
+		"io.strategiz.social",
+		"io.tacticl",
+		// Cidadel framework
+		"io.cidadel.framework.exception",
+		"io.cidadel.framework.secrets",
+		"io.cidadel.framework.authorization",
+		"io.cidadel.framework.logging",
+		"io.cidadel.framework.llmrouter",
+		"io.cidadel.framework.token",
+		"io.cidadel.framework.apidocs",
+		// Cidadel service + client base
+		"io.cidadel.service.base",
+		"io.cidadel.client.base",
+		// Cidadel auth (service, data, clients)
+		"io.cidadel.identity",
+		// LLM clients
+		"io.strategiz.client.anthropic",
+		"io.strategiz.client.openai",
+		"io.strategiz.client.grok"
+})
 @EnableScheduling
 public class TacticlApplication {
 
