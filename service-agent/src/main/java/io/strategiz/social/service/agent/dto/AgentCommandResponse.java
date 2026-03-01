@@ -21,6 +21,8 @@ public class AgentCommandResponse {
 
 	private String sparkStatus;
 
+	private List<AgentAction> actions;
+
 	public AgentCommandResponse() {
 	}
 
@@ -106,6 +108,14 @@ public class AgentCommandResponse {
 
 	public void setSparkStatus(String sparkStatus) {
 		this.sparkStatus = sparkStatus;
+	}
+
+	public List<AgentAction> getActions() {
+		return actions;
+	}
+
+	public void setActions(List<AgentAction> actions) {
+		this.actions = actions;
 	}
 
 }

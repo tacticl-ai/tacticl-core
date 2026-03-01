@@ -17,11 +17,13 @@ import io.strategiz.social.data.entity.Spark;
 import io.strategiz.social.data.repository.ActionConfirmationRepository;
 import io.strategiz.social.data.repository.AgentAuditLogRepository;
 import io.strategiz.social.data.repository.SocialIntegrationRepository;
+import io.strategiz.social.service.agent.dto.AgentAction;
 import io.strategiz.social.service.agent.dto.AgentCommandRequest;
 import io.strategiz.social.service.agent.dto.AgentCommandResponse;
 import io.strategiz.social.service.agent.dto.AuditLogResponse;
 import io.strategiz.social.service.agent.dto.ConfirmActionRequest;
 import io.strategiz.social.service.agent.dto.TranscribeResponse;
+import io.strategiz.social.service.agent.service.SetupActionDetector;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -67,11 +69,13 @@ public class AgentController {
 
 	private final DeviceRoutingService deviceRoutingService;
 
+	private final SetupActionDetector setupActionDetector;
+
 	public AgentController(VoiceAgentService voiceAgentService, LlmRouter llmRouter,
 			AgentAuditLogRepository auditLogRepository, ActionConfirmationRepository confirmationRepository,
 			SocialIntegrationRepository integrationRepository, UserProvisioningService userProvisioningService,
 			TranscriptionService transcriptionService, SparkService sparkService,
-			DeviceRoutingService deviceRoutingService) {
+			DeviceRoutingService deviceRoutingService, SetupActionDetector setupActionDetector) {
 		this.voiceAgentService = voiceAgentService;
 		this.llmRouter = llmRouter;
 		this.auditLogRepository = auditLogRepository;
@@ -81,6 +85,7 @@ public class AgentController {
 		this.transcriptionService = transcriptionService;
 		this.sparkService = sparkService;
 		this.deviceRoutingService = deviceRoutingService;
+		this.setupActionDetector = setupActionDetector;
 	}
 
 	@PostMapping("/command")
@@ -147,6 +152,13 @@ public class AgentController {
 		AgentCommandResponse response = new AgentCommandResponse(result.getResponseText(), result.getToolsInvoked(),
 				result.isSuccess(), result.getModel());
 		response.setSparkId(spark.getId());
+
+		// Detect setup actions based on response text and user state
+		List<AgentAction> actions = setupActionDetector.detect(result.getResponseText(), userId);
+		if (!actions.isEmpty()) {
+			response.setActions(actions);
+		}
+
 		return response;
 	}
 
