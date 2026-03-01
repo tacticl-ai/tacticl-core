@@ -8,7 +8,7 @@ import org.springframework.http.HttpStatus;
  * integration with the Strategiz exception framework.
  *
  * <p>
- * Usage: throw new CidadelException(LinkedInErrorDetails.SHARE_FAILED,
+ * Usage: throw new StrategizException(LinkedInErrorDetails.SHARE_FAILED,
  * "client-linkedin");
  */
 public enum LinkedInErrorDetails implements ErrorDetails {

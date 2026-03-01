@@ -10,7 +10,7 @@ import org.springframework.http.HttpStatus;
  * Implements {@link ErrorDetails} for integration with the Strategiz exception framework.
  *
  * <p>
- * Usage: {@code throw new CidadelException(AgentErrorDetails.COMMAND_FAILED, MODULE_NAME, message);}
+ * Usage: {@code throw new StrategizException(AgentErrorDetails.COMMAND_FAILED, MODULE_NAME, message);}
  */
 public enum AgentErrorDetails implements ErrorDetails {
 

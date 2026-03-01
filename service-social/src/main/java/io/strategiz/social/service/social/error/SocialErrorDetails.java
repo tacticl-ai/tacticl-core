@@ -10,7 +10,7 @@ import org.springframework.http.HttpStatus;
  * Implements {@link ErrorDetails} for integration with the Strategiz exception framework.
  *
  * <p>
- * Usage: {@code throw new CidadelException(SocialErrorDetails.POST_NOT_FOUND, MODULE_NAME, postId);}
+ * Usage: {@code throw new StrategizException(SocialErrorDetails.POST_NOT_FOUND, MODULE_NAME, postId);}
  */
 public enum SocialErrorDetails implements ErrorDetails {
 

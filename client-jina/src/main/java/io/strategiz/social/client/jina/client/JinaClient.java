@@ -1,7 +1,7 @@
 package io.strategiz.social.client.jina.client;
 
 import io.github.bucket4j.Bucket;
-import io.strategiz.framework.exception.CidadelException;
+import io.strategiz.framework.exception.StrategizException;
 import io.strategiz.social.client.jina.config.JinaConfig;
 import io.strategiz.social.client.jina.exception.JinaErrorDetails;
 import java.net.URI;
@@ -50,18 +50,18 @@ public class JinaClient {
 
 			return content;
 		}
-		catch (CidadelException e) {
+		catch (StrategizException e) {
 			throw e;
 		}
 		catch (Exception e) {
 			logger.error("Jina Reader failed for URL: {}", url, e);
-			throw new CidadelException(JinaErrorDetails.PAGE_READ_FAILED, MODULE_NAME, e.getMessage());
+			throw new StrategizException(JinaErrorDetails.PAGE_READ_FAILED, MODULE_NAME, e.getMessage());
 		}
 	}
 
 	private void checkRateLimit() {
 		if (!rateLimiter.tryConsume(1)) {
-			throw new CidadelException(JinaErrorDetails.RATE_LIMIT_EXCEEDED, MODULE_NAME);
+			throw new StrategizException(JinaErrorDetails.RATE_LIMIT_EXCEEDED, MODULE_NAME);
 		}
 	}
 
