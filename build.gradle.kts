@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.spring.dependency.management) apply false
 }
 
-group = "io.strategiz.social"
+group = "ai.tacticl"
 version = "0.1.0-SNAPSHOT"
 
 allprojects {

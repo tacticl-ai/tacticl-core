@@ -1,27 +1,36 @@
 rootProject.name = "tacticl-core"
 
 include(
+    // Application (assembler)
     "application",
-    "service-social",
-    "service-agent",
-    "service-spark",
-    "service-checkpoint",
-    "service-repo",
-    "service-token",
-    "business-social",
-    "business-agent",
-    "data-social",
-    "client-twitter",
-    "client-linkedin",
-    "client-instagram",
-    "client-google",
-    "client-github",
-    "client-siliconflow",
-    "client-brave-search",
-    "client-jina",
-    "client-gcs",
-    "data-browser",
-    "business-browser"
+
+    // Service layer (REST controllers)
+    "service:service-agent",
+    "service:service-spark",
+    "service:service-checkpoint",
+    "service:service-social",
+    "service:service-repo",
+    "service:service-token",
+
+    // Business layer (domain logic)
+    "business:business-agent",
+    "business:business-browser",
+    "business:business-social",
+
+    // Data layer (entities + repositories)
+    "data:data-browser",
+    "data:data-social",
+
+    // Client layer (external API clients)
+    "client:client-brave-search",
+    "client:client-gcs",
+    "client:client-github",
+    "client:client-google",
+    "client:client-instagram",
+    "client:client-jina",
+    "client:client-linkedin",
+    "client:client-siliconflow",
+    "client:client-twitter",
 )
 
 // Version catalog auto-discovered from gradle/libs.versions.toml

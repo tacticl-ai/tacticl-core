@@ -33,32 +33,47 @@ client-base                — BaseHttpClient, RestTemplate patterns
 
 ## Module Structure
 
+Nested multi-module layout matching Cidadel pattern. Each layer has a parent `build.gradle.kts` with shared dependencies.
+
 ```
-application/          → Spring Boot entry point (@EnableScheduling)
-service-social/       → Social media REST controllers, DTOs
-service-agent/        → Voice agent controller (POST /api/agent/command)
-service-spark/        → Spark CRUD, activity, tactics, logs (GET /api/sparks/*)
-business-social/      → Social logic (compose, schedule, publish, analytics, oauth)
-business-agent/       → Agent orchestration (VoiceAgentService, SparkService, ToolRegistry, skills)
-data-social/          → Firestore entities (Spark, Tactic, SocialPost, SocialIntegration, DeviceCommand)
-client-twitter/       → Twitter/X API v2 client
-client-linkedin/      → LinkedIn Marketing API client
-client-instagram/     → Instagram Graph API client
-client-siliconflow/   → SiliconFlow API (Wan 2.2 video generation)
-client-brave-search/  → Brave Search API (web search for agents)
-client-jina/          → Jina Reader API (web page → markdown extraction)
-deployment/           → Cloud Build YAML configs
+application/                     → Spring Boot entry point (@EnableScheduling)
+service/                         → Parent: shared service deps (auth, web, validation, openapi)
+  service-agent/                 → Voice agent controller (POST /api/agent/command)
+  service-spark/                 → Spark CRUD, activity, tactics, logs (GET /api/sparks/*)
+  service-checkpoint/            → Checkpoint approval endpoints
+  service-social/                → Social media REST controllers, DTOs
+  service-repo/                  → Repository access endpoints
+  service-token/                 → API token management endpoints
+business/                        → Parent: shared business deps (exception, logging, jackson)
+  business-agent/                → Agent orchestration (VoiceAgentService, SparkService, ToolRegistry, skills)
+  business-browser/              → Playwright browser automation for agents
+  business-social/               → Social logic (compose, schedule, publish, analytics, oauth)
+data/                            → Parent: shared data deps (firestore, jackson)
+  data-social/                   → Firestore entities (Spark, Tactic, SocialPost, SocialIntegration, DeviceCommand)
+  data-browser/                  → Browser session persistence
+client/                          → Parent: shared client deps (exception, secrets, client-base, web)
+  client-twitter/                → Twitter/X API v2 client
+  client-linkedin/               → LinkedIn Marketing API client
+  client-instagram/              → Instagram Graph API client
+  client-google/                 → Google Photos API client
+  client-github/                 → GitHub API client
+  client-siliconflow/            → SiliconFlow API (Wan 2.2 video generation)
+  client-brave-search/           → Brave Search API (web search for agents)
+  client-jina/                   → Jina Reader API (web page → markdown extraction)
+  client-gcs/                    → Google Cloud Storage client
+deployment/                      → Cloud Build YAML configs
 ```
 
 ## Build Commands
 
 ```bash
-./gradlew build                        # Full build
-./gradlew build -x test                # Skip tests
-./gradlew :application:bootRun         # Run locally (Vault required)
-./gradlew test                         # Run all tests
-./gradlew :client-twitter:test         # Single module tests
-./gradlew :service-agent:test          # Agent module tests
+./gradlew build                              # Full build
+./gradlew build -x test                      # Skip tests
+./gradlew :application:bootRun               # Run locally (Vault required)
+./gradlew test                               # Run all tests
+./gradlew :client:client-twitter:test        # Single module tests
+./gradlew :service:service-agent:test        # Agent module tests
+./gradlew projects                           # Show nested module tree
 ```
 
 ## Module Dependency Rules
