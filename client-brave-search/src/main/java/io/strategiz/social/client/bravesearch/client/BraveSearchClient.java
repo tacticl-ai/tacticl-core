@@ -3,7 +3,7 @@ package io.strategiz.social.client.bravesearch.client;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.bucket4j.Bucket;
-import io.strategiz.framework.exception.StrategizException;
+import io.cidadel.framework.exception.CidadelException;
 import io.strategiz.social.client.bravesearch.config.BraveSearchConfig;
 import io.strategiz.social.client.bravesearch.dto.BraveSearchResponse;
 import io.strategiz.social.client.bravesearch.dto.BraveSearchResult;
@@ -60,18 +60,18 @@ public class BraveSearchClient {
 
 			return response.getWeb().getResults();
 		}
-		catch (StrategizException e) {
+		catch (CidadelException e) {
 			throw e;
 		}
 		catch (Exception e) {
 			logger.error("Brave Search failed for query: {}", query, e);
-			throw new StrategizException(BraveSearchErrorDetails.SEARCH_FAILED, MODULE_NAME, e.getMessage());
+			throw new CidadelException(BraveSearchErrorDetails.SEARCH_FAILED, MODULE_NAME, e.getMessage());
 		}
 	}
 
 	private void checkRateLimit() {
 		if (!rateLimiter.tryConsume(1)) {
-			throw new StrategizException(BraveSearchErrorDetails.RATE_LIMIT_EXCEEDED, MODULE_NAME);
+			throw new CidadelException(BraveSearchErrorDetails.RATE_LIMIT_EXCEEDED, MODULE_NAME);
 		}
 	}
 

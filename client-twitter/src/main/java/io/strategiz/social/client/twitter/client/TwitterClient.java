@@ -3,7 +3,7 @@ package io.strategiz.social.client.twitter.client;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.bucket4j.Bucket;
-import io.strategiz.framework.exception.StrategizException;
+import io.cidadel.framework.exception.CidadelException;
 import io.strategiz.social.client.twitter.dto.TweetResponse;
 import io.strategiz.social.client.twitter.dto.TwitterUser;
 import io.strategiz.social.client.twitter.exception.TwitterErrorDetails;
@@ -46,7 +46,7 @@ public class TwitterClient {
 	 * @param text the tweet text (max 280 characters)
 	 * @param userAccessToken the user's OAuth 2.0 access token
 	 * @return the created tweet with id and text
-	 * @throws StrategizException if the request fails or rate limit is exceeded
+	 * @throws CidadelException if the request fails or rate limit is exceeded
 	 */
 	public TweetResponse postTweet(String text, String userAccessToken) {
 		consumeRateLimit();
@@ -59,29 +59,29 @@ public class TwitterClient {
 				.body(Map.of("text", text))
 				.retrieve()
 				.onStatus(this::isUnauthorized, (req, res) -> {
-					throw new StrategizException(TwitterErrorDetails.UNAUTHORIZED, MODULE_NAME,
+					throw new CidadelException(TwitterErrorDetails.UNAUTHORIZED, MODULE_NAME,
 							"Invalid or expired user access token");
 				})
 				.onStatus(HttpStatusCode::isError, (req, res) -> {
-					throw new StrategizException(TwitterErrorDetails.TWEET_FAILED, MODULE_NAME,
+					throw new CidadelException(TwitterErrorDetails.TWEET_FAILED, MODULE_NAME,
 							"Twitter API returned status " + res.getStatusCode().value());
 				})
 				.body(TweetDataWrapper.class);
 
 			if (response == null || response.data == null) {
-				throw new StrategizException(TwitterErrorDetails.TWEET_FAILED, MODULE_NAME,
+				throw new CidadelException(TwitterErrorDetails.TWEET_FAILED, MODULE_NAME,
 						"Empty response from Twitter API");
 			}
 
 			log.info("Tweet posted successfully with id: {}", response.data.getId());
 			return response.data;
 		}
-		catch (StrategizException e) {
+		catch (CidadelException e) {
 			throw e;
 		}
 		catch (Exception e) {
 			log.error("Failed to post tweet: {}", e.getMessage(), e);
-			throw new StrategizException(TwitterErrorDetails.TWEET_FAILED, MODULE_NAME, e);
+			throw new CidadelException(TwitterErrorDetails.TWEET_FAILED, MODULE_NAME, e);
 		}
 	}
 
@@ -89,7 +89,7 @@ public class TwitterClient {
 	 * Get the authenticated user's profile.
 	 * @param userAccessToken the user's OAuth 2.0 access token
 	 * @return the user profile with id, name, username, and profile image URL
-	 * @throws StrategizException if the request fails or rate limit is exceeded
+	 * @throws CidadelException if the request fails or rate limit is exceeded
 	 */
 	public TwitterUser getUserProfile(String userAccessToken) {
 		consumeRateLimit();
@@ -101,29 +101,29 @@ public class TwitterClient {
 				.header("Authorization", "Bearer " + userAccessToken)
 				.retrieve()
 				.onStatus(this::isUnauthorized, (req, res) -> {
-					throw new StrategizException(TwitterErrorDetails.UNAUTHORIZED, MODULE_NAME,
+					throw new CidadelException(TwitterErrorDetails.UNAUTHORIZED, MODULE_NAME,
 							"Invalid or expired user access token");
 				})
 				.onStatus(HttpStatusCode::isError, (req, res) -> {
-					throw new StrategizException(TwitterErrorDetails.USER_PROFILE_FAILED, MODULE_NAME,
+					throw new CidadelException(TwitterErrorDetails.USER_PROFILE_FAILED, MODULE_NAME,
 							"Twitter API returned status " + res.getStatusCode().value());
 				})
 				.body(UserDataWrapper.class);
 
 			if (response == null || response.data == null) {
-				throw new StrategizException(TwitterErrorDetails.USER_PROFILE_FAILED, MODULE_NAME,
+				throw new CidadelException(TwitterErrorDetails.USER_PROFILE_FAILED, MODULE_NAME,
 						"Empty response from Twitter API");
 			}
 
 			log.info("Fetched profile for user: @{}", response.data.getUsername());
 			return response.data;
 		}
-		catch (StrategizException e) {
+		catch (CidadelException e) {
 			throw e;
 		}
 		catch (Exception e) {
 			log.error("Failed to fetch user profile: {}", e.getMessage(), e);
-			throw new StrategizException(TwitterErrorDetails.USER_PROFILE_FAILED, MODULE_NAME, e);
+			throw new CidadelException(TwitterErrorDetails.USER_PROFILE_FAILED, MODULE_NAME, e);
 		}
 	}
 
@@ -131,7 +131,7 @@ public class TwitterClient {
 	 * Delete a tweet on behalf of a user.
 	 * @param tweetId the ID of the tweet to delete
 	 * @param userAccessToken the user's OAuth 2.0 access token
-	 * @throws StrategizException if the request fails or rate limit is exceeded
+	 * @throws CidadelException if the request fails or rate limit is exceeded
 	 */
 	public void deleteTweet(String tweetId, String userAccessToken) {
 		consumeRateLimit();
@@ -143,32 +143,32 @@ public class TwitterClient {
 				.header("Authorization", "Bearer " + userAccessToken)
 				.retrieve()
 				.onStatus(this::isUnauthorized, (req, res) -> {
-					throw new StrategizException(TwitterErrorDetails.UNAUTHORIZED, MODULE_NAME,
+					throw new CidadelException(TwitterErrorDetails.UNAUTHORIZED, MODULE_NAME,
 							"Invalid or expired user access token");
 				})
 				.onStatus(this::isNotFound, (req, res) -> {
-					throw new StrategizException(TwitterErrorDetails.TWEET_NOT_FOUND, MODULE_NAME, tweetId);
+					throw new CidadelException(TwitterErrorDetails.TWEET_NOT_FOUND, MODULE_NAME, tweetId);
 				})
 				.onStatus(HttpStatusCode::isError, (req, res) -> {
-					throw new StrategizException(TwitterErrorDetails.TWEET_FAILED, MODULE_NAME,
+					throw new CidadelException(TwitterErrorDetails.TWEET_FAILED, MODULE_NAME,
 							"Twitter API returned status " + res.getStatusCode().value());
 				})
 				.toBodilessEntity();
 
 			log.info("Tweet deleted successfully: {}", tweetId);
 		}
-		catch (StrategizException e) {
+		catch (CidadelException e) {
 			throw e;
 		}
 		catch (Exception e) {
 			log.error("Failed to delete tweet {}: {}", tweetId, e.getMessage(), e);
-			throw new StrategizException(TwitterErrorDetails.TWEET_FAILED, MODULE_NAME, e);
+			throw new CidadelException(TwitterErrorDetails.TWEET_FAILED, MODULE_NAME, e);
 		}
 	}
 
 	private void consumeRateLimit() {
 		if (!rateLimiter.tryConsume(1)) {
-			throw new StrategizException(TwitterErrorDetails.RATE_LIMIT_EXCEEDED, MODULE_NAME,
+			throw new CidadelException(TwitterErrorDetails.RATE_LIMIT_EXCEEDED, MODULE_NAME,
 					"Twitter API rate limit exceeded");
 		}
 	}

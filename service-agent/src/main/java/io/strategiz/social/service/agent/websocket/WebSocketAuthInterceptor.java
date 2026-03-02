@@ -1,7 +1,7 @@
 package io.strategiz.social.service.agent.websocket;
 
-import io.strategiz.framework.authorization.context.AuthenticatedUser;
-import io.strategiz.framework.authorization.validator.PasetoTokenValidator;
+import io.cidadel.framework.authorization.context.AuthenticatedUser;
+import io.cidadel.framework.authorization.validator.PasetoTokenValidator;
 import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;

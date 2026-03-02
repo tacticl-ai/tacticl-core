@@ -1,8 +1,8 @@
 package io.strategiz.social.service.agent.controller;
 
-import io.strategiz.framework.authorization.annotation.AuthUser;
-import io.strategiz.framework.authorization.annotation.RequireAuth;
-import io.strategiz.framework.authorization.context.AuthenticatedUser;
+import io.cidadel.framework.authorization.annotation.AuthUser;
+import io.cidadel.framework.authorization.annotation.RequireAuth;
+import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.strategiz.social.business.agent.service.DeviceRegistryService;
 import io.strategiz.social.business.agent.service.UserConfigService;
 import io.strategiz.social.data.entity.DeviceRegistration;

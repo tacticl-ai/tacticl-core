@@ -3,7 +3,7 @@ package io.tacticl.browser.skill;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.strategiz.client.base.llm.model.ToolDefinition;
+import io.cidadel.client.base.llm.model.ToolDefinition;
 import io.strategiz.social.business.agent.skill.AgentSkill;
 import io.tacticl.browser.service.BrowserActionLogger;
 import io.tacticl.browser.service.BrowserSessionService;

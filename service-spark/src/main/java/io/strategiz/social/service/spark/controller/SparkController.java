@@ -1,8 +1,8 @@
 package io.strategiz.social.service.spark.controller;
 
-import io.strategiz.framework.authorization.annotation.AuthUser;
-import io.strategiz.framework.authorization.annotation.RequireAuth;
-import io.strategiz.framework.authorization.context.AuthenticatedUser;
+import io.cidadel.framework.authorization.annotation.AuthUser;
+import io.cidadel.framework.authorization.annotation.RequireAuth;
+import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.strategiz.social.business.agent.service.SparkDispatchService;
 import io.strategiz.social.business.agent.service.SparkService;
 import io.strategiz.social.data.entity.DeviceRegistration;
