@@ -12,6 +12,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 
 @Configuration
 @ConditionalOnProperty(name = "tacticl.browser.enabled", havingValue = "true")
@@ -23,6 +24,7 @@ public class BrowserConfig {
 	private Playwright playwright;
 
 	@Bean
+	@Lazy
 	public Playwright playwright() {
 		log.info("Initializing Playwright runtime...");
 		this.playwright = Playwright.create();
@@ -30,6 +32,7 @@ public class BrowserConfig {
 	}
 
 	@Bean
+	@Lazy
 	public Browser chromiumBrowser(Playwright playwright, BrowserProperties props) {
 		log.info("Launching Chromium browser (max {} contexts)", props.getMaxConcurrentContexts());
 		return playwright.chromium().launch(new BrowserType.LaunchOptions()
