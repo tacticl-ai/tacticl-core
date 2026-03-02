@@ -61,7 +61,7 @@ public class GoogleVaultConfig {
 				log.info("Google configuration loaded successfully");
 			}
 			else {
-				log.warn("Google is not fully configured - YouTube/Gmail features will be unavailable");
+				log.warn("Google is not fully configured - YouTube/Gmail/Photos features will be unavailable");
 			}
 		}
 		catch (Exception e) {

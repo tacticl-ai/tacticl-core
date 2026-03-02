@@ -10,6 +10,7 @@ dependencies {
     implementation(project(":client-siliconflow"))
     implementation(project(":client-brave-search"))
     implementation(project(":client-jina"))
+    implementation(project(":client-google"))
 
     // Cidadel shared infrastructure
     implementation(libs.cidadel.service.framework.base)

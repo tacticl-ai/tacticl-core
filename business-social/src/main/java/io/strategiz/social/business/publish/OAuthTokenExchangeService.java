@@ -73,7 +73,7 @@ public class OAuthTokenExchangeService {
 			case TWITTER -> exchangeTwitterToken(code, codeVerifier, redirectUri);
 			case LINKEDIN -> exchangeLinkedInToken(code, codeVerifier, redirectUri);
 			case INSTAGRAM -> exchangeInstagramToken(code, redirectUri);
-			case YOUTUBE -> exchangeGoogleToken(code, codeVerifier, redirectUri);
+			case YOUTUBE, GOOGLE_PHOTOS -> exchangeGoogleToken(code, codeVerifier, redirectUri);
 			case GITHUB -> exchangeGitHubToken(code, redirectUri);
 			default -> throw new IllegalArgumentException("Unsupported platform for OAuth: " + platform);
 		};
@@ -120,7 +120,7 @@ public class OAuthTokenExchangeService {
 		return switch (platform) {
 			case TWITTER -> refreshTwitterToken(refreshToken);
 			case LINKEDIN -> refreshLinkedInToken(refreshToken);
-			case YOUTUBE -> refreshGoogleToken(refreshToken);
+			case YOUTUBE, GOOGLE_PHOTOS -> refreshGoogleToken(refreshToken);
 			default -> throw new IllegalArgumentException("Token refresh not supported for: " + platform);
 		};
 	}
