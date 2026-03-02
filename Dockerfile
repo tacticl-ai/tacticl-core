@@ -16,8 +16,11 @@ WORKDIR /app
 
 COPY application/build/libs/application.jar app.jar
 
-# Install Playwright Chromium browser at build time (uses the bundled CLI)
-RUN java -cp app.jar com.microsoft.playwright.CLI install chromium
+# Install Playwright Chromium browser at build time
+# Spring Boot fat JARs nest dependencies in BOOT-INF/lib, so extract first
+RUN mkdir -p /tmp/extracted && cd /tmp/extracted && jar -xf /app/app.jar \
+    && java -cp "BOOT-INF/lib/*:BOOT-INF/classes" com.microsoft.playwright.CLI install chromium \
+    && rm -rf /tmp/extracted
 
 EXPOSE 8080
 
