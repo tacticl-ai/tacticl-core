@@ -54,5 +54,6 @@ steps:
       - '--allow-unauthenticated'
       - '--timeout=3600'
       - '--session-affinity'
+      - '--cpu-boost'
 
 timeout: '1200s'
