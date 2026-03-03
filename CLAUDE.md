@@ -15,6 +15,7 @@ This repo is the **Java backend** (Gradle, Spring Boot, Cloud Run). Mobile app l
 - React Native (Expo) mobile app
 - Whisper API (speech-to-text), Claude tool_use (command routing)
 - SiliconFlow / Wan 2.2 (AI video generation)
+- Google Photos Library API (media source for social posts)
 
 ## Shared Libraries (from strategiz-core via GitHub Packages)
 
@@ -55,7 +56,7 @@ client/                          → Parent: shared client deps (exception, secr
   client-twitter/                → Twitter/X API v2 client
   client-linkedin/               → LinkedIn Marketing API client
   client-instagram/              → Instagram Graph API client
-  client-google/                 → Google Photos API client
+  client-google/                 → Google OAuth + Photos Library API client
   client-github/                 → GitHub API client
   client-siliconflow/            → SiliconFlow API (Wan 2.2 video generation)
   client-brave-search/           → Brave Search API (web search for agents)
@@ -115,7 +116,7 @@ Each capability is a "skill" registered in `ToolRegistry`:
 
 ### Action Confirmation Tiers (Agent Security)
 ```
-Tier 0 (Auto)     — Read-only: search, browse, check schedule
+Tier 0 (Auto)     — Read-only: search, browse, check schedule, Google Photos
 Tier 1 (Confirm)  — Mutations: post, schedule, edit, delete
 Tier 2 (2FA)      — Financial: purchases, subscriptions, spending > $X
 ```
@@ -185,6 +186,17 @@ Push-to-talk → expo-av → Whisper API (~500ms) → text
 - Both use `Optional<Client>` injection in skills — graceful degradation if disabled
 - Feature flags: `tacticl.brave-search.enabled`, `tacticl.jina.enabled`
 - Vault secrets: `brave-search.api-key`, `jina.api-key`
+
+## Google Photos (Media Source)
+
+- **API**: Google Photos Library API v1 (`client-google` module, shared OAuth config with YouTube/Gmail)
+- **Scope**: `photoslibrary.readonly` (read-only media source, no uploads)
+- **Feature flag**: `tacticl.google.enabled` (shared with YouTube)
+- **Vault secrets**: `google.client-id`, `google.client-secret` (shared Google OAuth credentials)
+- **Agent skill**: `google_photos` (Tier 0) — search by date/type, list albums, get album photos, get photo by ID
+- **PlatformType**: `GOOGLE_PHOTOS` with `ConnectionCategory.MEDIA_SOURCE` (shown separately from social accounts in app)
+- **OAuth**: Same flow as other platforms (`SocialOAuthController`), reuses `exchangeGoogleToken()` from YouTube
+- **Use case**: Agent searches user's photos → presents matches → user confirms → media URL attached to social post
 
 ### Future: Google WebMCP (Chrome 146+)
 
