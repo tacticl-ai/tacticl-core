@@ -245,7 +245,7 @@ public class AgentController {
 			dto.setToolsInvoked(logEntry.getToolsInvoked());
 			dto.setSuccess(logEntry.isSuccess());
 			dto.setExecutionTimeMs(logEntry.getExecutionTimeMs());
-			dto.setCreatedAt(logEntry.getCreatedAt());
+			dto.setCreatedAt(logEntry.getCreatedDate() != null ? logEntry.getCreatedDate().toDate().toInstant() : null);
 			return dto;
 		}).toList();
 

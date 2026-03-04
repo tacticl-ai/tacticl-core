@@ -3,10 +3,13 @@ package io.strategiz.social.data.entity;
 import java.time.Instant;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
 
 /** Represents a user's granted access to a source code repository. */
 @IgnoreExtraProperties
-public class RepoGrant {
+@Collection("repo_grants")
+public class RepoGrant extends BaseEntity {
 
 	private String id;
 
@@ -22,16 +25,12 @@ public class RepoGrant {
 
 	private String oauthTokenRef;
 
-	private boolean isActive;
-
-	public RepoGrant() {
-		this.isActive = true;
-	}
-
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}
@@ -82,14 +81,6 @@ public class RepoGrant {
 
 	public void setOauthTokenRef(String oauthTokenRef) {
 		this.oauthTokenRef = oauthTokenRef;
-	}
-
-	public boolean isActive() {
-		return isActive;
-	}
-
-	public void setActive(boolean active) {
-		isActive = active;
 	}
 
 }

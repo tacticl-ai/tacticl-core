@@ -16,6 +16,7 @@ import io.strategiz.social.data.repository.SparkRepository;
 import io.strategiz.social.data.repository.TacticRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import com.google.cloud.Timestamp;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -93,7 +94,7 @@ public class SparkService {
 		spark.setCheckpointPolicy(checkpointPolicy != null ? checkpointPolicy : CheckpointPolicy.CHECKPOINT_MAJOR);
 		spark.setRepoAccess(repoAccess != null ? repoAccess : List.of());
 		spark.setSchedule(schedule);
-		spark.setCreatedAt(Instant.now());
+		spark.setCreatedDate(Timestamp.now());
 
 		// Handle scheduling
 		if (schedule != null && !schedule.isBlank()) {
@@ -213,7 +214,7 @@ public class SparkService {
 		checkpoint.setDescription(description);
 		checkpoint.setFindings(findings);
 		checkpoint.setOptions(options);
-		checkpoint.setCreatedAt(Instant.now());
+		checkpoint.setCreatedDate(Timestamp.now());
 		checkpointRepository.save(checkpoint, checkpointId);
 
 		sparkRepository.findById(sparkId).ifPresent(spark -> {
@@ -288,7 +289,7 @@ public class SparkService {
 		if (!spark.getUserId().equals(userId)) {
 			return false;
 		}
-		spark.setActive(false);
+		spark.setIsActive(false);
 		sparkRepository.save(spark, spark.getId());
 		log.info("[SPARK] Soft-deleted spark={}", sparkId);
 		return true;
@@ -296,7 +297,7 @@ public class SparkService {
 
 	/** Get a spark by ID, ensuring it belongs to the user. */
 	public Optional<Spark> getSpark(String sparkId, String userId) {
-		return sparkRepository.findById(sparkId).filter(s -> s.getUserId().equals(userId)).filter(Spark::isActive);
+		return sparkRepository.findById(sparkId).filter(s -> s.getUserId().equals(userId)).filter(Spark::getIsActive);
 	}
 
 	/** List active sparks for a user (paginated via limit). */
@@ -394,7 +395,7 @@ public class SparkService {
 			tactic.setId(tacticId);
 			tactic.setSparkId(sparkId);
 			tactic.setDeviceId(deviceId);
-			tactic.setCreatedAt(Instant.now());
+			tactic.setCreatedDate(Timestamp.now());
 		}
 		if (description != null) {
 			tactic.setDescription(description);
@@ -431,7 +432,7 @@ public class SparkService {
 				if (aPending != bPending) {
 					return aPending ? -1 : 1;
 				}
-				return b.getCreatedAt().compareTo(a.getCreatedAt());
+				return b.getCreatedDate().compareTo(a.getCreatedDate());
 			})
 			.toList();
 	}

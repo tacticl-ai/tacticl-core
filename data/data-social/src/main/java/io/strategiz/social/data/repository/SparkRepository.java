@@ -20,10 +20,10 @@ public class SparkRepository extends FirestoreRepository<Spark> {
 	public List<Spark> findActiveByUserId(String userId) {
 		List<Spark> all = findByField("userId", userId);
 		return all.stream()
-			.filter(Spark::isActive)
+			.filter(Spark::getIsActive)
 			.filter(s -> s.getStatus() != SparkState.COMPLETED && s.getStatus() != SparkState.FAILED
 					&& s.getStatus() != SparkState.CANCELLED)
-			.sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+			.sorted((a, b) -> b.getCreatedDate().compareTo(a.getCreatedDate()))
 			.toList();
 	}
 
@@ -42,7 +42,7 @@ public class SparkRepository extends FirestoreRepository<Spark> {
 		combined.addAll(completed);
 
 		return combined.stream()
-			.filter(Spark::isActive)
+			.filter(Spark::getIsActive)
 			.filter(s -> s.getSchedule() != null && !s.getSchedule().isEmpty())
 			.filter(s -> s.getNextRunAt() != null && !s.getNextRunAt().isAfter(now))
 			.toList();
@@ -52,7 +52,7 @@ public class SparkRepository extends FirestoreRepository<Spark> {
 	public List<Spark> findByUserIdAndStatus(String userId, SparkState status) {
 		return findByField("userId", userId).stream()
 			.filter(s -> s.getStatus() == status)
-			.filter(Spark::isActive)
+			.filter(Spark::getIsActive)
 			.toList();
 	}
 
@@ -60,8 +60,8 @@ public class SparkRepository extends FirestoreRepository<Spark> {
 	public List<Spark> findRecentByUserId(String userId, int limit) {
 		List<Spark> all = findByField("userId", userId);
 		return all.stream()
-			.filter(Spark::isActive)
-			.sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+			.filter(Spark::getIsActive)
+			.sorted((a, b) -> b.getCreatedDate().compareTo(a.getCreatedDate()))
 			.limit(limit)
 			.toList();
 	}

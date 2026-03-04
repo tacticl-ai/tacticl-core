@@ -4,6 +4,7 @@ import io.cidadel.service.base.BaseService;
 import io.strategiz.social.data.entity.PlatformType;
 import io.strategiz.social.data.entity.SocialIntegration;
 import io.strategiz.social.data.repository.SocialIntegrationRepository;
+import com.google.cloud.Timestamp;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -102,7 +103,7 @@ public class CredentialService extends BaseService {
 			si.setId(UUID.randomUUID().toString());
 			si.setUserId(userId);
 			si.setPlatform(platformType);
-			si.setCreatedAt(Instant.now());
+			si.setCreatedDate(Timestamp.now());
 		}
 
 		if (credentials.containsKey("accessToken")) {
@@ -120,7 +121,7 @@ public class CredentialService extends BaseService {
 
 		si.setDisabled(false);
 		si.setTokenRefreshNeeded(false);
-		si.setUpdatedAt(Instant.now());
+		si.setModifiedDate(Timestamp.now());
 		integrationRepository.save(userId, si, si.getId());
 
 		log.info("[CREDENTIALS] Registered credentials for user={} platform={}", userId, platform);
@@ -139,9 +140,9 @@ public class CredentialService extends BaseService {
 			return false;
 		}
 		SocialIntegration si = opt.get();
-		si.setActive(false);
+		si.setIsActive(false);
 		si.setDisabled(true);
-		si.setUpdatedAt(Instant.now());
+		si.setModifiedDate(Timestamp.now());
 		integrationRepository.save(userId, si, si.getId());
 		log.info("[CREDENTIALS] Disconnected account id={} platform={}", integrationId, si.getPlatform());
 		return true;

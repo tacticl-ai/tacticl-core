@@ -1,5 +1,6 @@
 package io.tacticl.browser.service;
 
+import com.google.cloud.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -75,7 +76,7 @@ public class BrowserSessionService {
 		session.setSparkId(sparkId);
 		session.setType(BrowserSessionType.EPHEMERAL);
 		session.setStatus(BrowserSessionStatus.ACTIVE);
-		session.setCreatedAt(Instant.now());
+		session.setCreatedDate(Timestamp.now());
 		session.setLastActiveAt(Instant.now());
 		sessionRepository.save(session, sessionId);
 
@@ -112,7 +113,7 @@ public class BrowserSessionService {
 			sessionRepository.findById(sessionId).ifPresent(session -> {
 				session.setStatus(BrowserSessionStatus.CLOSED);
 				session.setClosedAt(Instant.now());
-				long durationSec = Duration.between(session.getCreatedAt(), Instant.now()).getSeconds();
+				long durationSec = Duration.between(session.getCreatedDate().toDate().toInstant(), Instant.now()).getSeconds();
 				session.setDurationSeconds(durationSec);
 				sessionRepository.save(session, sessionId);
 			});

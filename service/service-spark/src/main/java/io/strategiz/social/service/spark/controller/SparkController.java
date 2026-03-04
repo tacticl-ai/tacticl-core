@@ -181,7 +181,7 @@ public class SparkController {
 		r.setParentSparkId(spark.getParentSparkId());
 		r.setTotalTokens(spark.getTotalTokens());
 		r.setEstimatedCost(spark.getEstimatedCost());
-		r.setCreatedAt(spark.getCreatedAt());
+		r.setCreatedAt(spark.getCreatedDate() != null ? spark.getCreatedDate().toDate().toInstant() : null);
 		r.setCompletedAt(spark.getCompletedAt());
 		return r;
 	}
@@ -196,7 +196,7 @@ public class SparkController {
 		r.setRepos(tactic.getRepos());
 		r.setResult(tactic.getResult());
 		r.setTokenUsage(tactic.getTokenUsage());
-		r.setCreatedAt(tactic.getCreatedAt());
+		r.setCreatedAt(tactic.getCreatedDate() != null ? tactic.getCreatedDate().toDate().toInstant() : null);
 		r.setCompletedAt(tactic.getCompletedAt());
 		return r;
 	}

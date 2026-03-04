@@ -9,6 +9,7 @@ import io.strategiz.social.data.entity.SocialIntegration;
 import io.strategiz.social.data.entity.SocialPost;
 import io.strategiz.social.data.repository.SocialIntegrationRepository;
 import io.strategiz.social.data.repository.SocialPostRepository;
+import com.google.cloud.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -65,7 +66,7 @@ public class PostPublisherJob {
 	private void publishPost(SocialPost post) {
 		// Transition to PUBLISHING
 		post.setState(PostState.PUBLISHING);
-		post.setUpdatedAt(Instant.now());
+		post.setModifiedDate(Timestamp.now());
 		postRepository.save(post, post.getId());
 
 		// Get the first target integration
@@ -98,7 +99,7 @@ public class PostPublisherJob {
 			post.setState(PostState.PUBLISHED);
 			post.setPublishedPostId(result.getPlatformPostId());
 			post.setPublishedUrl(result.getPlatformPostUrl());
-			post.setUpdatedAt(Instant.now());
+			post.setModifiedDate(Timestamp.now());
 			postRepository.save(post, post.getId());
 			log.info("Published post {} to {}", post.getId(), integ.getPlatform());
 		}
@@ -110,7 +111,7 @@ public class PostPublisherJob {
 	private void handleFailure(SocialPost post, String errorMessage) {
 		post.setRetryCount(post.getRetryCount() + 1);
 		post.setLastError(errorMessage);
-		post.setUpdatedAt(Instant.now());
+		post.setModifiedDate(Timestamp.now());
 
 		if (post.getRetryCount() >= MAX_RETRIES) {
 			post.setState(PostState.FAILED);

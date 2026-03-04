@@ -103,7 +103,7 @@ public class CheckpointController {
 		r.setUserDecision(checkpoint.getUserDecision() != null ? checkpoint.getUserDecision().name() : null);
 		r.setUserFeedback(checkpoint.getUserFeedback());
 		r.setDecidedAt(checkpoint.getDecidedAt());
-		r.setCreatedAt(checkpoint.getCreatedAt());
+		r.setCreatedAt(checkpoint.getCreatedDate() != null ? checkpoint.getCreatedDate().toDate().toInstant() : null);
 		return r;
 	}
 

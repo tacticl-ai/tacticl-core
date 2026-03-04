@@ -8,6 +8,7 @@ import io.strategiz.social.data.repository.SocialIntegrationRepository;
 import io.strategiz.social.service.social.dto.IntegrationResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.google.cloud.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -69,7 +70,7 @@ public class SocialIntegrationController {
 		integ.setDisabled(true);
 		integ.setAccessToken(null);
 		integ.setRefreshToken(null);
-		integ.setUpdatedAt(Instant.now());
+		integ.setModifiedDate(Timestamp.now());
 		integrationRepository.save(user.getUserId(), integ, integ.getId());
 
 		log.info("Disconnected {} integration {} for user {}", integ.getPlatform(), integrationId, user.getUserId());
@@ -85,7 +86,7 @@ public class SocialIntegrationController {
 		response.setDisabled(integration.isDisabled());
 		response.setTokenRefreshNeeded(integration.isTokenRefreshNeeded());
 		response.setTokenExpiresAt(integration.getTokenExpiresAt());
-		response.setCreatedAt(integration.getCreatedAt());
+		response.setCreatedAt(integration.getCreatedDate() != null ? integration.getCreatedDate().toDate().toInstant() : null);
 		return response;
 	}
 

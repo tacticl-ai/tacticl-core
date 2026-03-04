@@ -4,6 +4,7 @@ import io.strategiz.social.data.entity.CommandState;
 import io.strategiz.social.data.entity.CommandType;
 import io.strategiz.social.data.entity.DeviceCommand;
 import io.strategiz.social.data.repository.DeviceCommandRepository;
+import com.google.cloud.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
@@ -56,7 +57,7 @@ public class DeviceCommandService {
 		cmd.setPayload(payload);
 		cmd.setTier(tier);
 		cmd.setState(CommandState.QUEUED);
-		cmd.setCreatedAt(Instant.now());
+		cmd.setCreatedDate(Timestamp.now());
 		cmd.setExpiresAt(Instant.now().plus(COMMAND_TTL));
 
 		// Set spark context if available

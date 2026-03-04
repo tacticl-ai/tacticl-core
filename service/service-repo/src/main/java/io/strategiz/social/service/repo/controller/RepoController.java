@@ -100,7 +100,7 @@ public class RepoController {
 		}
 
 		RepoGrant grant = opt.get();
-		grant.setActive(false);
+		grant.setIsActive(false);
 		repoGrantRepository.save(user.getUserId(), grant, grant.getId());
 
 		log.info("Revoked repo grant {} for user {}", id, user.getUserId());

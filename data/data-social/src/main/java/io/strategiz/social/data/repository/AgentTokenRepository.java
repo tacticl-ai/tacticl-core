@@ -16,7 +16,7 @@ public class AgentTokenRepository extends FirestoreSubcollectionRepository<Agent
 	/** Find all active tokens for a user. */
 	public List<AgentToken> findActiveByUserId(String userId) {
 		List<AgentToken> all = findAll(userId);
-		return all.stream().filter(AgentToken::isActive).toList();
+		return all.stream().filter(AgentToken::getIsActive).toList();
 	}
 
 }

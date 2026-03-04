@@ -83,7 +83,7 @@ public class DeviceSessionManager implements DeviceCommandDispatcher, ActivityBr
 		fsSession.setUserId(principal.getUserId());
 		fsSession.setConnectedAt(Instant.now());
 		fsSession.setLastPingAt(Instant.now());
-		fsSession.setActive(true);
+		fsSession.setIsActive(true);
 		sessionRepository.save(fsSession, fsSession.getId());
 		deviceFirestoreSessionMap.put(deviceId, fsSession.getId());
 
@@ -112,7 +112,7 @@ public class DeviceSessionManager implements DeviceCommandDispatcher, ActivityBr
 		String fsSessionId = deviceFirestoreSessionMap.remove(deviceId);
 		if (fsSessionId != null) {
 			sessionRepository.findById(fsSessionId).ifPresent(s -> {
-				s.setActive(false);
+				s.setIsActive(false);
 				sessionRepository.save(s, s.getId());
 			});
 		}

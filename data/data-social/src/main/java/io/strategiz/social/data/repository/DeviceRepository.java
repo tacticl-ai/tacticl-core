@@ -24,7 +24,7 @@ public class DeviceRepository extends FirestoreSubcollectionRepository<DeviceReg
 		logger.debug("Found {} total devices for user {}", all.size(), userId);
 		return all.stream()
 			.filter(d -> d.getState() == DeviceState.ACTIVE)
-			.filter(DeviceRegistration::isActive)
+			.filter(DeviceRegistration::getIsActive)
 			.toList();
 	}
 

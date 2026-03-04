@@ -83,7 +83,7 @@ class DevicePairingServiceTest {
 		assertFalse(result.isConsumed());
 		assertNotNull(result.getExpiresAt());
 		assertTrue(result.getExpiresAt().isAfter(Instant.now()));
-		assertNotNull(result.getCreatedAt());
+		assertNotNull(result.getCreatedDate());
 
 		// Verify new code was saved (second save call)
 		verify(pairingCodeRepository, times(2)).save(any(PairingCode.class), anyString());
@@ -144,7 +144,7 @@ class DevicePairingServiceTest {
 		DeviceRegistration savedDevice = deviceCaptor.getValue();
 		assertEquals(userId, savedDevice.getUserId());
 		assertEquals("My MacBook", savedDevice.getDeviceName());
-		assertTrue(savedDevice.isActive());
+		assertTrue(savedDevice.getIsActive());
 
 		// Verify token was created with correct userId
 		verify(tokenIssuer).createAuthenticationToken(eq(userId), anyList(), anyString(), any(Duration.class),
@@ -204,7 +204,7 @@ class DevicePairingServiceTest {
 		assertEquals("waiting", result.getStatus());
 		assertNotNull(result.getExpiresAt());
 		assertTrue(result.getExpiresAt().isAfter(Instant.now()));
-		assertNotNull(result.getCreatedAt());
+		assertNotNull(result.getCreatedDate());
 
 		// Verify session was saved
 		verify(pairingSessionRepository).save(any(PairingSession.class), anyString());
@@ -243,7 +243,7 @@ class DevicePairingServiceTest {
 		DeviceRegistration savedDevice = deviceCaptor.getValue();
 		assertEquals(userId, savedDevice.getUserId());
 		assertEquals("My iPhone", savedDevice.getDeviceName());
-		assertTrue(savedDevice.isActive());
+		assertTrue(savedDevice.getIsActive());
 
 		// Verify session was updated to "paired"
 		assertEquals("paired", session.getStatus());

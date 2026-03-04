@@ -2,6 +2,7 @@ package io.strategiz.social.business.agent.service;
 
 import io.strategiz.social.data.entity.TacticlUser;
 import io.strategiz.social.data.repository.TacticlUserRepository;
+import com.google.cloud.Timestamp;
 import java.time.Instant;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -36,7 +37,7 @@ public class UserProvisioningService {
 		log.info("Provisioning new TacticlUser for userId: {}", userId);
 		TacticlUser user = new TacticlUser();
 		user.setId(userId);
-		user.setCreatedAt(Instant.now());
+		user.setCreatedDate(Timestamp.now());
 		user.setOnboardingComplete(false);
 		userRepository.save(user, userId);
 	}

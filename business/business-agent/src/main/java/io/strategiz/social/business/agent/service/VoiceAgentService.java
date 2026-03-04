@@ -9,6 +9,7 @@ import io.strategiz.social.business.agent.config.AgentModelConfig;
 import io.strategiz.social.business.agent.skill.AgentSkill;
 import io.strategiz.social.data.entity.AgentAuditLog;
 import io.strategiz.social.data.repository.AgentAuditLogRepository;
+import com.google.cloud.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -177,7 +178,7 @@ public class VoiceAgentService {
 			log.setSuccess(success);
 			log.setErrorMessage(errorMessage);
 			log.setExecutionTimeMs(executionTimeMs);
-			log.setCreatedAt(Instant.now());
+			log.setCreatedDate(Timestamp.now());
 			auditLogRepository.save(log, log.getId());
 		}
 		catch (Exception e) {

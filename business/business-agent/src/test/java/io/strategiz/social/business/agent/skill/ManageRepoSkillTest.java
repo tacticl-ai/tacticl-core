@@ -139,7 +139,7 @@ class ManageRepoSkillTest {
 		grant.setId("grant-1");
 		grant.setRepoFullName("owner/old-repo");
 		grant.setProvider(RepoProvider.BITBUCKET);
-		grant.setActive(true);
+		grant.setIsActive(true);
 		when(repoGrantRepository.findById("user-1", "grant-1")).thenReturn(Optional.of(grant));
 
 		ObjectNode input = MAPPER.createObjectNode();
@@ -181,7 +181,7 @@ class ManageRepoSkillTest {
 	void execute_revokeAction_alreadyInactive_returnsNotFound() {
 		RepoGrant grant = new RepoGrant();
 		grant.setId("grant-2");
-		grant.setActive(false);
+		grant.setIsActive(false);
 		when(repoGrantRepository.findById("user-1", "grant-2")).thenReturn(Optional.of(grant));
 
 		ObjectNode input = MAPPER.createObjectNode();

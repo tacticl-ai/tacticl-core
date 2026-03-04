@@ -5,6 +5,7 @@ import io.strategiz.social.data.entity.DeviceState;
 import io.strategiz.social.data.entity.DeviceType;
 import io.strategiz.social.data.repository.DeviceRepository;
 import io.strategiz.social.data.repository.DeviceSessionRepository;
+import com.google.cloud.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -43,8 +44,8 @@ public class DeviceRegistryService {
 		device.setPushToken(pushToken);
 		device.setState(DeviceState.PENDING_VERIFICATION);
 		device.setVerificationCode(generateVerificationCode());
-		device.setCreatedAt(Instant.now());
-		device.setActive(true);
+		device.setCreatedDate(Timestamp.now());
+		device.setIsActive(true);
 
 		deviceRepository.save(userId, device, device.getId());
 		log.info("Device registered: {} ({}) for user {}", deviceName, deviceType, userId);
@@ -114,7 +115,7 @@ public class DeviceRegistryService {
 
 	/** Get a single device by ID, verifying user ownership. */
 	public Optional<DeviceRegistration> getDevice(String deviceId, String userId) {
-		return deviceRepository.findById(userId, deviceId).filter(d -> d.getUserId().equals(userId) && d.isActive());
+		return deviceRepository.findById(userId, deviceId).filter(d -> d.getUserId().equals(userId) && d.getIsActive());
 	}
 
 	/** Revoke (soft-delete) a device. */
@@ -125,7 +126,7 @@ public class DeviceRegistryService {
 		}
 		DeviceRegistration device = opt.get();
 		device.setState(DeviceState.REVOKED);
-		device.setActive(false);
+		device.setIsActive(false);
 		deviceRepository.save(userId, device, device.getId());
 		log.info("Device revoked: {} for user {}", device.getDeviceName(), userId);
 		return true;

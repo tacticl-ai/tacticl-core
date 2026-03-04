@@ -11,6 +11,7 @@ import io.strategiz.social.service.social.dto.PostResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import com.google.cloud.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -53,8 +54,8 @@ public class SocialPostController {
 		post.setContent(request.getContent());
 		post.setMediaUrls(request.getMediaUrls());
 		post.setTargetIntegrationIds(request.getTargetIntegrationIds());
-		post.setCreatedAt(Instant.now());
-		post.setUpdatedAt(Instant.now());
+		post.setCreatedDate(Timestamp.now());
+		post.setModifiedDate(Timestamp.now());
 
 		if (request.getPublishDate() != null) {
 			post.setPublishDate(request.getPublishDate());
@@ -113,7 +114,7 @@ public class SocialPostController {
 		}
 
 		p.setState(PostState.CANCELLED);
-		p.setUpdatedAt(Instant.now());
+		p.setModifiedDate(Timestamp.now());
 		postRepository.save(p, p.getId());
 		log.info("Cancelled post {} for user {}", postId, user.getUserId());
 
@@ -130,7 +131,7 @@ public class SocialPostController {
 		response.setPublishDate(post.getPublishDate());
 		response.setPublishedPostId(post.getPublishedPostId());
 		response.setPublishedUrl(post.getPublishedUrl());
-		response.setCreatedAt(post.getCreatedAt());
+		response.setCreatedAt(post.getCreatedDate() != null ? post.getCreatedDate().toDate().toInstant() : null);
 		return response;
 	}
 

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
 import io.strategiz.social.data.entity.Reminder;
 import io.strategiz.social.data.repository.ReminderRepository;
+import com.google.cloud.Timestamp;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import org.slf4j.Logger;
@@ -74,7 +75,7 @@ public class SetReminderSkill implements AgentSkill {
 		reminder.setMessage(message);
 		reminder.setRemindAt(remindAt);
 		reminder.setDelivered(false);
-		reminder.setCreatedAt(Instant.now());
+		reminder.setCreatedDate(Timestamp.now());
 
 		try {
 			reminderRepository.save(userId, reminder, null);

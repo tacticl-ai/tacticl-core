@@ -5,12 +5,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
 
 /**
  * Represents a connected social media account (OAuth integration).
  */
 @IgnoreExtraProperties
-public class SocialIntegration {
+@Collection("social_integrations")
+public class SocialIntegration extends BaseEntity {
 
 	private String id;
 
@@ -40,18 +43,14 @@ public class SocialIntegration {
 
 	private Map<String, Object> platformMetadata = new HashMap<>();
 
-	private Instant createdAt;
-
-	private Instant updatedAt;
-
-	private boolean isActive = true;
-
 	// Getters and setters
 
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}
@@ -158,30 +157,6 @@ public class SocialIntegration {
 
 	public void setPlatformMetadata(Map<String, Object> platformMetadata) {
 		this.platformMetadata = platformMetadata;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
-	}
-
-	public Instant getUpdatedAt() {
-		return updatedAt;
-	}
-
-	public void setUpdatedAt(Instant updatedAt) {
-		this.updatedAt = updatedAt;
-	}
-
-	public boolean isActive() {
-		return isActive;
-	}
-
-	public void setActive(boolean active) {
-		isActive = active;
 	}
 
 }

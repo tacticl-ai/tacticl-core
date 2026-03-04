@@ -3,10 +3,13 @@ package io.strategiz.social.data.entity;
 import java.util.Map;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
 
 /** Represents a user-managed API token for agent execution. Token value stored in Vault. */
 @IgnoreExtraProperties
-public class AgentToken {
+@Collection("agent_tokens")
+public class AgentToken extends BaseEntity {
 
 	private String id;
 
@@ -22,16 +25,12 @@ public class AgentToken {
 
 	private Map<String, Object> currentUsage;
 
-	private boolean isActive;
-
-	public AgentToken() {
-		this.isActive = true;
-	}
-
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}
@@ -82,14 +81,6 @@ public class AgentToken {
 
 	public void setCurrentUsage(Map<String, Object> currentUsage) {
 		this.currentUsage = currentUsage;
-	}
-
-	public boolean isActive() {
-		return isActive;
-	}
-
-	public void setActive(boolean active) {
-		isActive = active;
 	}
 
 }

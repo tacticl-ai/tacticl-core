@@ -82,9 +82,9 @@ public class CredentialController {
 		response.setId(si.getId());
 		response.setPlatform(si.getPlatform() != null ? si.getPlatform().name() : null);
 		response.setPlatformUsername(si.getPlatformUsername());
-		response.setActive(si.isActive());
-		response.setCreatedAt(si.getCreatedAt());
-		response.setUpdatedAt(si.getUpdatedAt());
+		response.setActive(si.getIsActive());
+		response.setCreatedAt(si.getCreatedDate() != null ? si.getCreatedDate().toDate().toInstant() : null);
+		response.setUpdatedAt(si.getModifiedDate() != null ? si.getModifiedDate().toDate().toInstant() : null);
 		return response;
 	}
 

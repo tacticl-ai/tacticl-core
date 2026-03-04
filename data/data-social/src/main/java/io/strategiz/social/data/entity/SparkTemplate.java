@@ -4,10 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
 
 /** Reusable template for creating sparks with pre-configured defaults. */
 @IgnoreExtraProperties
-public class SparkTemplate {
+@Collection("spark_templates")
+public class SparkTemplate extends BaseEntity {
 
 	private String id;
 
@@ -25,19 +28,18 @@ public class SparkTemplate {
 
 	private List<String> tags;
 
-	private boolean isActive;
-
 	public SparkTemplate() {
 		this.defaultRepos = new ArrayList<>();
 		this.tags = new ArrayList<>();
 		this.defaultCheckpointPolicy = CheckpointPolicy.CHECKPOINT_MAJOR;
-		this.isActive = true;
 	}
 
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}
@@ -96,14 +98,6 @@ public class SparkTemplate {
 
 	public void setTags(List<String> tags) {
 		this.tags = tags;
-	}
-
-	public boolean isActive() {
-		return isActive;
-	}
-
-	public void setActive(boolean active) {
-		isActive = active;
 	}
 
 }

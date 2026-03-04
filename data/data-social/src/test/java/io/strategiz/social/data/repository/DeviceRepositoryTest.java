@@ -75,17 +75,17 @@ class DeviceRepositoryTest {
 		DeviceRegistration active = new DeviceRegistration();
 		active.setId("d-1");
 		active.setState(DeviceState.ACTIVE);
-		active.setActive(true);
+		active.setIsActive(true);
 
 		DeviceRegistration revoked = new DeviceRegistration();
 		revoked.setId("d-2");
 		revoked.setState(DeviceState.REVOKED);
-		revoked.setActive(false);
+		revoked.setIsActive(false);
 
 		DeviceRegistration pending = new DeviceRegistration();
 		pending.setId("d-3");
 		pending.setState(DeviceState.PENDING_VERIFICATION);
-		pending.setActive(true);
+		pending.setIsActive(true);
 
 		when(devicesCol.get()).thenReturn(queryFuture);
 		when(queryFuture.get()).thenReturn(querySnapshot);

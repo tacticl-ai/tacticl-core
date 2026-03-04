@@ -9,6 +9,7 @@ import io.strategiz.social.data.entity.PairingSession;
 import io.strategiz.social.data.repository.DeviceRepository;
 import io.strategiz.social.data.repository.PairingCodeRepository;
 import io.strategiz.social.data.repository.PairingSessionRepository;
+import com.google.cloud.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -71,7 +72,7 @@ public class DevicePairingService {
 		pairingCode.setCode(code);
 		pairingCode.setExpiresAt(Instant.now().plus(5, ChronoUnit.MINUTES));
 		pairingCode.setConsumed(false);
-		pairingCode.setCreatedAt(Instant.now());
+		pairingCode.setCreatedDate(Timestamp.now());
 
 		pairingCodeRepository.save(pairingCode, pairingCode.getId());
 		log.info("[PAIRING] Generated pairing code for user={}", userId);
@@ -116,8 +117,8 @@ public class DevicePairingService {
 		device.setDeviceType(parseDeviceType(deviceType));
 		device.setState(DeviceState.ACTIVE);
 		device.setCapabilities(capabilities);
-		device.setActive(true);
-		device.setCreatedAt(Instant.now());
+		device.setIsActive(true);
+		device.setCreatedDate(Timestamp.now());
 		deviceRepository.save(pairingCode.getUserId(), device, deviceId);
 
 		// Generate PASETO session token with userId as sub (for WebSocket interceptor)
@@ -139,7 +140,7 @@ public class DevicePairingService {
 		session.setSecret(UUID.randomUUID().toString());
 		session.setStatus("waiting");
 		session.setExpiresAt(Instant.now().plus(5, ChronoUnit.MINUTES));
-		session.setCreatedAt(Instant.now());
+		session.setCreatedDate(Timestamp.now());
 
 		pairingSessionRepository.save(session, session.getId());
 		log.info("[PAIRING] Created QR pairing session={}", session.getId());
@@ -185,8 +186,8 @@ public class DevicePairingService {
 		device.setDeviceType(parseDeviceType(deviceType));
 		device.setState(DeviceState.ACTIVE);
 		device.setCapabilities(capabilities);
-		device.setActive(true);
-		device.setCreatedAt(Instant.now());
+		device.setIsActive(true);
+		device.setCreatedDate(Timestamp.now());
 		deviceRepository.save(userId, device, deviceId);
 
 		// Generate PASETO session token with userId as sub (for WebSocket interceptor)

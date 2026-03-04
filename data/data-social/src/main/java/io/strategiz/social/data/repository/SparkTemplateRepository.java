@@ -16,7 +16,7 @@ public class SparkTemplateRepository extends FirestoreSubcollectionRepository<Sp
 	/** Find all active templates for a user. */
 	public List<SparkTemplate> findActiveByUserId(String userId) {
 		List<SparkTemplate> all = findAll(userId);
-		return all.stream().filter(SparkTemplate::isActive).toList();
+		return all.stream().filter(SparkTemplate::getIsActive).toList();
 	}
 
 }

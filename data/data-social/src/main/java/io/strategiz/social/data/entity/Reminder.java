@@ -3,10 +3,13 @@ package io.strategiz.social.data.entity;
 import java.time.Instant;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
 
 /** A user-set reminder stored in the reminders Firestore collection. */
 @IgnoreExtraProperties
-public class Reminder {
+@Collection("reminders")
+public class Reminder extends BaseEntity {
 
 	private String id;
 
@@ -18,12 +21,12 @@ public class Reminder {
 
 	private boolean delivered;
 
-	private Instant createdAt;
-
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}
@@ -58,14 +61,6 @@ public class Reminder {
 
 	public void setDelivered(boolean delivered) {
 		this.delivered = delivered;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
 	}
 
 }

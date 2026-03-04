@@ -93,7 +93,7 @@ public class TokenController {
 		}
 
 		AgentToken token = opt.get();
-		token.setActive(false);
+		token.setIsActive(false);
 		tokenRepository.save(user.getUserId(), token, token.getId());
 
 		log.info("Deleted token {} for user {}", id, user.getUserId());

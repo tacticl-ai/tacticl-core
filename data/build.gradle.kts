@@ -1,11 +1,12 @@
 // Intermediate parent for data-* modules
 subprojects {
+    apply(plugin = "java-library")
     dependencies {
         add("implementation", rootProject.libs.cidadel.framework.exception)
         add("implementation", rootProject.libs.cidadel.framework.logging)
-        add("implementation", rootProject.libs.cidadel.data.framework.base)
+        add("api", rootProject.libs.cidadel.data.framework.base)
         add("implementation", rootProject.libs.spring.boot.starter.web)
-        add("implementation", rootProject.libs.google.cloud.firestore)
+        add("api", rootProject.libs.google.cloud.firestore)
         add("implementation", rootProject.libs.jackson.databind)
         add("implementation", rootProject.libs.jackson.annotations)
 

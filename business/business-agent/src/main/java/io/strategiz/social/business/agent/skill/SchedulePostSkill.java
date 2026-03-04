@@ -10,6 +10,7 @@ import io.strategiz.social.data.entity.SocialIntegration;
 import io.strategiz.social.data.entity.SocialPost;
 import io.strategiz.social.data.repository.SocialIntegrationRepository;
 import io.strategiz.social.data.repository.SocialPostRepository;
+import com.google.cloud.Timestamp;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -115,8 +116,8 @@ public class SchedulePostSkill implements AgentSkill {
 		post.setTargetIntegrationIds(List.of(integration.get().getId()));
 		post.setPublishDate(publishDate);
 		post.setState(PostState.QUEUED);
-		post.setCreatedAt(Instant.now());
-		post.setUpdatedAt(Instant.now());
+		post.setCreatedDate(Timestamp.now());
+		post.setModifiedDate(Timestamp.now());
 
 		postRepository.save(post, post.getId());
 		log.info("Scheduled post {} for user {} on {} at {}", post.getId(), userId, platformType, publishDate);

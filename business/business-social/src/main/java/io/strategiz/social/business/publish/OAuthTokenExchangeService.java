@@ -10,6 +10,7 @@ import io.strategiz.social.client.twitter.config.TwitterConfig;
 import io.strategiz.social.data.entity.PlatformType;
 import io.strategiz.social.data.entity.SocialIntegration;
 import io.strategiz.social.data.repository.SocialIntegrationRepository;
+import com.google.cloud.Timestamp;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -83,15 +84,15 @@ public class OAuthTokenExchangeService {
 		SocialIntegration integration;
 		if (existing.isPresent()) {
 			integration = existing.get();
-			integration.setUpdatedAt(Instant.now());
+			integration.setModifiedDate(Timestamp.now());
 		}
 		else {
 			integration = new SocialIntegration();
 			integration.setId(UUID.randomUUID().toString());
 			integration.setUserId(userId);
 			integration.setPlatform(platform);
-			integration.setCreatedAt(Instant.now());
-			integration.setUpdatedAt(Instant.now());
+			integration.setCreatedDate(Timestamp.now());
+			integration.setModifiedDate(Timestamp.now());
 		}
 
 		integration.setAccessToken(tokens.getAccessToken());
@@ -100,7 +101,7 @@ public class OAuthTokenExchangeService {
 		integration.setTokenExpiresAt(tokens.getExpiresAt());
 		integration.setTokenRefreshNeeded(false);
 		integration.setDisabled(false);
-		integration.setActive(true);
+		integration.setIsActive(true);
 
 		integrationRepository.save(userId, integration, integration.getId());
 		log.info("Stored {} integration {} for user {}", platform, integration.getId(), userId);

@@ -132,7 +132,7 @@ public class ManageRepoSkill implements AgentSkill {
 			grant.setProvider(provider);
 			grant.setAccessLevel(AccessLevel.READ);
 			grant.setGrantedAt(Instant.now());
-			grant.setActive(true);
+			grant.setIsActive(true);
 
 			repoGrantRepository.save(userId, grant, grantId);
 			log.info("Granted repo access for user {}: {} ({})", userId, repoName, provider);
@@ -153,12 +153,12 @@ public class ManageRepoSkill implements AgentSkill {
 
 		try {
 			Optional<RepoGrant> existing = repoGrantRepository.findById(userId, repoId);
-			if (existing.isEmpty() || !existing.get().isActive()) {
+			if (existing.isEmpty() || !existing.get().getIsActive()) {
 				return "Repository grant not found: " + repoId + ". Use the 'list' action to see your connected repos.";
 			}
 
 			RepoGrant grant = existing.get();
-			grant.setActive(false);
+			grant.setIsActive(false);
 			repoGrantRepository.save(userId, grant, repoId);
 			log.info("Revoked repo access for user {}: {} ({})", userId, grant.getRepoFullName(), grant.getProvider());
 			return "Repository access revoked: " + grant.getRepoFullName() + " (" + grant.getProvider() + ")";

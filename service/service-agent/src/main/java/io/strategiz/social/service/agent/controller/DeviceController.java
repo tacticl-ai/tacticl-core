@@ -93,7 +93,7 @@ public class DeviceController {
 
 		boolean verificationRequired = device.getState() == DeviceState.PENDING_VERIFICATION;
 		DeviceRegistrationResponse response = new DeviceRegistrationResponse(device.getId(), device.getDeviceName(),
-				device.getDeviceType().name(), device.getState().name(), verificationRequired, device.getCreatedAt());
+				device.getDeviceType().name(), device.getState().name(), verificationRequired, device.getCreatedDate() != null ? device.getCreatedDate().toDate().toInstant() : null);
 
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
@@ -114,7 +114,7 @@ public class DeviceController {
 
 		DeviceRegistration device = verified.get();
 		DeviceRegistrationResponse response = new DeviceRegistrationResponse(device.getId(), device.getDeviceName(),
-				device.getDeviceType().name(), device.getState().name(), false, device.getCreatedAt());
+				device.getDeviceType().name(), device.getState().name(), false, device.getCreatedDate() != null ? device.getCreatedDate().toDate().toInstant() : null);
 
 		return ResponseEntity.ok(response);
 	}
@@ -236,7 +236,7 @@ public class DeviceController {
 		response.setCapabilities(device.getCapabilities());
 		response.setConnectivity(device.getConnectivity());
 		response.setLastSeenAt(device.getLastSeenAt());
-		response.setCreatedAt(device.getCreatedAt());
+		response.setCreatedAt(device.getCreatedDate() != null ? device.getCreatedDate().toDate().toInstant() : null);
 		return response;
 	}
 

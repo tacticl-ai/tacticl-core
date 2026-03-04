@@ -16,7 +16,7 @@ public class RepoGrantRepository extends FirestoreSubcollectionRepository<RepoGr
 	/** Find all active repo grants for a user. */
 	public List<RepoGrant> findActiveByUserId(String userId) {
 		List<RepoGrant> all = findAll(userId);
-		return all.stream().filter(RepoGrant::isActive).toList();
+		return all.stream().filter(RepoGrant::getIsActive).toList();
 	}
 
 }

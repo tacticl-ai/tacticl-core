@@ -2,6 +2,8 @@ package io.strategiz.social.data.entity;
 
 import com.google.cloud.firestore.annotation.Exclude;
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -11,7 +13,8 @@ import java.util.Map;
  * and reports its capabilities for task routing.
  */
 @IgnoreExtraProperties
-public class DeviceRegistration {
+@Collection("devices")
+public class DeviceRegistration extends BaseEntity {
 
 	private String id;
 
@@ -35,10 +38,6 @@ public class DeviceRegistration {
 
 	private Instant lastSeenAt;
 
-	private Instant createdAt;
-
-	private boolean isActive;
-
 	private Map<String, Object> specs;
 
 	private List<String> clonedRepos;
@@ -51,10 +50,12 @@ public class DeviceRegistration {
 
 	private DeviceSettings settings;
 
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}
@@ -137,22 +138,6 @@ public class DeviceRegistration {
 
 	public void setLastSeenAt(Instant lastSeenAt) {
 		this.lastSeenAt = lastSeenAt;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
-	}
-
-	public boolean isActive() {
-		return isActive;
-	}
-
-	public void setActive(boolean active) {
-		isActive = active;
 	}
 
 	public Map<String, Object> getSpecs() {
