@@ -7,12 +7,15 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
 
 /**
  * Represents a social media post that can be scheduled and published to one or more platforms.
  */
 @IgnoreExtraProperties
-public class SocialPost {
+@Collection("social_posts")
+public class SocialPost extends BaseEntity {
 
 	private String id;
 
@@ -42,18 +45,14 @@ public class SocialPost {
 
 	private String lastError;
 
-	private Instant createdAt;
-
-	private Instant updatedAt;
-
-	private boolean isActive = true;
-
 	// Getters and setters
 
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}
@@ -161,30 +160,6 @@ public class SocialPost {
 
 	public void setLastError(String lastError) {
 		this.lastError = lastError;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
-	}
-
-	public Instant getUpdatedAt() {
-		return updatedAt;
-	}
-
-	public void setUpdatedAt(Instant updatedAt) {
-		this.updatedAt = updatedAt;
-	}
-
-	public boolean isActive() {
-		return isActive;
-	}
-
-	public void setActive(boolean active) {
-		isActive = active;
 	}
 
 }

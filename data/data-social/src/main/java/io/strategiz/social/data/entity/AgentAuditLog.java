@@ -1,17 +1,19 @@
 package io.strategiz.social.data.entity;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
 
 /**
  * Audit log entry for every agent command executed. Stored in the agent_audit_log
  * Firestore collection.
  */
 @IgnoreExtraProperties
-public class AgentAuditLog {
+@Collection("agent_audit_log")
+public class AgentAuditLog extends BaseEntity {
 
 	private String id;
 
@@ -35,12 +37,12 @@ public class AgentAuditLog {
 
 	private long executionTimeMs;
 
-	private Instant createdAt;
-
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}
@@ -123,14 +125,6 @@ public class AgentAuditLog {
 
 	public void setExecutionTimeMs(long executionTimeMs) {
 		this.executionTimeMs = executionTimeMs;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
 	}
 
 }

@@ -3,13 +3,16 @@ package io.strategiz.social.data.entity;
 import java.time.Instant;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
 
 /**
  * Tracks an active WebSocket session for a device. Used to determine which devices are currently
  * online and reachable.
  */
 @IgnoreExtraProperties
-public class DeviceSession {
+@Collection("device_sessions")
+public class DeviceSession extends BaseEntity {
 
 	private String id;
 
@@ -21,12 +24,12 @@ public class DeviceSession {
 
 	private Instant lastPingAt;
 
-	private boolean isActive;
-
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}
@@ -61,14 +64,6 @@ public class DeviceSession {
 
 	public void setLastPingAt(Instant lastPingAt) {
 		this.lastPingAt = lastPingAt;
-	}
-
-	public boolean isActive() {
-		return isActive;
-	}
-
-	public void setActive(boolean active) {
-		isActive = active;
 	}
 
 }

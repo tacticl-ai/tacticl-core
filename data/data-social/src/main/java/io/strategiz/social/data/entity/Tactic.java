@@ -6,13 +6,16 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
 
 /**
  * Represents a device-local execution unit within a spark. Created by the Device Orchestrator,
  * synced to Cloud for visibility.
  */
 @IgnoreExtraProperties
-public class Tactic {
+@Collection("tactics")
+public class Tactic extends BaseEntity {
 
 	private String id;
 
@@ -30,23 +33,20 @@ public class Tactic {
 
 	private long tokenUsage;
 
-	private boolean isActive;
-
-	private Instant createdAt;
-
 	private Instant completedAt;
 
 	public Tactic() {
 		this.status = TacticState.PENDING;
 		this.repos = new ArrayList<>();
 		this.tokenUsage = 0;
-		this.isActive = true;
 	}
 
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}
@@ -105,22 +105,6 @@ public class Tactic {
 
 	public void setTokenUsage(long tokenUsage) {
 		this.tokenUsage = tokenUsage;
-	}
-
-	public boolean isActive() {
-		return isActive;
-	}
-
-	public void setActive(boolean active) {
-		isActive = active;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
 	}
 
 	public Instant getCompletedAt() {

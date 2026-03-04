@@ -4,13 +4,16 @@ import java.time.Instant;
 import java.util.Map;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
 
 /**
  * Represents a command dispatched to a device for execution. Commands are created by the agent,
  * sent via WebSocket, and tracked through their lifecycle.
  */
 @IgnoreExtraProperties
-public class DeviceCommand {
+@Collection("device_commands")
+public class DeviceCommand extends BaseEntity {
 
 	private String id;
 
@@ -32,18 +35,18 @@ public class DeviceCommand {
 
 	private Map<String, Object> result;
 
-	private Instant createdAt;
-
 	private Instant sentAt;
 
 	private Instant completedAt;
 
 	private Instant expiresAt;
 
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}
@@ -110,14 +113,6 @@ public class DeviceCommand {
 
 	public void setResult(Map<String, Object> result) {
 		this.result = result;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
 	}
 
 	public Instant getSentAt() {

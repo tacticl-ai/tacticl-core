@@ -1,6 +1,8 @@
 package io.strategiz.social.data.entity;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
 import java.time.Instant;
 
 /**
@@ -9,7 +11,8 @@ import java.time.Instant;
  * and confirms, the session transitions from "waiting" to "paired" with a session token.
  */
 @IgnoreExtraProperties
-public class PairingSession {
+@Collection("pairing_sessions")
+public class PairingSession extends BaseEntity {
 
 	private String id;
 
@@ -29,12 +32,12 @@ public class PairingSession {
 
 	private Instant expiresAt;
 
-	private Instant createdAt;
-
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}
@@ -101,14 +104,6 @@ public class PairingSession {
 
 	public void setExpiresAt(Instant expiresAt) {
 		this.expiresAt = expiresAt;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
 	}
 
 }

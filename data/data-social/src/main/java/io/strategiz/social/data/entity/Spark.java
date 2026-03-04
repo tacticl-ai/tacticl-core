@@ -7,13 +7,16 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
 
 /**
  * Represents a user's raw input request. Primary user-facing entity. A spark is routed to a device
  * and decomposed into one or more tactics.
  */
 @IgnoreExtraProperties
-public class Spark {
+@Collection("sparks")
+public class Spark extends BaseEntity {
 
 	private String id;
 
@@ -55,10 +58,6 @@ public class Spark {
 
 	private long browserMinutesUsed;
 
-	private boolean isActive;
-
-	private Instant createdAt;
-
 	private Instant completedAt;
 
 	public Spark() {
@@ -69,13 +68,14 @@ public class Spark {
 		this.totalTokens = 0;
 		this.estimatedCost = BigDecimal.ZERO;
 		this.browserMinutesUsed = 0;
-		this.isActive = true;
 	}
 
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}
@@ -230,22 +230,6 @@ public class Spark {
 
 	public void setBrowserMinutesUsed(long browserMinutesUsed) {
 		this.browserMinutesUsed = browserMinutesUsed;
-	}
-
-	public boolean isActive() {
-		return isActive;
-	}
-
-	public void setActive(boolean active) {
-		isActive = active;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
 	}
 
 	public Instant getCompletedAt() {

@@ -3,13 +3,16 @@ package io.strategiz.social.data.entity;
 import java.time.Instant;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
 
 /**
  * Represents a pending action confirmation for Tier 1 (mutations) and Tier 2 (financial)
  * agent actions. Stored in the action_confirmations Firestore collection.
  */
 @IgnoreExtraProperties
-public class ActionConfirmation {
+@Collection("action_confirmations")
+public class ActionConfirmation extends BaseEntity {
 
 	private String id;
 
@@ -27,16 +30,16 @@ public class ActionConfirmation {
 
 	private int tier;
 
-	private Instant createdAt;
-
 	private Instant expiresAt;
 
 	private Instant resolvedAt;
 
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}
@@ -95,14 +98,6 @@ public class ActionConfirmation {
 
 	public void setTier(int tier) {
 		this.tier = tier;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
 	}
 
 	public Instant getExpiresAt() {

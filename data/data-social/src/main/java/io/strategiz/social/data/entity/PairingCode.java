@@ -1,6 +1,8 @@
 package io.strategiz.social.data.entity;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
 import java.time.Instant;
 
 /**
@@ -8,7 +10,8 @@ import java.time.Instant;
  * 6-digit zero-padded string with a 5-minute TTL and single-use semantics.
  */
 @IgnoreExtraProperties
-public class PairingCode {
+@Collection("pairing_codes")
+public class PairingCode extends BaseEntity {
 
 	private String id;
 
@@ -20,12 +23,12 @@ public class PairingCode {
 
 	private boolean consumed;
 
-	private Instant createdAt;
-
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}
@@ -60,14 +63,6 @@ public class PairingCode {
 
 	public void setConsumed(boolean consumed) {
 		this.consumed = consumed;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
 	}
 
 }

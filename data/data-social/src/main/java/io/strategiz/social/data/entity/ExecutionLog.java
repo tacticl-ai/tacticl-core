@@ -4,10 +4,13 @@ import java.time.Instant;
 import java.util.Map;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
 
 /** Records a single tool call during agent execution for audit and debugging. */
 @IgnoreExtraProperties
-public class ExecutionLog {
+@Collection("execution_logs")
+public class ExecutionLog extends BaseEntity {
 
 	private String id;
 
@@ -32,10 +35,12 @@ public class ExecutionLog {
 	public ExecutionLog() {
 	}
 
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}

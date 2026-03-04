@@ -1,18 +1,18 @@
 package io.strategiz.social.data.entity;
 
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
 
 /** Tacticl user record stored in the tacticl_users Firestore collection. */
 @IgnoreExtraProperties
-public class TacticlUser {
+@Collection("tacticl_users")
+public class TacticlUser extends BaseEntity {
 
 	private String id;
-
-	private Instant createdAt;
 
 	private Map<String, Object> preferences = new HashMap<>();
 
@@ -20,20 +20,14 @@ public class TacticlUser {
 
 	private UserConfig config;
 
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
 	}
 
 	public Map<String, Object> getPreferences() {
