@@ -1,6 +1,8 @@
 package io.strategiz.social.data.repository;
 
 import com.google.cloud.firestore.Firestore;
+import io.cidadel.identity.data.base.audit.FirestoreAuditingHandler;
+import io.cidadel.identity.data.base.repository.BaseRepository;
 import io.strategiz.social.data.entity.PairingCode;
 import java.time.Instant;
 import java.util.List;
@@ -11,12 +13,17 @@ import org.springframework.stereotype.Repository;
 
 /** Repository for pairing_codes Firestore collection. */
 @Repository
-public class PairingCodeRepository extends FirestoreRepository<PairingCode> {
+public class PairingCodeRepository extends BaseRepository<PairingCode> {
 
 	private static final Logger logger = LoggerFactory.getLogger(PairingCodeRepository.class);
 
-	public PairingCodeRepository(Firestore firestore) {
-		super(firestore, PairingCode.class, "pairing_codes");
+	public PairingCodeRepository(Firestore firestore, FirestoreAuditingHandler auditingHandler) {
+		super(firestore, PairingCode.class, auditingHandler);
+	}
+
+	@Override
+	protected String getModuleName() {
+		return "data-social";
 	}
 
 	/** Find a valid (unconsumed, not expired) pairing code by its code string. */

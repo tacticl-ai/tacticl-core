@@ -1,17 +1,23 @@
 package io.tacticl.browser.data.repository;
 
 import com.google.cloud.firestore.Firestore;
+import io.cidadel.identity.data.base.audit.FirestoreAuditingHandler;
+import io.cidadel.identity.data.base.repository.BaseRepository;
 import io.tacticl.browser.data.entity.BrowserActionLog;
-import io.strategiz.social.data.repository.FirestoreRepository;
 import java.util.List;
 import org.springframework.stereotype.Repository;
 
 /** Repository for browser_action_logs Firestore collection. */
 @Repository
-public class BrowserActionLogRepository extends FirestoreRepository<BrowserActionLog> {
+public class BrowserActionLogRepository extends BaseRepository<BrowserActionLog> {
 
-	public BrowserActionLogRepository(Firestore firestore) {
-		super(firestore, BrowserActionLog.class, "browser_action_logs");
+	public BrowserActionLogRepository(Firestore firestore, FirestoreAuditingHandler auditingHandler) {
+		super(firestore, BrowserActionLog.class, auditingHandler);
+	}
+
+	@Override
+	protected String getModuleName() {
+		return "data-browser";
 	}
 
 	/** Find all action logs for a browser session. */

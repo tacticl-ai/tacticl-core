@@ -1,6 +1,8 @@
 package io.strategiz.social.data.repository;
 
 import com.google.cloud.firestore.Firestore;
+import io.cidadel.identity.data.base.audit.FirestoreAuditingHandler;
+import io.cidadel.identity.data.base.repository.BaseRepository;
 import io.strategiz.social.data.entity.Spark;
 import io.strategiz.social.data.entity.SparkState;
 import java.time.Instant;
@@ -10,17 +12,21 @@ import org.springframework.stereotype.Repository;
 
 /** Repository for sparks Firestore collection. */
 @Repository
-public class SparkRepository extends FirestoreRepository<Spark> {
+public class SparkRepository extends BaseRepository<Spark> {
 
-	public SparkRepository(Firestore firestore) {
-		super(firestore, Spark.class, "sparks");
+	public SparkRepository(Firestore firestore, FirestoreAuditingHandler auditingHandler) {
+		super(firestore, Spark.class, auditingHandler);
+	}
+
+	@Override
+	protected String getModuleName() {
+		return "data-social";
 	}
 
 	/** Find active (non-terminal) sparks for a user. */
 	public List<Spark> findActiveByUserId(String userId) {
 		List<Spark> all = findByField("userId", userId);
 		return all.stream()
-			.filter(Spark::getIsActive)
 			.filter(s -> s.getStatus() != SparkState.COMPLETED && s.getStatus() != SparkState.FAILED
 					&& s.getStatus() != SparkState.CANCELLED)
 			.sorted((a, b) -> b.getCreatedDate().compareTo(a.getCreatedDate()))
@@ -42,7 +48,6 @@ public class SparkRepository extends FirestoreRepository<Spark> {
 		combined.addAll(completed);
 
 		return combined.stream()
-			.filter(Spark::getIsActive)
 			.filter(s -> s.getSchedule() != null && !s.getSchedule().isEmpty())
 			.filter(s -> s.getNextRunAt() != null && !s.getNextRunAt().isAfter(now))
 			.toList();
@@ -52,7 +57,6 @@ public class SparkRepository extends FirestoreRepository<Spark> {
 	public List<Spark> findByUserIdAndStatus(String userId, SparkState status) {
 		return findByField("userId", userId).stream()
 			.filter(s -> s.getStatus() == status)
-			.filter(Spark::getIsActive)
 			.toList();
 	}
 
@@ -60,7 +64,6 @@ public class SparkRepository extends FirestoreRepository<Spark> {
 	public List<Spark> findRecentByUserId(String userId, int limit) {
 		List<Spark> all = findByField("userId", userId);
 		return all.stream()
-			.filter(Spark::getIsActive)
 			.sorted((a, b) -> b.getCreatedDate().compareTo(a.getCreatedDate()))
 			.limit(limit)
 			.toList();

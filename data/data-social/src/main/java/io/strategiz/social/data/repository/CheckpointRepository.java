@@ -1,16 +1,23 @@
 package io.strategiz.social.data.repository;
 
 import com.google.cloud.firestore.Firestore;
+import io.cidadel.identity.data.base.audit.FirestoreAuditingHandler;
+import io.cidadel.identity.data.base.repository.BaseRepository;
 import io.strategiz.social.data.entity.Checkpoint;
 import java.util.List;
 import org.springframework.stereotype.Repository;
 
 /** Repository for checkpoints Firestore collection. */
 @Repository
-public class CheckpointRepository extends FirestoreRepository<Checkpoint> {
+public class CheckpointRepository extends BaseRepository<Checkpoint> {
 
-	public CheckpointRepository(Firestore firestore) {
-		super(firestore, Checkpoint.class, "checkpoints");
+	public CheckpointRepository(Firestore firestore, FirestoreAuditingHandler auditingHandler) {
+		super(firestore, Checkpoint.class, auditingHandler);
+	}
+
+	@Override
+	protected String getModuleName() {
+		return "data-social";
 	}
 
 	/** Find all checkpoints for a spark. */

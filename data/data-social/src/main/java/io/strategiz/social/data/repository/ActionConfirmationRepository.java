@@ -1,17 +1,26 @@
 package io.strategiz.social.data.repository;
 
 import com.google.cloud.firestore.Firestore;
+import io.cidadel.identity.data.base.audit.FirestoreAuditingHandler;
+import io.cidadel.identity.data.base.repository.BaseRepository;
 import io.strategiz.social.data.entity.ActionConfirmation;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Repository;
 
 /** Repository for action_confirmations Firestore collection. */
 @Repository
-public class ActionConfirmationRepository extends FirestoreRepository<ActionConfirmation> {
+public class ActionConfirmationRepository extends BaseRepository<ActionConfirmation> {
 
-	public ActionConfirmationRepository(Firestore firestore) {
-		super(firestore, ActionConfirmation.class, "action_confirmations");
+	public ActionConfirmationRepository(Firestore firestore, FirestoreAuditingHandler auditingHandler) {
+		super(firestore, ActionConfirmation.class, auditingHandler);
+	}
+
+	@Override
+	protected String getModuleName() {
+		return "data-social";
 	}
 
 	/** Find pending confirmations for a user. */
@@ -23,6 +32,19 @@ public class ActionConfirmationRepository extends FirestoreRepository<ActionConf
 	public Optional<ActionConfirmation> findPendingById(String confirmationId, String userId) {
 		return findById(confirmationId).filter(
 				c -> c.getUserId().equals(userId) && c.getState() == ActionConfirmation.ConfirmationState.PENDING);
+	}
+
+	protected List<ActionConfirmation> executeQuery(com.google.cloud.firestore.Query query) {
+		try {
+			return query.get().get().getDocuments().stream()
+				.map(doc -> { ActionConfirmation entity = doc.toObject(entityClass); entity.setId(doc.getId()); return entity; })
+				.collect(Collectors.toList());
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new RuntimeException("Query interrupted", e);
+		} catch (ExecutionException e) {
+			throw new RuntimeException("Query failed", e);
+		}
 	}
 
 }

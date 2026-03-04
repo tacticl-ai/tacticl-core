@@ -1,15 +1,22 @@
 package io.strategiz.social.data.repository;
 
 import com.google.cloud.firestore.Firestore;
+import io.cidadel.identity.data.base.audit.FirestoreAuditingHandler;
+import io.cidadel.identity.data.base.repository.BaseRepository;
 import io.strategiz.social.data.entity.PairingSession;
 import org.springframework.stereotype.Repository;
 
 /** Repository for pairing_sessions Firestore collection. */
 @Repository
-public class PairingSessionRepository extends FirestoreRepository<PairingSession> {
+public class PairingSessionRepository extends BaseRepository<PairingSession> {
 
-	public PairingSessionRepository(Firestore firestore) {
-		super(firestore, PairingSession.class, "pairing_sessions");
+	public PairingSessionRepository(Firestore firestore, FirestoreAuditingHandler auditingHandler) {
+		super(firestore, PairingSession.class, auditingHandler);
+	}
+
+	@Override
+	protected String getModuleName() {
+		return "data-social";
 	}
 
 }

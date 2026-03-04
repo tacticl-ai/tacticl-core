@@ -1,16 +1,23 @@
 package io.strategiz.social.data.repository;
 
 import com.google.cloud.firestore.Firestore;
+import io.cidadel.identity.data.base.audit.FirestoreAuditingHandler;
+import io.cidadel.identity.data.base.repository.BaseRepository;
 import io.strategiz.social.data.entity.Tactic;
 import java.util.List;
 import org.springframework.stereotype.Repository;
 
 /** Repository for tactics Firestore collection. */
 @Repository
-public class TacticRepository extends FirestoreRepository<Tactic> {
+public class TacticRepository extends BaseRepository<Tactic> {
 
-	public TacticRepository(Firestore firestore) {
-		super(firestore, Tactic.class, "tactics");
+	public TacticRepository(Firestore firestore, FirestoreAuditingHandler auditingHandler) {
+		super(firestore, Tactic.class, auditingHandler);
+	}
+
+	@Override
+	protected String getModuleName() {
+		return "data-social";
 	}
 
 	/** Find all tactics for a spark. */

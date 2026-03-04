@@ -1,17 +1,23 @@
 package io.tacticl.browser.data.repository;
 
 import com.google.cloud.firestore.Firestore;
+import io.cidadel.identity.data.base.audit.FirestoreAuditingHandler;
+import io.cidadel.identity.data.base.repository.BaseRepository;
 import io.tacticl.browser.data.entity.UserFile;
-import io.strategiz.social.data.repository.FirestoreRepository;
 import java.util.List;
 import org.springframework.stereotype.Repository;
 
 /** Repository for user_files Firestore collection. */
 @Repository
-public class UserFileRepository extends FirestoreRepository<UserFile> {
+public class UserFileRepository extends BaseRepository<UserFile> {
 
-	public UserFileRepository(Firestore firestore) {
-		super(firestore, UserFile.class, "user_files");
+	public UserFileRepository(Firestore firestore, FirestoreAuditingHandler auditingHandler) {
+		super(firestore, UserFile.class, auditingHandler);
+	}
+
+	@Override
+	protected String getModuleName() {
+		return "data-browser";
 	}
 
 	/** Find all files for a user. */
