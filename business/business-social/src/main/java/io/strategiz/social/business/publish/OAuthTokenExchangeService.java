@@ -103,7 +103,7 @@ public class OAuthTokenExchangeService {
 		integration.setDisabled(false);
 		integration.setIsActive(true);
 
-		integrationRepository.save(userId, integration, integration.getId());
+		integrationRepository.saveInSubcollection(userId, integration, userId);
 		log.info("Stored {} integration {} for user {}", platform, integration.getId(), userId);
 
 		return integration;

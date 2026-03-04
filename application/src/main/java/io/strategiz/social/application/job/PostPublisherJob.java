@@ -67,7 +67,7 @@ public class PostPublisherJob {
 		// Transition to PUBLISHING
 		post.setState(PostState.PUBLISHING);
 		post.setModifiedDate(Timestamp.now());
-		postRepository.save(post, post.getId());
+		postRepository.save(post, post.getUserId());
 
 		// Get the first target integration
 		if (post.getTargetIntegrationIds().isEmpty()) {
@@ -76,7 +76,7 @@ public class PostPublisherJob {
 		}
 
 		String integrationId = post.getTargetIntegrationIds().get(0);
-		Optional<SocialIntegration> integration = integrationRepository.findById(post.getUserId(), integrationId);
+		Optional<SocialIntegration> integration = integrationRepository.findByIdInSubcollection(post.getUserId(), integrationId);
 		if (integration.isEmpty()) {
 			handleFailure(post, "Integration not found: " + integrationId);
 			return;
@@ -100,7 +100,7 @@ public class PostPublisherJob {
 			post.setPublishedPostId(result.getPlatformPostId());
 			post.setPublishedUrl(result.getPlatformPostUrl());
 			post.setModifiedDate(Timestamp.now());
-			postRepository.save(post, post.getId());
+			postRepository.save(post, post.getUserId());
 			log.info("Published post {} to {}", post.getId(), integ.getPlatform());
 		}
 		else {
@@ -122,7 +122,7 @@ public class PostPublisherJob {
 			log.info("Post {} retry {}/{}: {}", post.getId(), post.getRetryCount(), MAX_RETRIES, errorMessage);
 		}
 
-		postRepository.save(post, post.getId());
+		postRepository.save(post, post.getUserId());
 	}
 
 }

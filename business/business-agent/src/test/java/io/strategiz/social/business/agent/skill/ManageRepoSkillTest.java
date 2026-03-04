@@ -94,7 +94,7 @@ class ManageRepoSkillTest {
 		assertTrue(result.contains("owner/new-repo"));
 		assertTrue(result.contains("GITLAB"));
 		assertTrue(result.contains("READ"));
-		verify(repoGrantRepository).save(eq("user-1"), any(RepoGrant.class), anyString());
+		verify(repoGrantRepository).saveInSubcollection(eq("user-1"), any(RepoGrant.class), eq("user-1"));
 	}
 
 	@Test
@@ -140,7 +140,7 @@ class ManageRepoSkillTest {
 		grant.setRepoFullName("owner/old-repo");
 		grant.setProvider(RepoProvider.BITBUCKET);
 		grant.setIsActive(true);
-		when(repoGrantRepository.findById("user-1", "grant-1")).thenReturn(Optional.of(grant));
+		when(repoGrantRepository.findByIdInSubcollection("user-1", "grant-1")).thenReturn(Optional.of(grant));
 
 		ObjectNode input = MAPPER.createObjectNode();
 		input.put("action", "revoke");
@@ -151,12 +151,12 @@ class ManageRepoSkillTest {
 		assertTrue(result.contains("Repository access revoked"));
 		assertTrue(result.contains("owner/old-repo"));
 		assertTrue(result.contains("BITBUCKET"));
-		verify(repoGrantRepository).save(eq("user-1"), any(RepoGrant.class), eq("grant-1"));
+		verify(repoGrantRepository).saveInSubcollection(eq("user-1"), any(RepoGrant.class), eq("user-1"));
 	}
 
 	@Test
 	void execute_revokeAction_notFound_returnsError() {
-		when(repoGrantRepository.findById("user-1", "missing-id")).thenReturn(Optional.empty());
+		when(repoGrantRepository.findByIdInSubcollection("user-1", "missing-id")).thenReturn(Optional.empty());
 
 		ObjectNode input = MAPPER.createObjectNode();
 		input.put("action", "revoke");
@@ -182,7 +182,7 @@ class ManageRepoSkillTest {
 		RepoGrant grant = new RepoGrant();
 		grant.setId("grant-2");
 		grant.setIsActive(false);
-		when(repoGrantRepository.findById("user-1", "grant-2")).thenReturn(Optional.of(grant));
+		when(repoGrantRepository.findByIdInSubcollection("user-1", "grant-2")).thenReturn(Optional.of(grant));
 
 		ObjectNode input = MAPPER.createObjectNode();
 		input.put("action", "revoke");

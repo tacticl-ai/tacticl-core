@@ -111,7 +111,7 @@ class ManageDeviceSkillTest {
 		device.setUserId("user-1");
 		device.setDeviceName("My MacBook");
 		device.setSettings(DeviceSettings.defaults());
-		when(deviceRepository.findById("user-1", "device-1")).thenReturn(Optional.of(device));
+		when(deviceRepository.findByIdInSubcollection("user-1", "device-1")).thenReturn(Optional.of(device));
 
 		ObjectNode input = MAPPER.createObjectNode();
 		input.put("action", "update_settings");
@@ -128,7 +128,7 @@ class ManageDeviceSkillTest {
 		assertTrue(result.contains("Priority: 10"));
 
 		ArgumentCaptor<DeviceRegistration> captor = ArgumentCaptor.forClass(DeviceRegistration.class);
-		verify(deviceRepository).save(eq("user-1"), captor.capture(), eq("device-1"));
+		verify(deviceRepository).saveInSubcollection(eq("user-1"), captor.capture(), eq("user-1"));
 		DeviceSettings saved = captor.getValue().getSettings();
 		assertEquals(4, saved.getMaxDaemons());
 		assertTrue(saved.isAutoWake());
@@ -142,7 +142,7 @@ class ManageDeviceSkillTest {
 		device.setUserId("user-1");
 		device.setDeviceName("My MacBook");
 		device.setSettings(null);
-		when(deviceRepository.findById("user-1", "device-1")).thenReturn(Optional.of(device));
+		when(deviceRepository.findByIdInSubcollection("user-1", "device-1")).thenReturn(Optional.of(device));
 
 		ObjectNode input = MAPPER.createObjectNode();
 		input.put("action", "update_settings");
@@ -155,13 +155,13 @@ class ManageDeviceSkillTest {
 		assertTrue(result.contains("Max daemons: 2"));
 
 		ArgumentCaptor<DeviceRegistration> captor = ArgumentCaptor.forClass(DeviceRegistration.class);
-		verify(deviceRepository).save(eq("user-1"), captor.capture(), eq("device-1"));
+		verify(deviceRepository).saveInSubcollection(eq("user-1"), captor.capture(), eq("user-1"));
 		assertEquals(2, captor.getValue().getSettings().getMaxDaemons());
 	}
 
 	@Test
 	void execute_updateSettings_deviceNotFound_returnsError() {
-		when(deviceRepository.findById("user-1", "device-x")).thenReturn(Optional.empty());
+		when(deviceRepository.findByIdInSubcollection("user-1", "device-x")).thenReturn(Optional.empty());
 
 		ObjectNode input = MAPPER.createObjectNode();
 		input.put("action", "update_settings");
@@ -179,7 +179,7 @@ class ManageDeviceSkillTest {
 		device.setId("device-1");
 		device.setUserId("user-1");
 		device.setDeviceName("My MacBook");
-		when(deviceRepository.findById("user-1", "device-1")).thenReturn(Optional.of(device));
+		when(deviceRepository.findByIdInSubcollection("user-1", "device-1")).thenReturn(Optional.of(device));
 
 		ObjectNode input = MAPPER.createObjectNode();
 		input.put("action", "update_settings");
