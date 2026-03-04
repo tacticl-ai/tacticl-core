@@ -48,7 +48,7 @@ public class SocialIntegrationController {
 	@Operation(summary = "Get integration", description = "Get details of a specific connected account")
 	public ResponseEntity<IntegrationResponse> getIntegration(@PathVariable String integrationId,
 			@AuthUser AuthenticatedUser user) {
-		Optional<SocialIntegration> integration = integrationRepository.findById(user.getUserId(), integrationId);
+		Optional<SocialIntegration> integration = integrationRepository.findByIdInSubcollection(user.getUserId(), integrationId);
 		if (integration.isEmpty()) {
 			return ResponseEntity.notFound().build();
 		}
@@ -61,7 +61,7 @@ public class SocialIntegrationController {
 			description = "Disconnect a social media account by marking it inactive")
 	public ResponseEntity<Void> disconnectIntegration(@PathVariable String integrationId,
 			@AuthUser AuthenticatedUser user) {
-		Optional<SocialIntegration> integration = integrationRepository.findById(user.getUserId(), integrationId);
+		Optional<SocialIntegration> integration = integrationRepository.findByIdInSubcollection(user.getUserId(), integrationId);
 		if (integration.isEmpty()) {
 			return ResponseEntity.notFound().build();
 		}
@@ -71,7 +71,7 @@ public class SocialIntegrationController {
 		integ.setAccessToken(null);
 		integ.setRefreshToken(null);
 		integ.setModifiedDate(Timestamp.now());
-		integrationRepository.save(user.getUserId(), integ, integ.getId());
+		integrationRepository.saveInSubcollection(user.getUserId(), integ, user.getUserId());
 
 		log.info("Disconnected {} integration {} for user {}", integ.getPlatform(), integrationId, user.getUserId());
 		return ResponseEntity.noContent().build();

@@ -84,7 +84,7 @@ public class DeviceSessionManager implements DeviceCommandDispatcher, ActivityBr
 		fsSession.setConnectedAt(Instant.now());
 		fsSession.setLastPingAt(Instant.now());
 		fsSession.setIsActive(true);
-		sessionRepository.save(fsSession, fsSession.getId());
+		sessionRepository.save(fsSession, principal.getUserId());
 		deviceFirestoreSessionMap.put(deviceId, fsSession.getId());
 
 		log.info("[WS] Session registered: device={}, user={}", deviceId, principal.getUserId());
@@ -113,7 +113,7 @@ public class DeviceSessionManager implements DeviceCommandDispatcher, ActivityBr
 		if (fsSessionId != null) {
 			sessionRepository.findById(fsSessionId).ifPresent(s -> {
 				s.setIsActive(false);
-				sessionRepository.save(s, s.getId());
+				sessionRepository.save(s, s.getUserId());
 			});
 		}
 
@@ -144,7 +144,7 @@ public class DeviceSessionManager implements DeviceCommandDispatcher, ActivityBr
 		if (sessionId != null) {
 			sessionRepository.findById(sessionId).ifPresent(s -> {
 				s.setLastPingAt(Instant.now());
-				sessionRepository.save(s, s.getId());
+				sessionRepository.save(s, s.getUserId());
 			});
 		}
 	}

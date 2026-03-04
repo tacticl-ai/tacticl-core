@@ -219,7 +219,7 @@ public class AgentController {
 
 		action.setState(request.getApproved() ? ActionConfirmation.ConfirmationState.APPROVED
 				: ActionConfirmation.ConfirmationState.DENIED);
-		confirmationRepository.save(action, action.getId());
+		confirmationRepository.save(action, user.getUserId());
 
 		return ResponseEntity.ok(request.getApproved() ? "Action approved" : "Action denied");
 	}

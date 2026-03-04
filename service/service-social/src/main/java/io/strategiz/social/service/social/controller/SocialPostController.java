@@ -65,7 +65,7 @@ public class SocialPostController {
 			post.setState(PostState.DRAFT);
 		}
 
-		postRepository.save(post, post.getId());
+		postRepository.save(post, user.getUserId());
 		log.info("Created post {} for user {}", post.getId(), user.getUserId());
 
 		return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(post));
@@ -82,7 +82,9 @@ public class SocialPostController {
 			posts = postRepository.findByUserIdAndState(user.getUserId(), postState);
 		}
 		else {
-			posts = postRepository.findByUserId(user.getUserId());
+			posts = postRepository.findAll().stream()
+				.filter(p -> user.getUserId().equals(p.getUserId()))
+				.toList();
 		}
 
 		return ResponseEntity.ok(posts.stream().map(this::toResponse).toList());
@@ -115,7 +117,7 @@ public class SocialPostController {
 
 		p.setState(PostState.CANCELLED);
 		p.setModifiedDate(Timestamp.now());
-		postRepository.save(p, p.getId());
+		postRepository.save(p, user.getUserId());
 		log.info("Cancelled post {} for user {}", postId, user.getUserId());
 
 		return ResponseEntity.noContent().build();

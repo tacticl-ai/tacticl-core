@@ -127,7 +127,7 @@ public class SettingsController {
 		}
 
 		device.setSettings(settings);
-		deviceRepository.save(user.getUserId(), device, device.getId());
+		deviceRepository.saveInSubcollection(user.getUserId(), device, user.getUserId());
 
 		return ResponseEntity.ok(toDeviceSettingsResponse(device, settings));
 	}
