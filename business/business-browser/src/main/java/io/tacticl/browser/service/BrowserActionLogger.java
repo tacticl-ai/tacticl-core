@@ -36,7 +36,7 @@ public class BrowserActionLogger {
 			actionLog.setTier(tier);
 			actionLog.setDurationMs(durationMs);
 			actionLog.setTimestamp(Instant.now());
-			actionLogRepository.save(actionLog, actionLog.getId());
+			actionLogRepository.save(actionLog, null);
 		}
 		catch (Exception e) {
 			log.error("Failed to log browser action: {}", skillName, e);

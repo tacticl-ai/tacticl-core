@@ -78,7 +78,7 @@ public class BrowserSessionService {
 		session.setStatus(BrowserSessionStatus.ACTIVE);
 		session.setCreatedDate(Timestamp.now());
 		session.setLastActiveAt(Instant.now());
-		sessionRepository.save(session, sessionId);
+		sessionRepository.save(session, userId);
 
 		log.info("[BROWSER] Created ephemeral session {} for user={}, spark={}", sessionId, userId, sparkId);
 		return context;
@@ -115,7 +115,7 @@ public class BrowserSessionService {
 				session.setClosedAt(Instant.now());
 				long durationSec = Duration.between(session.getCreatedDate().toDate().toInstant(), Instant.now()).getSeconds();
 				session.setDurationSeconds(durationSec);
-				sessionRepository.save(session, sessionId);
+				sessionRepository.save(session, session.getUserId());
 			});
 		}
 

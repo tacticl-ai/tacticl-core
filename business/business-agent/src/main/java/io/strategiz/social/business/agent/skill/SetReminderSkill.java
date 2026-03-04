@@ -78,7 +78,7 @@ public class SetReminderSkill implements AgentSkill {
 		reminder.setCreatedDate(Timestamp.now());
 
 		try {
-			reminderRepository.save(userId, reminder, null);
+			reminderRepository.saveInSubcollection(userId, reminder, userId);
 			log.info("Reminder set for user {} at {}: {}", userId, remindAt, message);
 			return "Reminder set for " + remindAt + ": " + message;
 		}

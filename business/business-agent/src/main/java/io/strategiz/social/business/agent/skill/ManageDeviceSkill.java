@@ -131,7 +131,7 @@ public class ManageDeviceSkill implements AgentSkill {
 
 		String deviceId = input.get("device_id").asText();
 		try {
-			Optional<DeviceRegistration> opt = deviceRepository.findById(userId, deviceId);
+			Optional<DeviceRegistration> opt = deviceRepository.findByIdInSubcollection(userId, deviceId);
 			if (opt.isEmpty()) {
 				return "Device not found: " + deviceId;
 			}
@@ -161,7 +161,7 @@ public class ManageDeviceSkill implements AgentSkill {
 			}
 
 			device.setSettings(settings);
-			deviceRepository.save(userId, device, deviceId);
+			deviceRepository.saveInSubcollection(userId, device, userId);
 
 			log.info("Device settings updated via agent skill: device={} user={}", deviceId, userId);
 			return "Device settings updated for " + device.getDeviceName() + ":\n"

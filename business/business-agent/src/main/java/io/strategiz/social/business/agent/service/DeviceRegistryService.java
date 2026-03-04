@@ -47,14 +47,14 @@ public class DeviceRegistryService {
 		device.setCreatedDate(Timestamp.now());
 		device.setIsActive(true);
 
-		deviceRepository.save(userId, device, device.getId());
+		deviceRepository.saveInSubcollection(userId, device, userId);
 		log.info("Device registered: {} ({}) for user {}", deviceName, deviceType, userId);
 		return device;
 	}
 
 	/** Verify a device with the 6-digit code. */
 	public Optional<DeviceRegistration> verifyDevice(String deviceId, String userId, String code) {
-		Optional<DeviceRegistration> opt = deviceRepository.findById(userId, deviceId);
+		Optional<DeviceRegistration> opt = deviceRepository.findByIdInSubcollection(userId, deviceId);
 		if (opt.isEmpty()) {
 			return Optional.empty();
 		}
@@ -72,7 +72,7 @@ public class DeviceRegistryService {
 
 		device.setState(DeviceState.ACTIVE);
 		device.setVerificationCode(null);
-		deviceRepository.save(userId, device, device.getId());
+		deviceRepository.saveInSubcollection(userId, device, userId);
 		log.info("Device verified: {} for user {}", device.getDeviceName(), userId);
 		return Optional.of(device);
 	}
@@ -88,7 +88,7 @@ public class DeviceRegistryService {
 		DeviceRegistration device = registerDevice(userId, deviceName, deviceType, pushToken);
 		device.setState(DeviceState.ACTIVE);
 		device.setVerificationCode(null);
-		deviceRepository.save(userId, device, device.getId());
+		deviceRepository.saveInSubcollection(userId, device, userId);
 		log.info("Device auto-verified (first device): {} for user {}", deviceName, userId);
 		return device;
 	}
@@ -115,7 +115,7 @@ public class DeviceRegistryService {
 
 	/** Get a single device by ID, verifying user ownership. */
 	public Optional<DeviceRegistration> getDevice(String deviceId, String userId) {
-		return deviceRepository.findById(userId, deviceId).filter(d -> d.getUserId().equals(userId) && d.getIsActive());
+		return deviceRepository.findByIdInSubcollection(userId, deviceId).filter(d -> d.getUserId().equals(userId) && d.getIsActive());
 	}
 
 	/** Revoke (soft-delete) a device. */
@@ -127,26 +127,26 @@ public class DeviceRegistryService {
 		DeviceRegistration device = opt.get();
 		device.setState(DeviceState.REVOKED);
 		device.setIsActive(false);
-		deviceRepository.save(userId, device, device.getId());
+		deviceRepository.saveInSubcollection(userId, device, userId);
 		log.info("Device revoked: {} for user {}", device.getDeviceName(), userId);
 		return true;
 	}
 
 	/** Update device capabilities (called on WebSocket connect). */
 	public void updateCapabilities(String deviceId, String userId, Map<String, Object> capabilities) {
-		deviceRepository.findById(userId, deviceId).ifPresent(device -> {
+		deviceRepository.findByIdInSubcollection(userId, deviceId).ifPresent(device -> {
 			device.setCapabilities(capabilities);
 			device.setLastSeenAt(Instant.now());
-			deviceRepository.save(userId, device, device.getId());
+			deviceRepository.saveInSubcollection(userId, device, userId);
 		});
 	}
 
 	/** Update device connectivity info (battery, network). */
 	public void updateConnectivity(String deviceId, String userId, Map<String, Object> connectivity) {
-		deviceRepository.findById(userId, deviceId).ifPresent(device -> {
+		deviceRepository.findByIdInSubcollection(userId, deviceId).ifPresent(device -> {
 			device.setConnectivity(connectivity);
 			device.setLastSeenAt(Instant.now());
-			deviceRepository.save(userId, device, device.getId());
+			deviceRepository.saveInSubcollection(userId, device, userId);
 		});
 	}
 
@@ -158,7 +158,7 @@ public class DeviceRegistryService {
 		}
 		DeviceRegistration device = opt.get();
 		device.setSparkPreferences(preferences);
-		deviceRepository.save(userId, device, device.getId());
+		deviceRepository.saveInSubcollection(userId, device, userId);
 		log.info("Spark preferences updated for device {} by user {}", deviceId, userId);
 		return true;
 	}

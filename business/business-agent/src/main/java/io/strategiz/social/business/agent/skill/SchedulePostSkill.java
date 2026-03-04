@@ -119,7 +119,7 @@ public class SchedulePostSkill implements AgentSkill {
 		post.setCreatedDate(Timestamp.now());
 		post.setModifiedDate(Timestamp.now());
 
-		postRepository.save(post, post.getId());
+		postRepository.save(post, userId);
 		log.info("Scheduled post {} for user {} on {} at {}", post.getId(), userId, platformType, publishDate);
 
 		return String.format("Post scheduled for %s on %s at %s. Post ID: %s", platformType.getDisplayName(),

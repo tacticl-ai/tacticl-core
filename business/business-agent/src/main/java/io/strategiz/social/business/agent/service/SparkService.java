@@ -105,7 +105,7 @@ public class SparkService {
 			spark.setStatus(SparkState.PENDING);
 		}
 
-		sparkRepository.save(spark, sparkId);
+		sparkRepository.save(spark, userId);
 
 		log.info("[SPARK] Created spark={} type={} for user={}", sparkId, effectiveType, userId);
 		return spark;
@@ -126,7 +126,7 @@ public class SparkService {
 		}
 		Spark spark = opt.get();
 		spark.setStatus(SparkState.ROUTING);
-		sparkRepository.save(spark, spark.getId());
+		sparkRepository.save(spark, spark.getUserId());
 
 		broadcastToUser(spark.getUserId(),
 				Map.of("type", "spark_status", "sparkId", sparkId, "status", "ROUTING"));
@@ -140,12 +140,12 @@ public class SparkService {
 		if (device.isPresent()) {
 			spark.setDeviceId(device.get().getId());
 			spark.setStatus(SparkState.EXECUTING);
-			sparkRepository.save(spark, spark.getId());
+			sparkRepository.save(spark, spark.getUserId());
 
 			boolean dispatched = sparkDispatchService.dispatchSpark(spark);
 			if (!dispatched) {
 				spark.setStatus(SparkState.QUEUED);
-				sparkRepository.save(spark, spark.getId());
+				sparkRepository.save(spark, spark.getUserId());
 
 				broadcastToUser(spark.getUserId(), Map.of("type", "spark_status", "sparkId", sparkId, "status",
 						"QUEUED", "deviceName", device.get().getDeviceName()));
@@ -161,7 +161,7 @@ public class SparkService {
 		}
 		else {
 			spark.setStatus(SparkState.QUEUED);
-			sparkRepository.save(spark, spark.getId());
+			sparkRepository.save(spark, spark.getUserId());
 
 			broadcastToUser(spark.getUserId(),
 					Map.of("type", "spark_status", "sparkId", sparkId, "status", "QUEUED"));
@@ -179,7 +179,7 @@ public class SparkService {
 			if (deviceId.equals(spark.getDeviceId())) {
 				log.info("[SPARK] Dispatching queued spark {} to device {}", spark.getId(), deviceId);
 				spark.setStatus(SparkState.EXECUTING);
-				sparkRepository.save(spark, spark.getId());
+				sparkRepository.save(spark, spark.getUserId());
 				sparkDispatchService.dispatchSpark(spark);
 
 				broadcastToUser(userId, Map.of("type", "spark_status", "sparkId", spark.getId(), "status",
@@ -193,7 +193,7 @@ public class SparkService {
 		sparkRepository.findById(sparkId).ifPresent(spark -> {
 			spark.setStatus(status);
 			spark.setTotalTokens(spark.getTotalTokens() + tokensDelta);
-			sparkRepository.save(spark, spark.getId());
+			sparkRepository.save(spark, spark.getUserId());
 
 			broadcastSparkUpdate(spark);
 			broadcastToUser(spark.getUserId(), Map.of("type", "spark_progress", "sparkId", sparkId, "status",
@@ -205,6 +205,7 @@ public class SparkService {
 	public Checkpoint onSparkCheckpoint(String sparkId, String tacticId, String title, String description,
 			List<Map<String, Object>> findings, List<String> options) {
 		String checkpointId = UUID.randomUUID().toString();
+		String userId = sparkRepository.findById(sparkId).map(Spark::getUserId).orElse(null);
 
 		Checkpoint checkpoint = new Checkpoint();
 		checkpoint.setId(checkpointId);
@@ -215,11 +216,11 @@ public class SparkService {
 		checkpoint.setFindings(findings);
 		checkpoint.setOptions(options);
 		checkpoint.setCreatedDate(Timestamp.now());
-		checkpointRepository.save(checkpoint, checkpointId);
+		checkpointRepository.save(checkpoint, userId);
 
 		sparkRepository.findById(sparkId).ifPresent(spark -> {
 			spark.setStatus(SparkState.CHECKPOINT);
-			sparkRepository.save(spark, spark.getId());
+			sparkRepository.save(spark, spark.getUserId());
 			broadcastSparkUpdate(spark);
 
 			broadcastToUser(spark.getUserId(), Map.of("type", "spark_checkpoint", "sparkId", sparkId,
@@ -237,7 +238,7 @@ public class SparkService {
 			spark.setResult(result);
 			spark.setTotalTokens(totalTokens);
 			spark.setCompletedAt(Instant.now());
-			sparkRepository.save(spark, spark.getId());
+			sparkRepository.save(spark, spark.getUserId());
 
 			broadcastSparkUpdate(spark);
 			broadcastToUser(spark.getUserId(), Map.of("type", "spark_completed", "sparkId", sparkId,
@@ -263,14 +264,14 @@ public class SparkService {
 
 		spark.setStatus(SparkState.CANCELLED);
 		spark.setCompletedAt(Instant.now());
-		sparkRepository.save(spark, spark.getId());
+		sparkRepository.save(spark, spark.getUserId());
 
 		List<Tactic> tactics = tacticRepository.findBySparkId(sparkId);
 		for (Tactic tactic : tactics) {
 			if (tactic.getStatus() != TacticState.COMPLETED && tactic.getStatus() != TacticState.FAILED) {
 				tactic.setStatus(TacticState.FAILED);
 				tactic.setCompletedAt(Instant.now());
-				tacticRepository.save(tactic, tactic.getId());
+				tacticRepository.save(tactic, userId);
 			}
 		}
 
@@ -290,7 +291,7 @@ public class SparkService {
 			return false;
 		}
 		spark.setIsActive(false);
-		sparkRepository.save(spark, spark.getId());
+		sparkRepository.save(spark, spark.getUserId());
 		log.info("[SPARK] Soft-deleted spark={}", sparkId);
 		return true;
 	}
@@ -326,7 +327,7 @@ public class SparkService {
 			spark.setStatus(SparkState.FAILED);
 			spark.setResult(Map.of("error", errorMessage));
 			spark.setCompletedAt(Instant.now());
-			sparkRepository.save(spark, spark.getId());
+			sparkRepository.save(spark, spark.getUserId());
 
 			broadcastSparkUpdate(spark);
 			broadcastToUser(spark.getUserId(),
@@ -340,7 +341,7 @@ public class SparkService {
 	public void markRunning(String sparkId) {
 		sparkRepository.findById(sparkId).ifPresent(spark -> {
 			spark.setStatus(SparkState.EXECUTING);
-			sparkRepository.save(spark, spark.getId());
+			sparkRepository.save(spark, spark.getUserId());
 			broadcastSparkUpdate(spark);
 			log.info("[SPARK] Cloud execution started for spark={}", sparkId);
 		});
@@ -353,7 +354,7 @@ public class SparkService {
 			spark.setTotalTokens(totalTokens);
 			spark.setEstimatedCost(estimateCost(totalTokens, modelId));
 			spark.setCompletedAt(Instant.now());
-			sparkRepository.save(spark, spark.getId());
+			sparkRepository.save(spark, spark.getUserId());
 
 			broadcastSparkUpdate(spark);
 			broadcastToUser(spark.getUserId(), Map.of("type", "spark_completed", "sparkId", sparkId,
@@ -371,7 +372,7 @@ public class SparkService {
 			spark.setTotalTokens(totalTokens);
 			spark.setEstimatedCost(estimateCost(totalTokens, modelId));
 			spark.setCompletedAt(Instant.now());
-			sparkRepository.save(spark, spark.getId());
+			sparkRepository.save(spark, spark.getUserId());
 
 			broadcastSparkUpdate(spark);
 			broadcastToUser(spark.getUserId(),
@@ -385,6 +386,7 @@ public class SparkService {
 	/** Sync a tactic reported by a device into Firestore. */
 	public void syncTactic(String sparkId, String tacticId, String deviceId, String description, TacticState status,
 			long tokenUsage) {
+		String userId = sparkRepository.findById(sparkId).map(Spark::getUserId).orElse(null);
 		Optional<Tactic> existing = tacticRepository.findById(tacticId);
 		Tactic tactic;
 		if (existing.isPresent()) {
@@ -405,7 +407,7 @@ public class SparkService {
 		if (status == TacticState.COMPLETED || status == TacticState.FAILED) {
 			tactic.setCompletedAt(Instant.now());
 		}
-		tacticRepository.save(tactic, tactic.getId());
+		tacticRepository.save(tactic, userId);
 	}
 
 	/**
@@ -459,11 +461,11 @@ public class SparkService {
 		checkpoint.setUserDecision(decision);
 		checkpoint.setUserFeedback(feedback);
 		checkpoint.setDecidedAt(Instant.now());
-		checkpointRepository.save(checkpoint, checkpoint.getId());
+		checkpointRepository.save(checkpoint, userId);
 
 		spark.ifPresent(s -> {
 			s.setStatus(SparkState.EXECUTING);
-			sparkRepository.save(s, s.getId());
+			sparkRepository.save(s, s.getUserId());
 			broadcastSparkUpdate(s);
 		});
 

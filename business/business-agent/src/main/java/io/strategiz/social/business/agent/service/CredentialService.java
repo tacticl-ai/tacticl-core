@@ -122,7 +122,7 @@ public class CredentialService extends BaseService {
 		si.setDisabled(false);
 		si.setTokenRefreshNeeded(false);
 		si.setModifiedDate(Timestamp.now());
-		integrationRepository.save(userId, si, si.getId());
+		integrationRepository.saveInSubcollection(userId, si, userId);
 
 		log.info("[CREDENTIALS] Registered credentials for user={} platform={}", userId, platform);
 		return si;
@@ -135,7 +135,7 @@ public class CredentialService extends BaseService {
 
 	/** Disconnect an account. */
 	public boolean disconnectAccount(String userId, String integrationId) {
-		Optional<SocialIntegration> opt = integrationRepository.findById(userId, integrationId);
+		Optional<SocialIntegration> opt = integrationRepository.findByIdInSubcollection(userId, integrationId);
 		if (opt.isEmpty()) {
 			return false;
 		}
@@ -143,7 +143,7 @@ public class CredentialService extends BaseService {
 		si.setIsActive(false);
 		si.setDisabled(true);
 		si.setModifiedDate(Timestamp.now());
-		integrationRepository.save(userId, si, si.getId());
+		integrationRepository.saveInSubcollection(userId, si, userId);
 		log.info("[CREDENTIALS] Disconnected account id={} platform={}", integrationId, si.getPlatform());
 		return true;
 	}

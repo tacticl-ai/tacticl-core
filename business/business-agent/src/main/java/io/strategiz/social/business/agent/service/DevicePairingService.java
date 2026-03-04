@@ -60,7 +60,7 @@ public class DevicePairingService {
 		List<PairingCode> activeCodes = pairingCodeRepository.findActiveByUserId(userId);
 		for (PairingCode existing : activeCodes) {
 			existing.setConsumed(true);
-			pairingCodeRepository.save(existing, existing.getId());
+			pairingCodeRepository.save(existing, existing.getUserId());
 		}
 
 		// Generate new 6-digit code
@@ -74,7 +74,7 @@ public class DevicePairingService {
 		pairingCode.setConsumed(false);
 		pairingCode.setCreatedDate(Timestamp.now());
 
-		pairingCodeRepository.save(pairingCode, pairingCode.getId());
+		pairingCodeRepository.save(pairingCode, userId);
 		log.info("[PAIRING] Generated pairing code for user={}", userId);
 		return pairingCode;
 	}
@@ -106,7 +106,7 @@ public class DevicePairingService {
 
 		// Mark code as consumed
 		pairingCode.setConsumed(true);
-		pairingCodeRepository.save(pairingCode, pairingCode.getId());
+		pairingCodeRepository.save(pairingCode, pairingCode.getUserId());
 
 		// Create device registration
 		String deviceId = UUID.randomUUID().toString();
@@ -119,7 +119,7 @@ public class DevicePairingService {
 		device.setCapabilities(capabilities);
 		device.setIsActive(true);
 		device.setCreatedDate(Timestamp.now());
-		deviceRepository.save(pairingCode.getUserId(), device, deviceId);
+		deviceRepository.saveInSubcollection(pairingCode.getUserId(), device, pairingCode.getUserId());
 
 		// Generate PASETO session token with userId as sub (for WebSocket interceptor)
 		String sessionToken = tokenIssuer.createAuthenticationToken(pairingCode.getUserId(),
@@ -142,7 +142,7 @@ public class DevicePairingService {
 		session.setExpiresAt(Instant.now().plus(5, ChronoUnit.MINUTES));
 		session.setCreatedDate(Timestamp.now());
 
-		pairingSessionRepository.save(session, session.getId());
+		pairingSessionRepository.save(session, session.getUserId());
 		log.info("[PAIRING] Created QR pairing session={}", session.getId());
 		return session;
 	}
@@ -188,7 +188,7 @@ public class DevicePairingService {
 		device.setCapabilities(capabilities);
 		device.setIsActive(true);
 		device.setCreatedDate(Timestamp.now());
-		deviceRepository.save(userId, device, deviceId);
+		deviceRepository.saveInSubcollection(userId, device, userId);
 
 		// Generate PASETO session token with userId as sub (for WebSocket interceptor)
 		String sessionToken = tokenIssuer.createAuthenticationToken(userId, List.of("device_pairing"), "1",
@@ -201,7 +201,7 @@ public class DevicePairingService {
 		session.setUserId(userId);
 		session.setDeviceName(deviceName);
 		session.setPlatform(platform);
-		pairingSessionRepository.save(session, session.getId());
+		pairingSessionRepository.save(session, userId);
 
 		log.info("[PAIRING] Device paired via QR: device={} user={} session={}", deviceId, userId, sessionId);
 		return new PairResult(deviceId, sessionToken);

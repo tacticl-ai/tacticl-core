@@ -66,7 +66,7 @@ public class DeviceCommandService {
 			cmd.setSparkId(ctx.getSparkId());
 		}
 
-		commandRepository.save(cmd, cmd.getId());
+		commandRepository.save(cmd, cmd.getUserId());
 		log.info("Command created: {} ({}) for device {}", cmd.getId(), commandType, deviceId);
 
 		// Prepare latch for synchronous wait
@@ -94,7 +94,7 @@ public class DeviceCommandService {
 				// Mark as expired
 				commandRepository.findById(commandId).ifPresent(cmd -> {
 					cmd.setState(CommandState.EXPIRED);
-					commandRepository.save(cmd, cmd.getId());
+					commandRepository.save(cmd, cmd.getUserId());
 				});
 				cleanup(commandId);
 				return "Command timed out — device did not respond within " + timeout.getSeconds() + " seconds.";
@@ -134,7 +134,7 @@ public class DeviceCommandService {
 		cmd.setState(success ? CommandState.COMPLETED : CommandState.FAILED);
 		cmd.setResult(resultData);
 		cmd.setCompletedAt(Instant.now());
-		commandRepository.save(cmd, cmd.getId());
+		commandRepository.save(cmd, cmd.getUserId());
 
 		// Release the latch
 		resultMap.put(commandId, new CommandResult(success, message));
@@ -157,7 +157,7 @@ public class DeviceCommandService {
 
 		cmd.setState(CommandState.SENT);
 		cmd.setSentAt(Instant.now());
-		commandRepository.save(cmd, cmd.getId());
+		commandRepository.save(cmd, cmd.getUserId());
 	}
 
 	private void cleanup(String commandId) {

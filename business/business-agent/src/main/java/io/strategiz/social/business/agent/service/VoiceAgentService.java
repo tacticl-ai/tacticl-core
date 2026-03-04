@@ -179,7 +179,7 @@ public class VoiceAgentService {
 			log.setErrorMessage(errorMessage);
 			log.setExecutionTimeMs(executionTimeMs);
 			log.setCreatedDate(Timestamp.now());
-			auditLogRepository.save(log, log.getId());
+			auditLogRepository.save(log, userId);
 		}
 		catch (Exception e) {
 			logger.error("Failed to write audit log", e);
