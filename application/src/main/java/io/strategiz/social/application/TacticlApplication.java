@@ -19,8 +19,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 		// Cidadel service + client base
 		"io.cidadel.service.base",
 		"io.cidadel.client.base",
-		// Cidadel auth (service, data, clients)
-		"io.cidadel.identity",
+		// Cidadel data base (auditing, transactions — excludes Firebase config)
+		"io.cidadel.identity.data.base.audit",
+		"io.cidadel.identity.data.base.transaction",
+		"io.cidadel.identity.data.base.validation",
 		// LLM clients
 		"io.strategiz.client.anthropic",
 		"io.strategiz.client.openai",

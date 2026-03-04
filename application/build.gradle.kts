@@ -47,18 +47,11 @@ dependencies {
     implementation(libs.cidadel.client.openai.direct)
     implementation(libs.cidadel.client.grok.direct)
 
-    // Cidadel auth (all /v1/auth/* endpoints)
-    implementation(libs.cidadel.service.auth)
+    // Cidadel service base (used by service-agent)
     implementation(libs.cidadel.service.framework.base)
-    implementation(libs.cidadel.business.auth)
-    implementation(libs.cidadel.data.auth)
-    implementation(libs.cidadel.data.user)
-    implementation(libs.cidadel.data.session)
-    implementation(libs.cidadel.data.product)
+
+    // Cidadel data base (BaseEntity, BaseRepository, auditing, transactions)
     implementation(libs.cidadel.data.framework.base)
-    implementation(libs.cidadel.client.google)
-    implementation(libs.cidadel.client.facebook)
-    implementation(libs.cidadel.client.sms)
 
     // Spring Boot
     implementation(libs.spring.boot.starter.web)

@@ -39,21 +39,12 @@ cidadel-framework-api-docs = { module = "io.cidadel:framework-api-docs", version
 cidadel-framework-llm-router = { module = "io.cidadel:framework-llm-router", version.ref = "cidadel" }
 cidadel-client-base = { module = "io.cidadel:client-framework-base", version.ref = "cidadel" }
 cidadel-service-framework-base = { module = "io.cidadel:service-framework-base", version.ref = "cidadel" }
+cidadel-data-framework-base = { module = "io.cidadel:data-framework-base", version.ref = "cidadel" }
 
-# Cidadel auth + LLM clients (from cidadel-core GitHub Packages)
+# Cidadel LLM clients (from cidadel-core GitHub Packages)
 cidadel-client-anthropic-direct = { module = "io.cidadel:client-anthropic-direct", version.ref = "cidadel" }
 cidadel-client-openai-direct = { module = "io.cidadel:client-openai-direct", version.ref = "cidadel" }
 cidadel-client-grok-direct = { module = "io.cidadel:client-grok-direct", version.ref = "cidadel" }
-cidadel-service-auth = { module = "io.cidadel:service-auth", version.ref = "cidadel" }
-cidadel-business-auth = { module = "io.cidadel:business-auth", version.ref = "cidadel" }
-cidadel-data-auth = { module = "io.cidadel:data-auth", version.ref = "cidadel" }
-cidadel-data-user = { module = "io.cidadel:data-user", version.ref = "cidadel" }
-cidadel-data-session = { module = "io.cidadel:data-session", version.ref = "cidadel" }
-cidadel-data-product = { module = "io.cidadel:data-product", version.ref = "cidadel" }
-cidadel-data-framework-base = { module = "io.cidadel:data-framework-base", version.ref = "cidadel" }
-cidadel-client-google = { module = "io.cidadel:client-google", version.ref = "cidadel" }
-cidadel-client-facebook = { module = "io.cidadel:client-facebook", version.ref = "cidadel" }
-cidadel-client-sms = { module = "io.cidadel:client-sms", version.ref = "cidadel" }
 
 # External
 bucket4j-core = { module = "com.bucket4j:bucket4j-core", version.ref = "bucket4j" }
