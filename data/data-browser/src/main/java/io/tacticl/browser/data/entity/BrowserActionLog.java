@@ -4,9 +4,13 @@ import java.time.Instant;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
 
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
+
 /** Records a single browser action during agent execution for audit and debugging. */
 @IgnoreExtraProperties
-public class BrowserActionLog {
+@Collection("browser_action_logs")
+public class BrowserActionLog extends BaseEntity {
 
 	private String id;
 
@@ -39,10 +43,12 @@ public class BrowserActionLog {
 		this.durationMs = 0;
 	}
 
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}

@@ -4,9 +4,13 @@ import java.time.Instant;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
 
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
+
 /** Represents a cloud browser session managed by Playwright for agent web automation. */
 @IgnoreExtraProperties
-public class BrowserSession {
+@Collection("browser_sessions")
+public class BrowserSession extends BaseEntity {
 
 	private String id;
 
@@ -30,8 +34,6 @@ public class BrowserSession {
 
 	private long durationSeconds;
 
-	private Instant createdAt;
-
 	private Instant lastActiveAt;
 
 	private Instant closedAt;
@@ -45,10 +47,12 @@ public class BrowserSession {
 		this.durationSeconds = 0;
 	}
 
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}
@@ -131,14 +135,6 @@ public class BrowserSession {
 
 	public void setDurationSeconds(long durationSeconds) {
 		this.durationSeconds = durationSeconds;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
 	}
 
 	public Instant getLastActiveAt() {

@@ -4,9 +4,13 @@ import java.time.Instant;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
 
+import io.cidadel.identity.data.base.annotation.Collection;
+import io.cidadel.identity.data.base.entity.BaseEntity;
+
 /** Tracks files downloaded or uploaded during browser sessions. */
 @IgnoreExtraProperties
-public class UserFile {
+@Collection("user_files")
+public class UserFile extends BaseEntity {
 
 	private String id;
 
@@ -28,18 +32,18 @@ public class UserFile {
 
 	private String sourceUrl;
 
-	private Instant createdAt;
-
 	private Instant expiresAt;
 
 	public UserFile() {
 		this.sizeBytes = 0;
 	}
 
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}
@@ -114,14 +118,6 @@ public class UserFile {
 
 	public void setSourceUrl(String sourceUrl) {
 		this.sourceUrl = sourceUrl;
-	}
-
-	public Instant getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(Instant createdAt) {
-		this.createdAt = createdAt;
 	}
 
 	public Instant getExpiresAt() {
