@@ -8,7 +8,7 @@ This repo is the **Java backend** (Gradle, Spring Boot, Cloud Run). Mobile app l
 
 ## Tech Stack
 
-- Java 21, Spring Boot 3.5.7, Gradle 8.12 (Kotlin DSL)
+- Java 25, Spring Boot 4.0.3, Gradle 9.4.0 (Kotlin DSL)
 - Firestore (own project: `tacticl`, us-east1)
 - Cloud Run deployment, Cloud Build CI/CD
 - PASETO auth (shared keys with Strategiz for cross-product SSO)
@@ -253,7 +253,7 @@ scheduled_batches/         — Batch scheduling groups
 
 ## Troubleshooting
 
-- **Build failures**: Ensure Java 21, check GitHub Packages auth (`GITHUB_ACTOR`/`GITHUB_TOKEN`)
+- **Build failures**: Ensure Java 25, check GitHub Packages auth (`GITHUB_ACTOR`/`GITHUB_TOKEN`)
 - **Shared lib version mismatch**: Run `mvn install` in strategiz-core first, then `./gradlew build --refresh-dependencies`
 - **Vault issues**: Ensure `vault server -dev` running, `VAULT_TOKEN` exported
 - **OAuth token errors**: Check token expiry in `SocialIntegration`, verify refresh flow

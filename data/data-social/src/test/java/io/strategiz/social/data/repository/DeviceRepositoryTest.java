@@ -13,7 +13,7 @@ import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.Query;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
-import io.cidadel.identity.data.base.audit.FirestoreAuditingHandler;
+import io.cidadel.data.base.audit.FirestoreAuditingHandler;
 import io.strategiz.social.data.entity.DeviceRegistration;
 import io.strategiz.social.data.entity.DeviceState;
 import java.util.List;

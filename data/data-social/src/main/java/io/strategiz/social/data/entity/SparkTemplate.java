@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
-import io.cidadel.identity.data.base.annotation.Collection;
-import io.cidadel.identity.data.base.entity.BaseEntity;
+import io.cidadel.data.base.annotation.Collection;
+import io.cidadel.data.base.entity.BaseEntity;
 
 /** Reusable template for creating sparks with pre-configured defaults. */
 @IgnoreExtraProperties

@@ -4,8 +4,8 @@ import java.time.Instant;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
 
-import io.cidadel.identity.data.base.annotation.Collection;
-import io.cidadel.identity.data.base.entity.BaseEntity;
+import io.cidadel.data.base.annotation.Collection;
+import io.cidadel.data.base.entity.BaseEntity;
 
 /** Represents a cloud browser session managed by Playwright for agent web automation. */
 @IgnoreExtraProperties

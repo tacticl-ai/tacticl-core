@@ -7,8 +7,8 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
-import io.cidadel.identity.data.base.annotation.Collection;
-import io.cidadel.identity.data.base.entity.BaseEntity;
+import io.cidadel.data.base.annotation.Collection;
+import io.cidadel.data.base.entity.BaseEntity;
 
 /**
  * Represents a social media post that can be scheduled and published to one or more platforms.

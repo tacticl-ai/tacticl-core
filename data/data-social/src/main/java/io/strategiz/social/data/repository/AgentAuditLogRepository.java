@@ -2,8 +2,8 @@ package io.strategiz.social.data.repository;
 
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.Query;
-import io.cidadel.identity.data.base.audit.FirestoreAuditingHandler;
-import io.cidadel.identity.data.base.repository.BaseRepository;
+import io.cidadel.data.base.audit.FirestoreAuditingHandler;
+import io.cidadel.data.base.repository.BaseRepository;
 import io.strategiz.social.data.entity.AgentAuditLog;
 import java.util.List;
 import java.util.concurrent.ExecutionException;

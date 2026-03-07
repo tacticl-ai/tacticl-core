@@ -5,8 +5,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
-import io.cidadel.identity.data.base.annotation.Collection;
-import io.cidadel.identity.data.base.entity.BaseEntity;
+import io.cidadel.data.base.annotation.Collection;
+import io.cidadel.data.base.entity.BaseEntity;
 
 /**
  * Represents a connected social media account (OAuth integration).

@@ -6,11 +6,12 @@ availableSecrets:
 steps:
   # Step 0: Clone cidadel-core, publish to mavenLocal, then build tacticl-core
   # All shared infrastructure (framework, auth, LLM clients) comes from cidadel-core
-  - name: 'maven:3.9-eclipse-temurin-21'
+  - name: 'eclipse-temurin:25-jdk-noble'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
+        apt-get update && apt-get install -y git
         set -eo pipefail
         GH_TOKEN=$(echo -n "$${GITHUB_TOKEN}" | tr -d '[:space:]')
         export GITHUB_TOKEN="$${GH_TOKEN}"

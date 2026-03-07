@@ -1,8 +1,8 @@
 package io.strategiz.social.data.repository;
 
 import com.google.cloud.firestore.Firestore;
-import io.cidadel.identity.data.base.audit.FirestoreAuditingHandler;
-import io.cidadel.identity.data.base.repository.BaseRepository;
+import io.cidadel.data.base.audit.FirestoreAuditingHandler;
+import io.cidadel.data.base.repository.BaseRepository;
 import io.strategiz.social.data.entity.PostState;
 import io.strategiz.social.data.entity.SocialPost;
 import java.time.Instant;

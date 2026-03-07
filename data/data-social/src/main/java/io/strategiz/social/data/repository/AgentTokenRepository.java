@@ -1,8 +1,8 @@
 package io.strategiz.social.data.repository;
 
 import com.google.cloud.firestore.Firestore;
-import io.cidadel.identity.data.base.audit.FirestoreAuditingHandler;
-import io.cidadel.identity.data.base.repository.SubcollectionRepository;
+import io.cidadel.data.base.audit.FirestoreAuditingHandler;
+import io.cidadel.data.base.repository.SubcollectionRepository;
 import io.strategiz.social.data.entity.AgentToken;
 import java.util.List;
 import org.springframework.stereotype.Repository;

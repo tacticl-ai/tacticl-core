@@ -1,23 +1,19 @@
 [versions]
 # Core
-spring-boot = "3.5.7"
-java = "21"
+spring-boot = "4.0.3"
+java = "25"
 
 # Cidadel shared infrastructure (from GitHub Packages)
-cidadel = "0.1.0-SNAPSHOT"
+cidadel = "0.3.6"
 
 # External dependencies
 bucket4j = "8.10.1"
-springdoc = "2.8.0"
+springdoc = "3.0.2"
 resilience4j = "2.2.0"
-jackson = "2.18.0"
 google-cloud-firestore = "3.28.0"
 playwright = "1.49.0"
 
-# Testing
-junit = "5.12.2"
-junit-platform = "1.12.2"
-mockito = "4.11.0"
+# Testing (versions managed by Spring Boot BOM)
 
 [libraries]
 # Spring Boot
@@ -50,15 +46,13 @@ cidadel-client-grok-direct = { module = "io.cidadel:client-grok-direct", version
 bucket4j-core = { module = "com.bucket4j:bucket4j-core", version.ref = "bucket4j" }
 springdoc-openapi = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
-jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
 httpclient = { module = "org.apache.httpcomponents:httpclient", version = "4.5.14" }
 google-cloud-firestore = { module = "com.google.cloud:google-cloud-firestore", version.ref = "google-cloud-firestore" }
 playwright = { module = "com.microsoft.playwright:playwright", version.ref = "playwright" }
 
 # Testing
-junit-jupiter = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }
-junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
-mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter-api" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }

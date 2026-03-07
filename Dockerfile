@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-jre-jammy
+FROM eclipse-temurin:25-jre-noble
 
 # Install Chromium dependencies for Playwright
 RUN apt-get update && apt-get install -y \

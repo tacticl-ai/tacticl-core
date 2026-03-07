@@ -1,6 +1,6 @@
 package io.strategiz.social.business.agent.service;
 
-import io.strategiz.client.openai.config.OpenAiDirectConfig;
+import io.cidadel.client.openai.config.OpenAiDirectConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ByteArrayResource;

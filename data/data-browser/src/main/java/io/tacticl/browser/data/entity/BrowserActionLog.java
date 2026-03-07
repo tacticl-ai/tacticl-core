@@ -4,8 +4,8 @@ import java.time.Instant;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
 
-import io.cidadel.identity.data.base.annotation.Collection;
-import io.cidadel.identity.data.base.entity.BaseEntity;
+import io.cidadel.data.base.annotation.Collection;
+import io.cidadel.data.base.entity.BaseEntity;
 
 /** Records a single browser action during agent execution for audit and debugging. */
 @IgnoreExtraProperties

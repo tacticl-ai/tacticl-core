@@ -11,6 +11,5 @@ subprojects {
         // Testing
         add("testImplementation", rootProject.libs.spring.boot.starter.test)
         add("testImplementation", rootProject.libs.junit.jupiter)
-        add("testImplementation", rootProject.libs.mockito.core)
     }
 }

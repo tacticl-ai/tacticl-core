@@ -3,8 +3,8 @@ package io.strategiz.social.data.entity;
 import java.time.Instant;
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
-import io.cidadel.identity.data.base.annotation.Collection;
-import io.cidadel.identity.data.base.entity.BaseEntity;
+import io.cidadel.data.base.annotation.Collection;
+import io.cidadel.data.base.entity.BaseEntity;
 
 /** Represents a user's granted access to a source code repository. */
 @IgnoreExtraProperties

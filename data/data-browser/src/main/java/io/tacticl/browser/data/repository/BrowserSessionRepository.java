@@ -1,8 +1,8 @@
 package io.tacticl.browser.data.repository;
 
 import com.google.cloud.firestore.Firestore;
-import io.cidadel.identity.data.base.audit.FirestoreAuditingHandler;
-import io.cidadel.identity.data.base.repository.BaseRepository;
+import io.cidadel.data.base.audit.FirestoreAuditingHandler;
+import io.cidadel.data.base.repository.BaseRepository;
 import io.tacticl.browser.data.entity.BrowserSession;
 import io.tacticl.browser.data.entity.BrowserSessionStatus;
 import java.util.List;
