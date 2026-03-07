@@ -30,11 +30,11 @@ steps:
 
   # Step 1: Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'us-east1-docker.pkg.dev/$PROJECT_ID/tacticl-core/tacticl-core-qa:$BUILD_ID', '.']
+    args: ['build', '-t', 'us-east1-docker.pkg.dev/$PROJECT_ID/tacticl-core/tacticl-api-qa:$BUILD_ID', '.']
 
   # Step 2: Push to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'us-east1-docker.pkg.dev/$PROJECT_ID/tacticl-core/tacticl-core-qa:$BUILD_ID']
+    args: ['push', 'us-east1-docker.pkg.dev/$PROJECT_ID/tacticl-core/tacticl-api-qa:$BUILD_ID']
 
   # Step 3: Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -42,13 +42,13 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'tacticl-core-qa'
-      - '--image=us-east1-docker.pkg.dev/$PROJECT_ID/tacticl-core/tacticl-core-qa:$BUILD_ID'
+      - 'tacticl-api-qa'
+      - '--image=us-east1-docker.pkg.dev/$PROJECT_ID/tacticl-core/tacticl-api-qa:$BUILD_ID'
       - '--region=us-east1'
       - '--platform=managed'
       - '--memory=6Gi'
       - '--cpu=4'
-      - '--set-env-vars=SPRING_PROFILES_ACTIVE=qa,STRATEGIZ_VAULT_ADDRESS=https://strategiz-vault-43628135674.us-east1.run.app,BROWSER_ENABLED=true'
+      - '--set-env-vars=SPRING_PROFILES_ACTIVE=qa,STRATEGIZ_VAULT_ADDRESS=https://cidadel-vault-908167426173.us-east1.run.app,BROWSER_ENABLED=true'
       - '--set-secrets=VAULT_TOKEN=vault-root-token:latest'
       - '--allow-unauthenticated'
       - '--timeout=3600'

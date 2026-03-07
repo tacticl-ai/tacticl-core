@@ -2,7 +2,7 @@ rootProject.name = "tacticl-core"
 
 include(
     // Application (assembler)
-    "application",
+    "application-api",
 
     // Service layer (REST controllers)
     "service:service-agent",

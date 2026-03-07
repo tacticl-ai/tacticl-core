@@ -14,7 +14,7 @@ RUN mkdir -p /opt/playwright
 
 WORKDIR /app
 
-COPY application/build/libs/application.jar app.jar
+COPY application-api/build/libs/application-api.jar app.jar
 
 # Install Playwright Chromium browser at build time
 # Spring Boot fat JARs nest deps in BOOT-INF/lib; JRE lacks jar cmd, use unzip
