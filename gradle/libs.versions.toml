@@ -4,7 +4,7 @@ spring-boot = "4.0.3"
 java = "25"
 
 # Cidadel shared infrastructure (from GitHub Packages)
-cidadel = "0.3.6"
+cidadel = "0.4.1"
 
 # External dependencies
 bucket4j = "8.10.1"

@@ -1,6 +1,6 @@
 package io.strategiz.social.business.agent.skill;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
 
 /**

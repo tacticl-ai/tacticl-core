@@ -2,9 +2,9 @@ package io.tacticl.browser.skill;
 
 import java.util.Base64;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import com.microsoft.playwright.Page;
 import io.cidadel.client.base.llm.model.ToolDefinition;
 import io.strategiz.social.business.agent.skill.AgentSkill;
