@@ -6,7 +6,7 @@ availableSecrets:
 steps:
   # Step 0: Clone cidadel-core, publish to mavenLocal, then build tacticl-core
   # All shared infrastructure (framework, auth, LLM clients) comes from cidadel-core
-  - name: 'eclipse-temurin:21-jdk-noble'
+  - name: 'eclipse-temurin:25-jdk-noble'
     entrypoint: 'bash'
     args:
       - '-c'
