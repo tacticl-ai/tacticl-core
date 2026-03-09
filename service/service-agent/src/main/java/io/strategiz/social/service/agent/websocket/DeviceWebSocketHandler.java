@@ -3,7 +3,6 @@ package io.strategiz.social.service.agent.websocket;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
-import tools.jackson.databind.json.JsonMapper;
 import io.strategiz.social.business.agent.service.CredentialService;
 import io.strategiz.social.business.agent.service.DeviceCommandService;
 import io.strategiz.social.business.agent.service.DeviceRegistryService;

@@ -23,10 +23,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 		"io.cidadel.data.base.audit",
 		"io.cidadel.data.base.transaction",
 		"io.cidadel.data.base.validation",
-		// LLM clients
-		"io.strategiz.client.anthropic",
-		"io.strategiz.client.openai",
-		"io.strategiz.client.grok"
+		// LLM clients (cidadel 0.4.2+ moved to io.cidadel.client.*)
+		"io.cidadel.client.anthropic",
+		"io.cidadel.client.openai",
+		"io.cidadel.client.grok"
 })
 @EnableScheduling
 public class TacticlApplication {
