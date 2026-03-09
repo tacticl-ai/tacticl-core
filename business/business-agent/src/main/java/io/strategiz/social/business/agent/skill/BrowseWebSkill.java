@@ -1,7 +1,7 @@
 package io.strategiz.social.business.agent.skill;
 
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
 import io.strategiz.social.client.jina.client.JinaClient;
@@ -16,7 +16,7 @@ public class BrowseWebSkill implements AgentSkill {
 
 	private static final Logger log = LoggerFactory.getLogger(BrowseWebSkill.class);
 
-	private static final ObjectMapper MAPPER = new ObjectMapper();
+	private static final JsonMapper MAPPER = new JsonMapper();
 
 	private static final int MAX_CONTENT_LENGTH = 4000;
 

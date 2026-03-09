@@ -1,6 +1,6 @@
 package io.strategiz.social.client.linkedin.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Refill;
@@ -17,7 +17,7 @@ import org.springframework.context.annotation.Configuration;
  * Provides:
  * <ul>
  * <li>Rate limiter based on configured requests per minute</li>
- * <li>LinkedInClient bean wired with config, rate limiter, and ObjectMapper</li>
+ * <li>LinkedInClient bean wired with config, rate limiter, and JsonMapper</li>
  * </ul>
  *
  * <p>
@@ -51,12 +51,12 @@ public class ClientLinkedInConfig {
 	 * linkedInRateLimiter bean must be created first.
 	 * @param config LinkedIn configuration
 	 * @param linkedInRateLimiter rate limiter bucket
-	 * @param objectMapper Jackson ObjectMapper
+	 * @param objectMapper Jackson JsonMapper
 	 * @return LinkedInClient instance
 	 */
 	@Bean
 	public LinkedInClient linkedInClient(LinkedInConfig config, Bucket linkedInRateLimiter,
-			ObjectMapper objectMapper) {
+			JsonMapper objectMapper) {
 		return new LinkedInClient(config, linkedInRateLimiter, objectMapper);
 	}
 

@@ -1,7 +1,7 @@
 package io.strategiz.social.business.agent.skill;
 
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
 import io.strategiz.social.business.agent.service.DeviceCommandService;
@@ -22,7 +22,7 @@ public class RunShortcutSkill implements AgentSkill {
 
 	private static final Logger log = LoggerFactory.getLogger(RunShortcutSkill.class);
 
-	private static final ObjectMapper MAPPER = new ObjectMapper();
+	private static final JsonMapper MAPPER = new JsonMapper();
 
 	private final DeviceCommandService commandService;
 

@@ -45,7 +45,7 @@ cidadel-client-grok-direct = { module = "io.cidadel:client-grok-direct", version
 # External
 bucket4j-core = { module = "com.bucket4j:bucket4j-core", version.ref = "bucket4j" }
 springdoc-openapi = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
-jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
+jackson-databind = { module = "tools.jackson.core:jackson-databind" }
 httpclient = { module = "org.apache.httpcomponents:httpclient", version = "4.5.14" }
 google-cloud-firestore = { module = "com.google.cloud:google-cloud-firestore", version.ref = "google-cloud-firestore" }
 playwright = { module = "com.microsoft.playwright:playwright", version.ref = "playwright" }

@@ -5,7 +5,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import com.microsoft.playwright.Download;
 import com.microsoft.playwright.Page;
@@ -28,7 +28,7 @@ public class BrowserDownloadSkill implements AgentSkill {
 
 	private static final Logger log = LoggerFactory.getLogger(BrowserDownloadSkill.class);
 
-	private static final ObjectMapper MAPPER = new ObjectMapper();
+	private static final JsonMapper MAPPER = new JsonMapper();
 
 	private final BrowserSessionService sessionService;
 

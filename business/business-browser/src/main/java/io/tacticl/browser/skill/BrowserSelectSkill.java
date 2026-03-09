@@ -1,7 +1,7 @@
 package io.tacticl.browser.skill;
 
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.TimeoutError;
@@ -23,7 +23,7 @@ public class BrowserSelectSkill implements AgentSkill {
 
 	private static final Logger log = LoggerFactory.getLogger(BrowserSelectSkill.class);
 
-	private static final ObjectMapper MAPPER = new ObjectMapper();
+	private static final JsonMapper MAPPER = new JsonMapper();
 
 	private final BrowserSessionService sessionService;
 

@@ -1,7 +1,7 @@
 package io.strategiz.social.service.agent.websocket;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import io.strategiz.social.business.agent.service.SparkService;
 import io.strategiz.social.data.entity.CheckpointDecision;
 import java.util.Map;
@@ -22,7 +22,7 @@ public class UserWebSocketHandler extends TextWebSocketHandler {
 
 	private static final Logger log = LoggerFactory.getLogger(UserWebSocketHandler.class);
 
-	private final ObjectMapper objectMapper = new ObjectMapper();
+	private final JsonMapper objectMapper = new JsonMapper();
 
 	private final UserSessionManager userSessionManager;
 

@@ -8,7 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import com.microsoft.playwright.Page;
 import io.cidadel.client.base.llm.model.ToolDefinition;
@@ -28,7 +28,7 @@ public class BrowserUploadSkill implements AgentSkill {
 
 	private static final Logger log = LoggerFactory.getLogger(BrowserUploadSkill.class);
 
-	private static final ObjectMapper MAPPER = new ObjectMapper();
+	private static final JsonMapper MAPPER = new JsonMapper();
 
 	private final BrowserSessionService sessionService;
 

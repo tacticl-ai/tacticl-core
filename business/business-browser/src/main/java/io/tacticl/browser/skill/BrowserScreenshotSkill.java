@@ -3,7 +3,7 @@ package io.tacticl.browser.skill;
 import java.util.Base64;
 
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import com.microsoft.playwright.Page;
 import io.cidadel.client.base.llm.model.ToolDefinition;
@@ -22,7 +22,7 @@ public class BrowserScreenshotSkill implements AgentSkill {
 
 	private static final Logger log = LoggerFactory.getLogger(BrowserScreenshotSkill.class);
 
-	private static final ObjectMapper MAPPER = new ObjectMapper();
+	private static final JsonMapper MAPPER = new JsonMapper();
 
 	private final BrowserSessionService sessionService;
 

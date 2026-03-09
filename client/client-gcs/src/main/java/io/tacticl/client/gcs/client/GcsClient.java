@@ -1,6 +1,6 @@
 package io.tacticl.client.gcs.client;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import io.tacticl.client.gcs.config.GcsConfig;
 import io.tacticl.client.gcs.dto.GcsUploadResult;
 import org.slf4j.Logger;
@@ -97,7 +97,7 @@ public class GcsClient {
 				.header("Metadata-Flavor", "Google")
 				.retrieve()
 				.body(String.class);
-			var mapper = new ObjectMapper();
+			var mapper = new JsonMapper();
 			return mapper.readTree(response).get("access_token").asText();
 		}
 		catch (Exception e) {

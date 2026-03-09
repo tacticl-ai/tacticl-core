@@ -1,7 +1,7 @@
 package io.strategiz.social.client.linkedin.client;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import io.github.bucket4j.Bucket;
 import io.cidadel.framework.exception.CidadelException;
 import io.strategiz.social.client.linkedin.config.LinkedInConfig;
@@ -43,11 +43,11 @@ public class LinkedInClient {
 
 	private final Bucket rateLimiter;
 
-	private final ObjectMapper objectMapper;
+	private final JsonMapper objectMapper;
 
 	private final RestClient restClient;
 
-	public LinkedInClient(LinkedInConfig config, Bucket rateLimiter, ObjectMapper objectMapper) {
+	public LinkedInClient(LinkedInConfig config, Bucket rateLimiter, JsonMapper objectMapper) {
 		this.config = config;
 		this.rateLimiter = rateLimiter;
 		this.objectMapper = objectMapper;

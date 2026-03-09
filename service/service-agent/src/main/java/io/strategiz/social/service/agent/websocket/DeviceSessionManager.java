@@ -1,6 +1,6 @@
 package io.strategiz.social.service.agent.websocket;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import io.strategiz.social.business.agent.service.ActivityBroadcaster;
 import io.strategiz.social.business.agent.service.DeviceCommandDispatcher;
 import io.strategiz.social.business.agent.service.SparkService;
@@ -33,7 +33,7 @@ public class DeviceSessionManager implements DeviceCommandDispatcher, ActivityBr
 
 	private static final int BUFFER_SIZE_LIMIT = 512 * 1024;
 
-	private final ObjectMapper objectMapper = new ObjectMapper();
+	private final JsonMapper objectMapper = new JsonMapper();
 
 	private final DeviceSessionRepository sessionRepository;
 

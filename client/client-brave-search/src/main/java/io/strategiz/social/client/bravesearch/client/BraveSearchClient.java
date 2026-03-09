@@ -1,7 +1,7 @@
 package io.strategiz.social.client.bravesearch.client;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.json.JsonMapper;
 import io.github.bucket4j.Bucket;
 import io.cidadel.framework.exception.CidadelException;
 import io.strategiz.social.client.bravesearch.config.BraveSearchConfig;
@@ -28,13 +28,14 @@ public class BraveSearchClient {
 
 	private final RestClient restClient;
 
-	private final ObjectMapper objectMapper;
+	private final JsonMapper objectMapper;
 
 	public BraveSearchClient(BraveSearchConfig config, Bucket rateLimiter) {
 		this.config = config;
 		this.rateLimiter = rateLimiter;
-		this.objectMapper = new ObjectMapper()
-			.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+		this.objectMapper = JsonMapper.builder()
+			.disable(tools.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+			.build();
 		this.restClient = RestClient.builder()
 			.baseUrl(config.getBaseUrl())
 			.defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)

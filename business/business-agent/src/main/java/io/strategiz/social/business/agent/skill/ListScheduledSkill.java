@@ -1,7 +1,7 @@
 package io.strategiz.social.business.agent.skill;
 
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
 import io.strategiz.social.data.entity.PostState;
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class ListScheduledSkill implements AgentSkill {
 
-	private static final ObjectMapper MAPPER = new ObjectMapper();
+	private static final JsonMapper MAPPER = new JsonMapper();
 
 	private final SocialPostRepository postRepository;
 

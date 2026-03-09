@@ -1,9 +1,9 @@
 package io.strategiz.social.service.agent.websocket;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.json.JsonMapper;
 import io.strategiz.social.business.agent.service.CredentialService;
 import io.strategiz.social.business.agent.service.DeviceCommandService;
 import io.strategiz.social.business.agent.service.DeviceRegistryService;
@@ -32,7 +32,7 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 
 	private static final Logger log = LoggerFactory.getLogger(DeviceWebSocketHandler.class);
 
-	private final ObjectMapper objectMapper;
+	private final JsonMapper objectMapper;
 
 	private final DeviceSessionManager sessionManager;
 
@@ -52,8 +52,9 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 		this.registryService = registryService;
 		this.sparkService = sparkService;
 		this.credentialService = credentialService;
-		this.objectMapper = new ObjectMapper();
-		this.objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+		this.objectMapper = JsonMapper.builder()
+			.disable(tools.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+			.build();
 	}
 
 	@Override
@@ -96,7 +97,7 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 				default -> log.warn("[WS] Unknown message type '{}' from device {}", type, principal.getDeviceId());
 			}
 		}
-		catch (JsonProcessingException ex) {
+		catch (JacksonException ex) {
 			log.error("[WS] Failed to parse message from device {}", principal.getDeviceId(), ex);
 		}
 	}

@@ -1,8 +1,8 @@
 package io.strategiz.social.client.siliconflow.client;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import io.github.bucket4j.Bucket;
 import io.cidadel.framework.exception.CidadelException;
 import io.strategiz.social.client.siliconflow.config.SiliconFlowConfig;
@@ -28,12 +28,12 @@ public class SiliconFlowClient {
 
 	private final RestClient restClient;
 
-	private final ObjectMapper objectMapper;
+	private final JsonMapper objectMapper;
 
 	public SiliconFlowClient(SiliconFlowConfig config, Bucket rateLimiter) {
 		this.config = config;
 		this.rateLimiter = rateLimiter;
-		this.objectMapper = new ObjectMapper();
+		this.objectMapper = new JsonMapper();
 		this.restClient = RestClient.builder()
 			.baseUrl(config.getBaseUrl())
 			.defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)

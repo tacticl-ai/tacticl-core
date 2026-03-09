@@ -1,6 +1,6 @@
 package io.strategiz.social.service.agent.websocket;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import io.strategiz.social.business.agent.service.UserBroadcaster;
 import java.util.Collections;
 import java.util.Map;
@@ -26,7 +26,7 @@ public class UserSessionManager implements UserBroadcaster {
 
 	private static final int BUFFER_SIZE_LIMIT = 512 * 1024;
 
-	private final ObjectMapper objectMapper = new ObjectMapper();
+	private final JsonMapper objectMapper = new JsonMapper();
 
 	/** Maps userId to a set of concurrent-safe WebSocket sessions. */
 	private final ConcurrentHashMap<String, Set<WebSocketSession>> userSessions = new ConcurrentHashMap<>();
