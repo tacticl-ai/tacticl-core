@@ -12,6 +12,10 @@ public class DeviceSettings {
 
 	private int priority = 0;
 
+	private ExecutionEngine executionEngine = ExecutionEngine.CLAUDE_CODE;
+
+	private ClaudeCodeConfig claudeCodeConfig;
+
 	public DeviceSettings() {}
 
 	public static DeviceSettings defaults() {
@@ -40,6 +44,22 @@ public class DeviceSettings {
 
 	public void setPriority(int priority) {
 		this.priority = priority;
+	}
+
+	public ExecutionEngine getExecutionEngine() {
+		return executionEngine;
+	}
+
+	public void setExecutionEngine(ExecutionEngine executionEngine) {
+		this.executionEngine = executionEngine;
+	}
+
+	public ClaudeCodeConfig getClaudeCodeConfig() {
+		return claudeCodeConfig;
+	}
+
+	public void setClaudeCodeConfig(ClaudeCodeConfig claudeCodeConfig) {
+		this.claudeCodeConfig = claudeCodeConfig;
 	}
 
 }

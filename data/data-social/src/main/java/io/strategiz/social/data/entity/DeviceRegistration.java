@@ -46,6 +46,8 @@ public class DeviceRegistration extends BaseEntity {
 
 	private String daemonVersion;
 
+	private String claudeCodeVersion;
+
 	private Map<String, Object> sparkPreferences;
 
 	private DeviceSettings settings;
@@ -170,6 +172,14 @@ public class DeviceRegistration extends BaseEntity {
 
 	public void setDaemonVersion(String daemonVersion) {
 		this.daemonVersion = daemonVersion;
+	}
+
+	public String getClaudeCodeVersion() {
+		return claudeCodeVersion;
+	}
+
+	public void setClaudeCodeVersion(String claudeCodeVersion) {
+		this.claudeCodeVersion = claudeCodeVersion;
 	}
 
 	public Map<String, Object> getSparkPreferences() {

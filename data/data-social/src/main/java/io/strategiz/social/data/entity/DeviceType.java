@@ -22,4 +22,9 @@ public enum DeviceType {
 		return priority;
 	}
 
+	/** Desktop devices (priority 0) support Claude Code Agent SDK. */
+	public boolean isDesktop() {
+		return priority == 0;
+	}
+
 }
