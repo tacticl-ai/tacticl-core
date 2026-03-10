@@ -50,7 +50,7 @@ steps:
       - '--memory=8Gi'
       - '--cpu=4'
       - '--min-instances=1'
-      - '--set-env-vars=SPRING_PROFILES_ACTIVE=prod,STRATEGIZ_VAULT_ADDRESS=https://cidadel-vault-908167426173.us-east1.run.app,BROWSER_ENABLED=true'
+      - '--set-env-vars=SPRING_PROFILES_ACTIVE=prod,STRATEGIZ_VAULT_ADDRESS=https://cidadel-vault-908167426173.us-east1.run.app,BROWSER_ENABLED=true,AUTH_GOOGLE_REDIRECT_URI=https://auth.tacticl.ai/auth/oauth/google/signin/callback,AUTH_FACEBOOK_REDIRECT_URI=https://auth.tacticl.ai/auth/oauth/facebook/signin/callback'
       - '--set-secrets=VAULT_TOKEN=vault-root-token:latest'
       - '--allow-unauthenticated'
       - '--timeout=3600'
