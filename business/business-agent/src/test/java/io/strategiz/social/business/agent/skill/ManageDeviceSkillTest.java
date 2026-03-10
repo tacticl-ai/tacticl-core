@@ -12,6 +12,7 @@ import io.strategiz.social.business.agent.service.DevicePairingService;
 import io.strategiz.social.business.agent.service.DeviceRegistryService;
 import io.strategiz.social.data.entity.DeviceRegistration;
 import io.strategiz.social.data.entity.DeviceSettings;
+import io.strategiz.social.data.entity.ExecutionEngine;
 import io.strategiz.social.data.entity.DeviceState;
 import io.strategiz.social.data.entity.DeviceType;
 import io.strategiz.social.data.entity.PairingCode;
@@ -238,6 +239,69 @@ class ManageDeviceSkillTest {
 		String result = skill.execute(input, "user-1");
 
 		assertTrue(result.contains("Unknown action: restart"));
+	}
+
+	@Test
+	void execute_updateSettings_executionEngine_updatesDevice() {
+		DeviceRegistration device = new DeviceRegistration();
+		device.setId("device-1");
+		device.setUserId("user-1");
+		device.setDeviceName("My MacBook");
+		device.setSettings(DeviceSettings.defaults());
+		when(deviceRepository.findByIdInSubcollection("user-1", "device-1")).thenReturn(Optional.of(device));
+
+		ObjectNode input = MAPPER.createObjectNode();
+		input.put("action", "update_settings");
+		input.put("device_id", "device-1");
+		input.put("execution_engine", "LEGACY");
+
+		String result = skill.execute(input, "user-1");
+
+		assertTrue(result.contains("Device settings updated"));
+		assertTrue(result.contains("Execution engine: LEGACY"));
+
+		ArgumentCaptor<DeviceRegistration> captor = ArgumentCaptor.forClass(DeviceRegistration.class);
+		verify(deviceRepository).saveInSubcollection(eq("user-1"), captor.capture(), eq("user-1"));
+		assertEquals(ExecutionEngine.LEGACY, captor.getValue().getSettings().getExecutionEngine());
+	}
+
+	@Test
+	void execute_updateSettings_invalidEngine_returnsError() {
+		DeviceRegistration device = new DeviceRegistration();
+		device.setId("device-1");
+		device.setUserId("user-1");
+		device.setDeviceName("My MacBook");
+		device.setSettings(DeviceSettings.defaults());
+		when(deviceRepository.findByIdInSubcollection("user-1", "device-1")).thenReturn(Optional.of(device));
+
+		ObjectNode input = MAPPER.createObjectNode();
+		input.put("action", "update_settings");
+		input.put("device_id", "device-1");
+		input.put("execution_engine", "INVALID");
+
+		String result = skill.execute(input, "user-1");
+
+		assertTrue(result.contains("Invalid execution engine"));
+	}
+
+	@Test
+	void execute_list_showsExecutionEngine() {
+		DeviceRegistration device = new DeviceRegistration();
+		device.setId("device-1");
+		device.setDeviceName("My MacBook");
+		device.setDeviceType(DeviceType.MACOS);
+		device.setState(DeviceState.ACTIVE);
+		DeviceSettings settings = new DeviceSettings();
+		settings.setExecutionEngine(ExecutionEngine.CLAUDE_CODE);
+		device.setSettings(settings);
+		when(deviceRegistryService.listDevices("user-1")).thenReturn(List.of(device));
+
+		ObjectNode input = MAPPER.createObjectNode();
+		input.put("action", "list");
+
+		String result = skill.execute(input, "user-1");
+
+		assertTrue(result.contains("engine=CLAUDE_CODE"));
 	}
 
 }

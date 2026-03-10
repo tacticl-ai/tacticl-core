@@ -8,6 +8,7 @@ import io.strategiz.social.business.agent.service.DevicePairingService;
 import io.strategiz.social.business.agent.service.DeviceRegistryService;
 import io.strategiz.social.data.entity.DeviceRegistration;
 import io.strategiz.social.data.entity.DeviceSettings;
+import io.strategiz.social.data.entity.ExecutionEngine;
 import io.strategiz.social.data.repository.DeviceRepository;
 import java.util.List;
 import java.util.Optional;
@@ -43,7 +44,7 @@ public class ManageDeviceSkill implements AgentSkill {
 
 	@Override
 	public String getDescription() {
-		return "Pair a new device, unpair a device, or update device settings (max daemons, auto wake, priority)";
+		return "Pair a new device, unpair a device, or update device settings (max daemons, auto wake, priority, execution engine, Claude Code config)";
 	}
 
 	@Override
@@ -73,6 +74,12 @@ public class ManageDeviceSkill implements AgentSkill {
 		ObjectNode priority = properties.putObject("priority");
 		priority.put("type", "integer");
 		priority.put("description", "Device routing priority — higher values receive sparks first (for update_settings)");
+
+		ObjectNode executionEngine = properties.putObject("execution_engine");
+		executionEngine.put("type", "string");
+		executionEngine.put("description",
+				"Execution engine for sparks: CLAUDE_CODE (Agent SDK, desktop default), LEGACY (command-based), AUTO (choose per-spark). For update_settings on desktop devices.");
+		executionEngine.putArray("enum").add("CLAUDE_CODE").add("LEGACY").add("AUTO");
 
 		schema.putArray("required").add("action");
 
@@ -155,9 +162,19 @@ public class ManageDeviceSkill implements AgentSkill {
 				settings.setPriority(input.get("priority").asInt());
 				updated = true;
 			}
+			if (input.has("execution_engine")) {
+				String engineStr = input.get("execution_engine").asText();
+				try {
+					settings.setExecutionEngine(ExecutionEngine.valueOf(engineStr.toUpperCase()));
+					updated = true;
+				}
+				catch (IllegalArgumentException e) {
+					return "Invalid execution engine: " + engineStr + ". Use CLAUDE_CODE, LEGACY, or AUTO.";
+				}
+			}
 
 			if (!updated) {
-				return "No settings fields provided. Specify at least one of: max_daemons, auto_wake, priority.";
+				return "No settings fields provided. Specify at least one of: max_daemons, auto_wake, priority, execution_engine.";
 			}
 
 			device.setSettings(settings);
@@ -167,7 +184,8 @@ public class ManageDeviceSkill implements AgentSkill {
 			return "Device settings updated for " + device.getDeviceName() + ":\n"
 					+ "- Max daemons: " + settings.getMaxDaemons() + "\n"
 					+ "- Auto wake: " + settings.isAutoWake() + "\n"
-					+ "- Priority: " + settings.getPriority();
+					+ "- Priority: " + settings.getPriority() + "\n"
+					+ "- Execution engine: " + settings.getExecutionEngine();
 		}
 		catch (Exception e) {
 			log.error("Failed to update device settings for device {} user {}", deviceId, userId, e);
@@ -192,7 +210,8 @@ public class ManageDeviceSkill implements AgentSkill {
 					DeviceSettings s = device.getSettings();
 					sb.append(", max_daemons=").append(s.getMaxDaemons())
 							.append(", auto_wake=").append(s.isAutoWake())
-							.append(", priority=").append(s.getPriority());
+							.append(", priority=").append(s.getPriority())
+							.append(", engine=").append(s.getExecutionEngine());
 				}
 				sb.append("\n");
 			}
