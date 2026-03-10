@@ -1,5 +1,7 @@
 package io.strategiz.social.service.agent.dto;
 
+import java.util.Map;
+
 /** Response DTO for device settings. */
 public class DeviceSettingsResponse {
 
@@ -12,6 +14,12 @@ public class DeviceSettingsResponse {
 	private boolean autoWake;
 
 	private int priority;
+
+	private String executionEngine;
+
+	private Map<String, Object> claudeCodeConfig;
+
+	private String claudeCodeVersion;
 
 	public String getDeviceId() {
 		return deviceId;
@@ -51,6 +59,30 @@ public class DeviceSettingsResponse {
 
 	public void setPriority(int priority) {
 		this.priority = priority;
+	}
+
+	public String getExecutionEngine() {
+		return executionEngine;
+	}
+
+	public void setExecutionEngine(String executionEngine) {
+		this.executionEngine = executionEngine;
+	}
+
+	public Map<String, Object> getClaudeCodeConfig() {
+		return claudeCodeConfig;
+	}
+
+	public void setClaudeCodeConfig(Map<String, Object> claudeCodeConfig) {
+		this.claudeCodeConfig = claudeCodeConfig;
+	}
+
+	public String getClaudeCodeVersion() {
+		return claudeCodeVersion;
+	}
+
+	public void setClaudeCodeVersion(String claudeCodeVersion) {
+		this.claudeCodeVersion = claudeCodeVersion;
 	}
 
 }
