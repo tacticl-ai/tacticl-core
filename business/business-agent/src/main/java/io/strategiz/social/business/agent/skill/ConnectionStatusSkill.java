@@ -92,8 +92,16 @@ public class ConnectionStatusSkill implements AgentSkill {
 				boolean online = onlineDeviceIds.contains(device.getId());
 				sb.append("- ").append(device.getDeviceName())
 						.append(" (").append(device.getDeviceType()).append(")")
-						.append(" — ").append(online ? "online" : "offline")
-						.append("\n");
+						.append(" — ").append(online ? "online" : "offline");
+				if (device.getDeviceType() != null && device.getDeviceType().isDesktop()) {
+					String engine = device.getSettings() != null && device.getSettings().getExecutionEngine() != null
+							? device.getSettings().getExecutionEngine().name() : "CLAUDE_CODE";
+					sb.append(", engine: ").append(engine);
+					if (device.getClaudeCodeVersion() != null) {
+						sb.append(" (v").append(device.getClaudeCodeVersion()).append(")");
+					}
+				}
+				sb.append("\n");
 			}
 		}
 		sb.append("\n");

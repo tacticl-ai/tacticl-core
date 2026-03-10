@@ -10,7 +10,9 @@ import tools.jackson.databind.node.ObjectNode;
 import io.strategiz.social.data.entity.AccessLevel;
 import io.strategiz.social.data.entity.DeviceRegistration;
 import io.strategiz.social.data.entity.DeviceSession;
+import io.strategiz.social.data.entity.DeviceSettings;
 import io.strategiz.social.data.entity.DeviceType;
+import io.strategiz.social.data.entity.ExecutionEngine;
 import io.strategiz.social.data.entity.PlatformType;
 import io.strategiz.social.data.entity.RepoGrant;
 import io.strategiz.social.data.entity.RepoProvider;
@@ -182,6 +184,31 @@ class ConnectionStatusSkillTest {
 		assertTrue(result.contains("online"));
 		assertTrue(result.contains("Tablet"));
 		assertTrue(result.contains("offline"));
+	}
+
+	@Test
+	void execute_desktopDevice_showsExecutionEngine() {
+		DeviceRegistration device = new DeviceRegistration();
+		device.setId("device-1");
+		device.setDeviceName("My MacBook");
+		device.setDeviceType(DeviceType.MACOS);
+		DeviceSettings settings = new DeviceSettings();
+		settings.setExecutionEngine(ExecutionEngine.CLAUDE_CODE);
+		device.setSettings(settings);
+		device.setClaudeCodeVersion("1.0.32");
+		when(deviceRepository.findActiveByUserId("user-1")).thenReturn(List.of(device));
+
+		DeviceSession session = new DeviceSession();
+		session.setDeviceId("device-1");
+		when(sessionRepository.findActiveByUserId("user-1")).thenReturn(List.of(session));
+		when(integrationRepository.findAllByUserId("user-1")).thenReturn(Collections.emptyList());
+		when(repoGrantRepository.findActiveByUserId("user-1")).thenReturn(Collections.emptyList());
+
+		ObjectNode input = MAPPER.createObjectNode();
+		String result = skill.execute(input, "user-1");
+
+		assertTrue(result.contains("CLAUDE_CODE"));
+		assertTrue(result.contains("v1.0.32"));
 	}
 
 }
