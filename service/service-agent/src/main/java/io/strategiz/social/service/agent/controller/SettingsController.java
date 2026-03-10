@@ -5,8 +5,10 @@ import io.cidadel.framework.authorization.annotation.RequireAuth;
 import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.strategiz.social.business.agent.service.DeviceRegistryService;
 import io.strategiz.social.business.agent.service.UserConfigService;
+import io.strategiz.social.data.entity.ClaudeCodeConfig;
 import io.strategiz.social.data.entity.DeviceRegistration;
 import io.strategiz.social.data.entity.DeviceSettings;
+import io.strategiz.social.data.entity.ExecutionEngine;
 import io.strategiz.social.data.entity.RepoGrant;
 import io.strategiz.social.data.entity.SocialIntegration;
 import io.strategiz.social.data.entity.UserConfig;
@@ -125,6 +127,52 @@ public class SettingsController {
 		if (request.getPriority() != null) {
 			settings.setPriority(request.getPriority());
 		}
+		if (request.getExecutionEngine() != null) {
+			try {
+				settings.setExecutionEngine(ExecutionEngine.valueOf(request.getExecutionEngine().toUpperCase()));
+			}
+			catch (IllegalArgumentException e) {
+				return ResponseEntity.badRequest().build();
+			}
+		}
+		if (request.getClaudeCodeConfig() != null) {
+			ClaudeCodeConfig ccConfig = settings.getClaudeCodeConfig();
+			if (ccConfig == null) {
+				ccConfig = ClaudeCodeConfig.defaults();
+			}
+			Map<String, Object> configMap = request.getClaudeCodeConfig();
+			if (configMap.containsKey("model")) {
+				ccConfig.setModel((String) configMap.get("model"));
+			}
+			if (configMap.containsKey("maxTurns")) {
+				ccConfig.setMaxTurns(((Number) configMap.get("maxTurns")).intValue());
+			}
+			if (configMap.containsKey("maxBudgetUsd")) {
+				ccConfig.setMaxBudgetUsd(new java.math.BigDecimal(configMap.get("maxBudgetUsd").toString()));
+			}
+			if (configMap.containsKey("permissionMode")) {
+				ccConfig.setPermissionMode((String) configMap.get("permissionMode"));
+			}
+			if (configMap.containsKey("allowedTools")) {
+				@SuppressWarnings("unchecked")
+				List<String> tools = (List<String>) configMap.get("allowedTools");
+				ccConfig.setAllowedTools(tools);
+			}
+			if (configMap.containsKey("disallowedTools")) {
+				@SuppressWarnings("unchecked")
+				List<String> tools = (List<String>) configMap.get("disallowedTools");
+				ccConfig.setDisallowedTools(tools);
+			}
+			if (configMap.containsKey("mcpServers")) {
+				@SuppressWarnings("unchecked")
+				Map<String, Object> servers = (Map<String, Object>) configMap.get("mcpServers");
+				ccConfig.setMcpServers(servers);
+			}
+			if (configMap.containsKey("systemPromptOverride")) {
+				ccConfig.setSystemPromptOverride((String) configMap.get("systemPromptOverride"));
+			}
+			settings.setClaudeCodeConfig(ccConfig);
+		}
 
 		device.setSettings(settings);
 		deviceRepository.saveInSubcollection(user.getUserId(), device, user.getUserId());
@@ -192,6 +240,22 @@ public class SettingsController {
 		response.setMaxDaemons(settings.getMaxDaemons());
 		response.setAutoWake(settings.isAutoWake());
 		response.setPriority(settings.getPriority());
+		response.setExecutionEngine(
+				settings.getExecutionEngine() != null ? settings.getExecutionEngine().name() : null);
+		if (settings.getClaudeCodeConfig() != null) {
+			ClaudeCodeConfig cc = settings.getClaudeCodeConfig();
+			Map<String, Object> ccMap = new java.util.HashMap<>();
+			ccMap.put("model", cc.getModel());
+			ccMap.put("maxTurns", cc.getMaxTurns());
+			ccMap.put("maxBudgetUsd", cc.getMaxBudgetUsd());
+			ccMap.put("permissionMode", cc.getPermissionMode());
+			if (cc.getAllowedTools() != null) ccMap.put("allowedTools", cc.getAllowedTools());
+			if (cc.getDisallowedTools() != null) ccMap.put("disallowedTools", cc.getDisallowedTools());
+			if (cc.getMcpServers() != null) ccMap.put("mcpServers", cc.getMcpServers());
+			if (cc.getSystemPromptOverride() != null) ccMap.put("systemPromptOverride", cc.getSystemPromptOverride());
+			response.setClaudeCodeConfig(ccMap);
+		}
+		response.setClaudeCodeVersion(device.getClaudeCodeVersion());
 		return response;
 	}
 
