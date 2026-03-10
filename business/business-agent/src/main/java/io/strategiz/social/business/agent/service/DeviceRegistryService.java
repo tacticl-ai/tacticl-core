@@ -167,6 +167,7 @@ public class DeviceRegistryService {
 	public void updateClaudeCodeVersion(String deviceId, String userId, String version) {
 		deviceRepository.findByIdInSubcollection(userId, deviceId).ifPresent(device -> {
 			device.setClaudeCodeVersion(version);
+			device.setLastSeenAt(Instant.now());
 			deviceRepository.saveInSubcollection(userId, device, userId);
 		});
 	}

@@ -138,7 +138,7 @@ public class ManageDeviceSkill implements AgentSkill {
 
 		String deviceId = input.get("device_id").asText();
 		try {
-			Optional<DeviceRegistration> opt = deviceRepository.findByIdInSubcollection(userId, deviceId);
+			Optional<DeviceRegistration> opt = deviceRegistryService.getDevice(deviceId, userId);
 			if (opt.isEmpty()) {
 				return "Device not found: " + deviceId;
 			}

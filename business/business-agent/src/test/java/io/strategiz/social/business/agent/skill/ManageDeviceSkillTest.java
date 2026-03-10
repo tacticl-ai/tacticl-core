@@ -112,7 +112,7 @@ class ManageDeviceSkillTest {
 		device.setUserId("user-1");
 		device.setDeviceName("My MacBook");
 		device.setSettings(DeviceSettings.defaults());
-		when(deviceRepository.findByIdInSubcollection("user-1", "device-1")).thenReturn(Optional.of(device));
+		when(deviceRegistryService.getDevice("device-1", "user-1")).thenReturn(Optional.of(device));
 
 		ObjectNode input = MAPPER.createObjectNode();
 		input.put("action", "update_settings");
@@ -143,7 +143,7 @@ class ManageDeviceSkillTest {
 		device.setUserId("user-1");
 		device.setDeviceName("My MacBook");
 		device.setSettings(null);
-		when(deviceRepository.findByIdInSubcollection("user-1", "device-1")).thenReturn(Optional.of(device));
+		when(deviceRegistryService.getDevice("device-1", "user-1")).thenReturn(Optional.of(device));
 
 		ObjectNode input = MAPPER.createObjectNode();
 		input.put("action", "update_settings");
@@ -162,7 +162,7 @@ class ManageDeviceSkillTest {
 
 	@Test
 	void execute_updateSettings_deviceNotFound_returnsError() {
-		when(deviceRepository.findByIdInSubcollection("user-1", "device-x")).thenReturn(Optional.empty());
+		when(deviceRegistryService.getDevice("device-x", "user-1")).thenReturn(Optional.empty());
 
 		ObjectNode input = MAPPER.createObjectNode();
 		input.put("action", "update_settings");
@@ -180,7 +180,7 @@ class ManageDeviceSkillTest {
 		device.setId("device-1");
 		device.setUserId("user-1");
 		device.setDeviceName("My MacBook");
-		when(deviceRepository.findByIdInSubcollection("user-1", "device-1")).thenReturn(Optional.of(device));
+		when(deviceRegistryService.getDevice("device-1", "user-1")).thenReturn(Optional.of(device));
 
 		ObjectNode input = MAPPER.createObjectNode();
 		input.put("action", "update_settings");
@@ -248,7 +248,7 @@ class ManageDeviceSkillTest {
 		device.setUserId("user-1");
 		device.setDeviceName("My MacBook");
 		device.setSettings(DeviceSettings.defaults());
-		when(deviceRepository.findByIdInSubcollection("user-1", "device-1")).thenReturn(Optional.of(device));
+		when(deviceRegistryService.getDevice("device-1", "user-1")).thenReturn(Optional.of(device));
 
 		ObjectNode input = MAPPER.createObjectNode();
 		input.put("action", "update_settings");
@@ -272,7 +272,7 @@ class ManageDeviceSkillTest {
 		device.setUserId("user-1");
 		device.setDeviceName("My MacBook");
 		device.setSettings(DeviceSettings.defaults());
-		when(deviceRepository.findByIdInSubcollection("user-1", "device-1")).thenReturn(Optional.of(device));
+		when(deviceRegistryService.getDevice("device-1", "user-1")).thenReturn(Optional.of(device));
 
 		ObjectNode input = MAPPER.createObjectNode();
 		input.put("action", "update_settings");
