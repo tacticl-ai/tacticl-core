@@ -123,6 +123,33 @@ Tier 2 (2FA)      — Financial: purchases, subscriptions, spending > $X
 - Domain allowlist/blocklist controls which sites the agent can access
 - Spending limit ($0 default, user must explicitly enable)
 
+## Dual Agent Architecture
+
+Both cloud and device are **full-power SDLC agent pipelines**. Routing is a user preference, not a capability limitation.
+
+**Cloud Agent** (this repo — tacticl-core):
+- VoiceAgentService + LlmRouter + 20+ AgentSkills
+- Multi-LLM: Anthropic, OpenAI, Grok (26+ models)
+- Playwright browser, Brave Search, Jina Reader
+- Social APIs (Twitter, LinkedIn, Instagram), video gen
+- Runs on Cloud Run, scales for all users
+
+**Device Agent** (tacticl-mobile / desktop daemon):
+- WebSocket-based spark dispatch + tactic decomposition
+- 9 command types (TERMINAL_CMD, OPEN_URL, CLICK_ELEMENT, etc.)
+- Checkpoint flow, credential requests, progress reporting
+- Device routing intelligence (battery, charging, capabilities)
+
+**Claude Code Engine** (NEW — desktop devices only):
+- Claude Code Agent SDK (TypeScript) as additional execution engine on desktop
+- Built-in: File/Bash/Web/MCP/Subagents — complements existing device capabilities
+- Default engine on desktop (macOS, Windows, Linux), configurable per device
+- Desktop detection: `DeviceType.priority == 0` → desktop, `1` → mobile
+- Config: `DeviceSettings.executionEngine` = CLAUDE_CODE | LEGACY | AUTO
+- See `docs/architecture/device-agent-architecture.md` for full design
+
+**Architecture docs**: `docs/architecture/cloud-orchestrator-architecture.md`, `docs/architecture/device-agent-architecture.md`
+
 ## Spark Lifecycle
 
 Every chat command is a **Spark** — the single top-level entity for all user requests. There is no manual spark creation; sparks are created exclusively via the chat/voice agent flow.
