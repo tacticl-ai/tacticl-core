@@ -93,6 +93,8 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 				case "spark_completed" -> handleSparkCompleted(node, principal);
 				case "spark_failed" -> handleSparkFailed(node, principal);
 				case "credentials_request" -> handleCredentialsRequest(node, session, principal);
+				case "claude_code_status" -> handleClaudeCodeStatus(node, principal);
+				case "engine_selected" -> handleEngineSelected(node, principal);
 				default -> log.warn("[WS] Unknown message type '{}' from device {}", type, principal.getDeviceId());
 			}
 		}
@@ -329,6 +331,24 @@ public class DeviceWebSocketHandler extends TextWebSocketHandler {
 		catch (IllegalArgumentException e) {
 			return defaultState;
 		}
+	}
+
+	private void handleClaudeCodeStatus(JsonNode node, WebSocketPrincipal principal) {
+		String version = node.has("version") ? node.get("version").asText() : null;
+		boolean available = node.has("available") && node.get("available").asBoolean();
+		log.info("[WS] Claude Code status from device {}: version={} available={}",
+				principal.getDeviceId(), version, available);
+		if (version != null) {
+			registryService.updateClaudeCodeVersion(principal.getDeviceId(), principal.getUserId(), version);
+		}
+	}
+
+	private void handleEngineSelected(JsonNode node, WebSocketPrincipal principal) {
+		String sparkId = node.has("sparkId") ? node.get("sparkId").asText() : null;
+		String engine = node.has("engine") ? node.get("engine").asText() : null;
+		String reason = node.has("reason") ? node.get("reason").asText() : null;
+		log.info("[WS] Engine selected for spark {}: engine={} reason={} device={}",
+				sparkId, engine, reason, principal.getDeviceId());
 	}
 
 }

@@ -163,6 +163,14 @@ public class DeviceRegistryService {
 		return true;
 	}
 
+	/** Update the Claude Code CLI version reported by the device. */
+	public void updateClaudeCodeVersion(String deviceId, String userId, String version) {
+		deviceRepository.findByIdInSubcollection(userId, deviceId).ifPresent(device -> {
+			device.setClaudeCodeVersion(version);
+			deviceRepository.saveInSubcollection(userId, device, userId);
+		});
+	}
+
 	private String generateVerificationCode() {
 		return String.format("%06d", ThreadLocalRandom.current().nextInt(1000000));
 	}
