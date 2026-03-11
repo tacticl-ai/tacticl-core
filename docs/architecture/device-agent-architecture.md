@@ -4,7 +4,7 @@
 
 ## Overview
 
-Devices are full-power agent executors. They connect to the cloud orchestrator via WebSocket, receive spark dispatches, decompose them into tactics, and execute them locally. Desktop devices (macOS, Windows, Linux) have an additional execution engine option: **Claude Code Agent SDK**.
+Devices are full-power agent executors. They connect to the cloud orchestrator via WebSocket, receive spark dispatches, decompose them into tactics, and execute them locally. Desktop devices (macOS, Windows, Linux) have an additional execution engine option: **Claude Code CLI**.
 
 ## Device Types
 
@@ -12,7 +12,7 @@ Devices are full-power agent executors. They connect to the cloud orchestrator v
 Desktop (priority 0 — preferred for spark routing):
   MACOS, WINDOWS, LINUX
   → Full daemon capabilities
-  → Claude Code Agent SDK available (NEW — default engine)
+  → Claude Code CLI available (NEW — default engine)
 
 Mobile (priority 1):
   IPHONE, ANDROID
@@ -26,7 +26,7 @@ Desktop devices have a configurable execution engine:
 
 | Engine | Description | Default |
 |--------|-------------|---------|
-| `CLAUDE_CODE` | Agent SDK — full agentic execution with file/bash/web/MCP/subagents | Yes (desktop) |
+| `CLAUDE_CODE` | CLI subprocess — full agentic execution with file/bash/web/MCP/subagents | Yes (desktop) |
 | `LEGACY` | Existing command-based protocol (TERMINAL_CMD, OPEN_URL, etc.) | Yes (mobile) |
 | `AUTO` | Choose per-spark based on type/complexity | No |
 
@@ -65,11 +65,11 @@ Device receives spark
   │
   ├── CLAUDE_CODE (desktop default):
   │   │
-  │   ├── Agent SDK query() with spark as prompt
+  │   ├── Spawn `claude` CLI subprocess with spark as prompt
   │   ├── Built-in tools: Read, Write, Edit, Bash, Glob, Grep,
   │   │    WebSearch, WebFetch, Agent (subagents)
   │   ├── Custom MCP servers per device config
-  │   ├── Hooks for progress reporting + checkpoint enforcement
+  │   ├── CLI hooks for progress reporting + checkpoint enforcement
   │   ├── Subagents decompose into parallel tactics
   │   └── Reports back via existing WebSocket protocol
   │
@@ -206,47 +206,141 @@ claudeCodeConfig: {             (NEW — embedded)
 
 ### How It Works
 
+The daemon spawns `claude` as a subprocess in non-interactive mode with `--output-format stream-json`, then parses the streaming JSON messages and maps them to the existing WebSocket protocol.
+
 ```typescript
-// Device daemon — Claude Code execution path
+// Device daemon — Claude Code CLI execution path
 async function executeWithClaudeCode(spark: SparkPayload) {
   const config = device.settings.claudeCodeConfig;
 
-  for await (const message of query({
-    prompt: buildSparkPrompt(spark),
-    options: {
-      cwd: getWorkingDirectory(spark),
-      model: config.model,
-      maxTurns: config.maxTurns,
-      maxBudgetUsd: config.maxBudgetUsd,
-      allowedTools: config.allowedTools,
-      mcpServers: config.mcpServers,
-      permissionMode: config.permissionMode,
-      hooks: {
-        PreToolUse: [checkpointEnforcementHook],
-        PostToolUse: [progressReportingHook],
-      },
-    },
-  })) {
-    // Map Agent SDK messages → existing WebSocket protocol
-    // spark_progress, spark_checkpoint, spark_completed
+  const args = [
+    "--print", buildSparkPrompt(spark),
+    "--output-format", "stream-json",
+    "--model", config.model,
+    "--max-turns", String(config.maxTurns),
+    "--permission-mode", config.permissionMode,
+  ];
+
+  if (config.allowedTools?.length) {
+    args.push("--allowedTools", config.allowedTools.join(","));
+  }
+  if (config.disallowedTools?.length) {
+    args.push("--disallowedTools", config.disallowedTools.join(","));
+  }
+  if (config.systemPromptOverride) {
+    args.push("--system-prompt", config.systemPromptOverride);
+  }
+
+  const proc = spawn("claude", args, {
+    cwd: getWorkingDirectory(spark),
+    env: { ...process.env, ANTHROPIC_API_KEY: apiKey },
+  });
+
+  // Parse streaming JSON lines from stdout
+  for await (const line of readlines(proc.stdout)) {
+    const msg = JSON.parse(line);
+
+    if (msg.type === "assistant" && msg.stop_reason === "end_turn") {
+      ws.send({
+        type: "spark_completed",
+        sparkId: spark.sparkId,
+        result: { response: extractText(msg) },
+        totalTokens: msg.usage?.total_tokens ?? 0,
+      });
+    } else if (msg.type === "tool_use") {
+      // Report progress for each tool execution
+      ws.send({
+        type: "spark_progress",
+        sparkId: spark.sparkId,
+        status: "EXECUTING",
+        tokensDelta: msg.usage?.output_tokens ?? 0,
+        tactics: [{
+          tacticId: currentTacticId,
+          description: `${msg.tool}: ${summarize(msg.input)}`,
+          status: "EXECUTING",
+        }],
+      });
+    }
+  }
+
+  // Handle process exit
+  const exitCode = await waitForExit(proc);
+  if (exitCode !== 0) {
+    ws.send({
+      type: "spark_failed",
+      sparkId: spark.sparkId,
+      error: `Claude Code exited with code ${exitCode}`,
+    });
   }
 }
 ```
 
-### Mapping Agent SDK → Existing Protocol
+### CLI Flag → ClaudeCodeConfig Mapping
 
-| Agent SDK Event | WebSocket Message | Notes |
-|----------------|-------------------|-------|
-| PostToolUse hook fires | `spark_progress` | Report tactic updates + token delta |
-| PreToolUse blocks on Tier 1+ | `spark_checkpoint` | Wait for `checkpoint_decision` response |
-| ResultMessage received | `spark_completed` | Include result + totalTokens |
-| Error thrown | `spark_failed` | Include error message |
-| Subagent spawned | `spark_progress` (new tactic) | Each subagent = one tactic |
+| ClaudeCodeConfig field | CLI flag | Notes |
+|----------------------|----------|-------|
+| `model` | `--model` | e.g., `claude-opus-4-6` |
+| `maxTurns` | `--max-turns` | Max agentic loop iterations |
+| `allowedTools` | `--allowedTools` | Comma-separated tool names |
+| `disallowedTools` | `--disallowedTools` | Comma-separated tool names |
+| `permissionMode` | `--permission-mode` | `default`, `acceptEdits`, `bypassPermissions` |
+| `systemPromptOverride` | `--system-prompt` | Custom system prompt text |
+| `mcpServers` | `--mcp-config` | Path to MCP config JSON file |
+| `maxBudgetUsd` | `--max-cost` | Cost cap in USD |
+
+### Checkpoint Integration via CLI Hooks
+
+Claude Code CLI supports hooks configured in `.claude/settings.json`. The daemon writes a hook config that calls back to a local HTTP endpoint for checkpoint enforcement:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "Bash|Write|Edit",
+      "hooks": ["curl -s http://localhost:$DAEMON_PORT/hooks/pre-tool-use -d @-"]
+    }],
+    "PostToolUse": [{
+      "matcher": ".*",
+      "hooks": ["curl -s http://localhost:$DAEMON_PORT/hooks/post-tool-use -d @-"]
+    }]
+  }
+}
+```
+
+The daemon's local HTTP server processes hook callbacks:
+- **PreToolUse**: Check if action requires checkpoint (Tier 1+). If yes, send `spark_checkpoint` via WebSocket, wait for `checkpoint_decision`, return block/allow.
+- **PostToolUse**: Send `spark_progress` via WebSocket with tool execution details and token delta.
+
+### Credential Flow via MCP
+
+When Claude Code needs platform credentials, the daemon runs a local MCP server that bridges to cloud credentials:
+
+```typescript
+// Local MCP server exposed to Claude Code via --mcp-config
+const credentialServer = createMcpServer({
+  tools: [{
+    name: "get_platform_credentials",
+    description: "Get OAuth credentials for a connected platform",
+    handler: async (args) => {
+      ws.send({
+        type: "credentials_request",
+        platform: args.platform,
+        sparkId: currentSparkId,
+        requestId: uuid(),
+      });
+      const response = await waitForCredentialResponse();
+      return response.success
+        ? JSON.stringify(response.credentials)
+        : `Error: ${response.error}`;
+    }
+  }]
+});
+```
 
 ### Fallback
 
 If Claude Code CLI is not installed and `executionEngine = CLAUDE_CODE`:
-1. Device detects missing CLI on startup
+1. Device detects missing CLI on startup (`which claude` or `claude --version`)
 2. Reports `claude_code_status: { available: false }`
 3. Falls back to LEGACY engine for incoming sparks
 4. Reports `engine_selected: { sparkId, engine: "LEGACY", reason: "claude_code_unavailable" }`

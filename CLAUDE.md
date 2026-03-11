@@ -141,7 +141,7 @@ Both cloud and device are **full-power SDLC agent pipelines**. Routing is a user
 - Device routing intelligence (battery, charging, capabilities)
 
 **Claude Code Engine** (NEW — desktop devices only):
-- Claude Code Agent SDK (TypeScript) as additional execution engine on desktop
+- Claude Code CLI subprocess as additional execution engine on desktop
 - Built-in: File/Bash/Web/MCP/Subagents — complements existing device capabilities
 - Default engine on desktop (macOS, Windows, Linux), configurable per device
 - Desktop detection: `DeviceType.priority == 0` → desktop, `1` → mobile
