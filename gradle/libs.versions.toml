@@ -4,7 +4,7 @@ spring-boot = "4.0.3"
 java = "25"
 
 # Cidadel shared infrastructure (from GitHub Packages)
-cidadel = "0.4.2"
+cidadel = "0.4.11"
 
 # External dependencies
 bucket4j = "8.10.1"
@@ -41,6 +41,13 @@ cidadel-data-framework-base = { module = "io.cidadel:data-framework-base", versi
 cidadel-client-anthropic-direct = { module = "io.cidadel:client-anthropic-direct", version.ref = "cidadel" }
 cidadel-client-openai-direct = { module = "io.cidadel:client-openai-direct", version.ref = "cidadel" }
 cidadel-client-grok-direct = { module = "io.cidadel:client-grok-direct", version.ref = "cidadel" }
+
+# Cidadel AI engine (from cidadel-core GitHub Packages)
+cidadel-framework-ai-engine = { module = "io.cidadel:framework-ai-engine", version.ref = "cidadel" }
+cidadel-business-ai-engine = { module = "io.cidadel:business-ai-engine", version.ref = "cidadel" }
+cidadel-service-ai-engine = { module = "io.cidadel:service-ai-engine", version.ref = "cidadel" }
+cidadel-client-claude-code = { module = "io.cidadel:client-claude-code", version.ref = "cidadel" }
+cidadel-client-codex = { module = "io.cidadel:client-codex", version.ref = "cidadel" }
 
 # External
 bucket4j-core = { module = "com.bucket4j:bucket4j-core", version.ref = "bucket4j" }

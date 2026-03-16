@@ -26,7 +26,13 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 		// LLM clients (cidadel 0.4.2+ moved to io.cidadel.client.*)
 		"io.cidadel.client.anthropic",
 		"io.cidadel.client.openai",
-		"io.cidadel.client.grok"
+		"io.cidadel.client.grok",
+		// AI engine framework (cidadel 0.4.11+)
+		"io.cidadel.framework.ai.engine",
+		"io.cidadel.business.ai.engine",
+		"io.cidadel.service.ai.engine",
+		"io.cidadel.client.claudecode",
+		"io.cidadel.client.codex"
 })
 @EnableScheduling
 public class TacticlApplication {

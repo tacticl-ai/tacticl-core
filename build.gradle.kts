@@ -14,7 +14,7 @@ allprojects {
         // Cidadel shared infrastructure from GitHub Packages
         maven {
             name = "CidadelPackages"
-            url = uri("https://maven.pkg.github.com/cuztomizer/cidadel-core")
+            url = uri("https://maven.pkg.github.com/cidadel-platform/cidadel-core")
             credentials {
                 username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
                 password = project.findProperty("gpr.key") as String? ?: System.getenv("GITHUB_TOKEN")

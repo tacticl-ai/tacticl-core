@@ -15,6 +15,9 @@ dependencies {
     implementation(libs.cidadel.framework.llm.router)
     implementation(libs.cidadel.client.base)
 
+    // Cidadel AI engine
+    implementation(libs.cidadel.service.ai.engine)
+
     // WebSocket (module-specific)
     implementation(libs.spring.boot.starter.websocket)
 }
