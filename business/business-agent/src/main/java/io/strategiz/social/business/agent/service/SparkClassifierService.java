@@ -1,17 +1,17 @@
 package io.strategiz.social.business.agent.service;
 
-import io.cidadel.client.base.llm.model.LlmResponse;
-import io.cidadel.framework.llmrouter.LlmRouter;
-import io.strategiz.social.business.agent.config.AgentModelConfig;
-import java.util.List;
+import io.cidadel.business.ai.engine.AiEngineRouterService;
+import io.cidadel.framework.ai.engine.model.AiEngineRequest;
+import io.cidadel.framework.ai.engine.model.AiEngineResult;
+import io.strategiz.social.data.entity.AiSdlcStep;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Classifies spark type using an LLM. Uses the routing model (Haiku) for fast, cheap
- * classification into one of the supported spark categories.
+ * Classifies spark type using the AI engine routing layer. Resolves the appropriate engine
+ * and model for the {@link AiSdlcStep#SPARK_CLASSIFICATION} step, with automatic fallback.
  */
 @Service
 public class SparkClassifierService {
@@ -22,13 +22,10 @@ public class SparkClassifierService {
 
 	private static final String DEFAULT_TYPE = "code";
 
-	private final LlmRouter llmRouter;
+	private final AiEngineRouterService aiEngineRouterService;
 
-	private final AgentModelConfig modelConfig;
-
-	public SparkClassifierService(LlmRouter llmRouter, AgentModelConfig modelConfig) {
-		this.llmRouter = llmRouter;
-		this.modelConfig = modelConfig;
+	public SparkClassifierService(AiEngineRouterService aiEngineRouterService) {
+		this.aiEngineRouterService = aiEngineRouterService;
 	}
 
 	/**
@@ -39,15 +36,19 @@ public class SparkClassifierService {
 	 */
 	public String classifySparkType(String title, String description) {
 		try {
-			String prompt = buildClassificationPrompt(title, description);
-			LlmResponse response = llmRouter.generateContent(prompt, List.of(), modelConfig.getRoutingModel());
+			AiEngineRequest request = new AiEngineRequest();
+			request.setPrompt(buildClassificationPrompt(title, description));
 
-			if (!response.isSuccess() || response.getContent() == null) {
-				log.warn("[CLASSIFIER] LLM call failed, defaulting to '{}'", DEFAULT_TYPE);
+			AiEngineResult result = aiEngineRouterService.executeStep(
+					AiSdlcStep.SPARK_CLASSIFICATION.name(), request);
+
+			if (!result.isSuccess()) {
+				log.warn("[CLASSIFIER] Engine returned error: {}, defaulting to '{}'",
+						result.getError(), DEFAULT_TYPE);
 				return DEFAULT_TYPE;
 			}
 
-			return parseClassification(response.getContent());
+			return parseClassification(result.getContent());
 		}
 		catch (Exception e) {
 			log.error("[CLASSIFIER] Classification failed for title='{}': {}", title, e.getMessage(), e);
