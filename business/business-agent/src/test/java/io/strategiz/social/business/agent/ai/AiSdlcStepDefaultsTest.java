@@ -48,6 +48,7 @@ class AiSdlcStepDefaultsTest {
 	void agenticStepsHaveFallbacks() {
 		Set<String> agenticSteps = Set.of(
 				AiSdlcStep.CODE_GENERATION.name(),
+				AiSdlcStep.CODE_REVIEW.name(),
 				AiSdlcStep.CODE_REFACTORING.name(),
 				AiSdlcStep.BUG_DIAGNOSIS.name(),
 				AiSdlcStep.BUG_FIX.name(),
@@ -61,6 +62,41 @@ class AiSdlcStepDefaultsTest {
 			AiStepEngineConfig config = defaults.getDefault(step).orElseThrow();
 			assertFalse(config.getFallbackEngineIds().isEmpty(),
 					"Agentic step " + step + " should have fallback engines");
+		}
+	}
+
+	@Test
+	void agenticStepsUseAgenticEngineIds() {
+		Set<String> agenticPrimarySteps = Set.of(
+				AiSdlcStep.CODE_REVIEW.name(),
+				AiSdlcStep.CODE_ANALYSIS.name(),
+				AiSdlcStep.SOCIAL_CONTENT.name(),
+				AiSdlcStep.CREATIVE_WRITING.name(),
+				AiSdlcStep.MONITORING_ANALYSIS.name()
+		);
+
+		for (String step : agenticPrimarySteps) {
+			AiStepEngineConfig config = defaults.getDefault(step).orElseThrow();
+			assertEquals("anthropic-agentic", config.getEngineId(),
+					step + " should use anthropic-agentic as primary engine");
+		}
+	}
+
+	@Test
+	void nonAgenticStepsUseApiEngineIds() {
+		Set<String> apiSteps = Set.of(
+				AiSdlcStep.SPARK_CLASSIFICATION.name(),
+				AiSdlcStep.TASK_DECOMPOSITION.name(),
+				AiSdlcStep.PR_DESCRIPTION.name(),
+				AiSdlcStep.DOCUMENTATION.name(),
+				AiSdlcStep.COMMIT_MESSAGE.name(),
+				AiSdlcStep.IMAGE_ANALYSIS.name()
+		);
+
+		for (String step : apiSteps) {
+			AiStepEngineConfig config = defaults.getDefault(step).orElseThrow();
+			assertEquals("anthropic-api", config.getEngineId(),
+					step + " should use anthropic-api as primary engine");
 		}
 	}
 
