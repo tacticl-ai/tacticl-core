@@ -1,40 +1,36 @@
 package io.strategiz.social.business.agent.service;
 
-import io.cidadel.client.base.llm.model.LlmMessage;
-import io.cidadel.client.base.llm.model.LlmResponse;
-import io.cidadel.client.base.llm.model.ToolResultMessage;
-import io.cidadel.client.base.llm.model.ToolUseBlock;
-import io.cidadel.framework.llmrouter.LlmRouter;
-import io.strategiz.social.business.agent.config.AgentModelConfig;
-import io.strategiz.social.business.agent.skill.AgentSkill;
+import io.cidadel.business.ai.engine.AiEngineRouterService;
+import io.cidadel.framework.ai.engine.model.AiEngineEvent;
+import io.cidadel.framework.ai.engine.model.AiEngineEventType;
+import io.cidadel.framework.ai.engine.model.AiEngineRequest;
+import io.cidadel.framework.ai.engine.model.AiEngineResult;
+import io.strategiz.social.business.agent.ai.AiSparkTypeStepMapper;
 import io.strategiz.social.data.entity.AgentAuditLog;
+import io.strategiz.social.data.entity.AiSdlcStep;
+import io.strategiz.social.data.entity.Spark;
 import io.strategiz.social.data.repository.AgentAuditLogRepository;
 import com.google.cloud.Timestamp;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Core voice agent orchestration service. Handles the full agent loop: system prompt →
- * Claude tool_use → execute tools → tool_result → final response.
+ * Thin orchestration service for cloud agent execution. Delegates the full agent loop
+ * (LLM calls, tool execution, multi-turn conversation) to the AI engine framework
+ * via {@link AiEngineRouterService}, which resolves the appropriate engine and model
+ * based on the spark's SDLC step type.
  */
 @Service
 public class VoiceAgentService {
 
 	private static final Logger logger = LoggerFactory.getLogger(VoiceAgentService.class);
 
-	private static final int MAX_TOOL_ROUNDS = 5;
-
-	private final LlmRouter llmRouter;
-
-	private final AgentModelConfig modelConfig;
-
-	private final ToolRegistry toolRegistry;
+	private final AiEngineRouterService engineRouterService;
 
 	private final AgentSystemPrompt agentSystemPrompt;
 
@@ -42,105 +38,93 @@ public class VoiceAgentService {
 
 	private final SparkService sparkService;
 
-	public VoiceAgentService(LlmRouter llmRouter, AgentModelConfig modelConfig, ToolRegistry toolRegistry,
-			AgentSystemPrompt agentSystemPrompt, AgentAuditLogRepository auditLogRepository,
-			SparkService sparkService) {
-		this.llmRouter = llmRouter;
-		this.modelConfig = modelConfig;
-		this.toolRegistry = toolRegistry;
+	public VoiceAgentService(AiEngineRouterService engineRouterService, AgentSystemPrompt agentSystemPrompt,
+			AgentAuditLogRepository auditLogRepository, SparkService sparkService) {
+		this.engineRouterService = engineRouterService;
 		this.agentSystemPrompt = agentSystemPrompt;
 		this.auditLogRepository = auditLogRepository;
 		this.sparkService = sparkService;
 	}
 
 	/**
-	 * Execute a voice command through the agent loop (cloud fallback path).
+	 * Execute a voice command through the AI engine framework (cloud execution path).
 	 * @param sparkId the spark ID (already created by the controller)
 	 * @param commandText the transcribed user command
 	 * @param userId the authenticated user ID
 	 * @param sessionId the conversation session ID
 	 * @param connectedPlatforms list of connected platform names
 	 * @param timezone user's timezone
-	 * @return the agent's text response
+	 * @param modelOverride optional model override from the client
+	 * @return the agent's execution result
 	 */
 	public AgentResult execute(String sparkId, String commandText, String userId, String sessionId,
 			List<String> connectedPlatforms, String timezone, String modelOverride) {
 		long startTime = System.currentTimeMillis();
-		List<String> toolsInvoked = new ArrayList<>();
-		String effectiveModel = (modelOverride != null && !modelOverride.isBlank()) ? modelOverride
-				: modelConfig.getRoutingModel();
 
 		SparkContext.set(new SparkContext(sparkId));
 		try {
-			// Mark spark as executing for cloud path
+			// 1. Mark spark as executing
 			sparkService.markRunning(sparkId);
 
-			// 1. Build system prompt
+			// 2. Get spark to determine its type
+			Spark spark = sparkService.getSpark(sparkId, userId)
+				.orElseThrow(() -> new IllegalStateException("Spark not found: " + sparkId));
+
+			// 3. Map spark type to SDLC step
+			AiSdlcStep step = AiSparkTypeStepMapper.mapToStep(spark.getType());
+
+			// 4. Build system prompt
 			String systemPrompt = agentSystemPrompt.buildSystemPrompt(userId, connectedPlatforms, timezone);
 
-			// 2. Initialize conversation with user command
-			List<LlmMessage> messages = new ArrayList<>();
-			messages.add(LlmMessage.user(commandText));
+			// 5. Build engine request
+			AiEngineRequest request = new AiEngineRequest();
+			request.setPrompt(commandText);
+			request.setSystemPrompt(systemPrompt);
+			request.setMetadata(Map.of("sparkId", sparkId, "userId", userId, "sessionId",
+					sessionId != null ? sessionId : ""));
 
-			// 3. Agent loop: call LLM via router, execute tools, repeat until end_turn
-			String finalResponse = null;
-			int rounds = 0;
-
-			while (rounds < MAX_TOOL_ROUNDS) {
-				rounds++;
-
-				LlmResponse response = llmRouter.generateWithTools(messages, effectiveModel,
-						toolRegistry.getToolDefinitions(), systemPrompt);
-
-				if (!response.isSuccess()) {
-					finalResponse = "I'm having trouble processing that. " + response.getError();
-					break;
-				}
-
-				// Check if Claude wants to call tools
-				if (response.hasToolUse()) {
-					// Add assistant message with tool_use blocks to conversation
-					messages.add(LlmMessage.assistantWithToolUse(response.getToolUseBlocks()));
-
-					// Execute each tool and collect results
-					List<ToolResultMessage> results = new ArrayList<>();
-					for (ToolUseBlock toolUse : response.getToolUseBlocks()) {
-						String result = executeToolSafely(toolUse, userId);
-						toolsInvoked.add(toolUse.getName());
-						results.add(ToolResultMessage.success(toolUse.getId(), result));
-					}
-
-					// Add tool results to conversation
-					messages.add(LlmMessage.toolResult(results));
-				}
-				else {
-					// end_turn — Claude is done
-					finalResponse = response.getContent();
-					break;
-				}
+			// 6. Apply model override if provided, otherwise let the router use step config
+			if (modelOverride != null && !modelOverride.isBlank()) {
+				request.setModel(modelOverride);
 			}
 
-			if (finalResponse == null) {
-				finalResponse = "I've completed the requested actions.";
+			// 7. Execute via engine router (resolves engine + model from step config)
+			AiEngineResult result = engineRouterService.executeStep(step.name(), request);
+
+			// 8. Extract tools invoked from engine events
+			List<String> toolsInvoked = extractToolsInvoked(result);
+
+			// 9. Determine effective model from result
+			String effectiveModel = result.getModel();
+
+			if (result.isSuccess()) {
+				// 10. Log audit
+				logAudit(userId, sessionId, commandText, toolsInvoked, result.getContent(), true, null,
+						System.currentTimeMillis() - startTime);
+
+				// 11. Mark spark completed
+				sparkService.markCloudCompleted(sparkId, result.getTotalTokens(), effectiveModel);
+
+				return AgentResult.success(result.getContent(), toolsInvoked, effectiveModel);
 			}
+			else {
+				String errorMsg = "I'm having trouble processing that. " + result.getError();
 
-			// 4. Log to audit trail
-			logAudit(userId, sessionId, commandText, toolsInvoked, finalResponse, true, null,
-					System.currentTimeMillis() - startTime);
+				logAudit(userId, sessionId, commandText, toolsInvoked, null, false, result.getError(),
+						System.currentTimeMillis() - startTime);
 
-			// Mark spark completed
-			sparkService.markCloudCompleted(sparkId, 0, effectiveModel);
+				sparkService.markCloudFailed(sparkId, result.getError(), result.getTotalTokens(), effectiveModel);
 
-			return AgentResult.success(finalResponse, toolsInvoked, effectiveModel);
+				return AgentResult.failure(errorMsg);
+			}
 		}
 		catch (Exception e) {
 			logger.error("Agent execution failed for user {}", userId, e);
 			String errorMsg = "Something went wrong: " + e.getMessage();
-			logAudit(userId, sessionId, commandText, toolsInvoked, null, false, e.getMessage(),
+			logAudit(userId, sessionId, commandText, List.of(), null, false, e.getMessage(),
 					System.currentTimeMillis() - startTime);
 
-			// Mark spark failed
-			sparkService.markCloudFailed(sparkId, e.getMessage(), 0, effectiveModel);
+			sparkService.markCloudFailed(sparkId, e.getMessage(), 0, null);
 
 			return AgentResult.failure(errorMsg);
 		}
@@ -149,20 +133,18 @@ public class VoiceAgentService {
 		}
 	}
 
-	/** Execute a tool call, catching exceptions to prevent crashing the agent loop. */
-	private String executeToolSafely(ToolUseBlock toolUse, String userId) {
-		Optional<AgentSkill> skill = toolRegistry.getSkill(toolUse.getName());
-		if (skill.isEmpty()) {
-			return "Tool not found: " + toolUse.getName();
+	/** Extract tool names from engine events (TOOL_USE events). */
+	private List<String> extractToolsInvoked(AiEngineResult result) {
+		if (result.getEvents() == null) {
+			return List.of();
 		}
-
-		try {
-			return skill.get().execute(toolUse.getInput(), userId);
+		List<String> tools = new ArrayList<>();
+		for (AiEngineEvent event : result.getEvents()) {
+			if (event.getType() == AiEngineEventType.TOOL_USE && event.getToolName() != null) {
+				tools.add(event.getToolName());
+			}
 		}
-		catch (Exception e) {
-			logger.error("Tool execution failed: {}", toolUse.getName(), e);
-			return "Error executing " + toolUse.getName() + ": " + e.getMessage();
-		}
+		return tools;
 	}
 
 	private void logAudit(String userId, String sessionId, String commandText, List<String> toolsInvoked,
