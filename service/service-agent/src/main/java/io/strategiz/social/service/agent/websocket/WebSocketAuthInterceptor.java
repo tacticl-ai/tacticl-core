@@ -2,6 +2,7 @@ package io.strategiz.social.service.agent.websocket;
 
 import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.cidadel.framework.authorization.validator.PasetoTokenValidator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -34,15 +35,8 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
 			WebSocketHandler wsHandler, Map<String, Object> attributes) {
 		try {
 			var params = UriComponentsBuilder.fromUri(request.getURI()).build().getQueryParams();
-			String token = params.getFirst("token");
 			String deviceId = params.getFirst("deviceId");
 
-			if (token == null) {
-				log.warn("[WS-AUTH] Missing token query param");
-				return false;
-			}
-
-			// Determine if this is a device or user connection based on the path
 			String path = request.getURI().getPath();
 			boolean isDeviceConnection = path.contains("/ws/device");
 
@@ -51,7 +45,17 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
 				return false;
 			}
 
-			// Strip "Bearer " prefix if present
+			// Extract token: cookie first (browser), then query param (device fallback)
+			String token = extractTokenFromCookie(request);
+			if (token == null) {
+				token = params.getFirst("token");
+			}
+
+			if (token == null) {
+				log.warn("[WS-AUTH] No token found in cookie or query param");
+				return false;
+			}
+
 			if (token.startsWith("Bearer ")) {
 				token = token.substring(7);
 			}
@@ -63,21 +67,34 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
 			}
 
 			String userId = userOpt.get().getUserId();
-			// WebSocketPrincipal works for both - deviceId will be null for user connections
 			attributes.put("principal", new WebSocketPrincipal(userId, deviceId));
 
 			if (isDeviceConnection) {
 				log.info("[WS-AUTH] Authenticated device: user={}, device={}", userId, deviceId);
-			}
-			else {
+			} else {
 				log.info("[WS-AUTH] Authenticated user: user={}", userId);
 			}
 			return true;
-		}
-		catch (Exception ex) {
+		} catch (Exception ex) {
 			log.error("[WS-AUTH] Handshake failed", ex);
 			return false;
 		}
+	}
+
+	private String extractTokenFromCookie(ServerHttpRequest request) {
+		List<String> cookieHeaders = request.getHeaders().get("Cookie");
+		if (cookieHeaders == null) return null;
+
+		String cookieName = "tacticl-access-token";
+		for (String header : cookieHeaders) {
+			for (String cookie : header.split(";")) {
+				String trimmed = cookie.trim();
+				if (trimmed.startsWith(cookieName + "=")) {
+					return trimmed.substring(cookieName.length() + 1);
+				}
+			}
+		}
+		return null;
 	}
 
 	@Override
