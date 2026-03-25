@@ -45,8 +45,8 @@ public class PmRoleSkill extends AbstractPdlcRoleSkill {
 			- Prefer concrete numbers over vague qualifiers (e.g., "< 200ms" not "fast")
 			""";
 
-	public PmRoleSkill(AiEngineRouterService engineRouterService) {
-		super(engineRouterService);
+	public PmRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
+		super(engineRouterService, roleToolFilter);
 	}
 
 	@Override

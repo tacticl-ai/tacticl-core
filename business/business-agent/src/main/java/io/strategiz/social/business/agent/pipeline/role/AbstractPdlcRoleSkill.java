@@ -1,8 +1,10 @@
 package io.strategiz.social.business.agent.pipeline.role;
 
 import io.cidadel.business.ai.engine.AiEngineRouterService;
+import io.cidadel.client.base.llm.model.ToolDefinition;
 import io.cidadel.framework.ai.engine.model.AiEngineRequest;
 import io.cidadel.framework.ai.engine.model.AiEngineResult;
+import io.cidadel.framework.ai.engine.model.AiEngineToolDefinition;
 import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineArtifact;
 import java.math.BigDecimal;
@@ -36,8 +38,11 @@ public abstract class AbstractPdlcRoleSkill implements PdlcRoleSkill {
 
 	protected final AiEngineRouterService engineRouterService;
 
-	protected AbstractPdlcRoleSkill(AiEngineRouterService engineRouterService) {
+	protected final RoleToolFilter roleToolFilter;
+
+	protected AbstractPdlcRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
 		this.engineRouterService = engineRouterService;
+		this.roleToolFilter = roleToolFilter;
 	}
 
 	@Override
@@ -63,6 +68,14 @@ public abstract class AbstractPdlcRoleSkill implements PdlcRoleSkill {
 				"userId", ctx.userId(),
 				"pipelineRunId", ctx.pipelineRunId(),
 				"pdlcRole", getRole().name()));
+
+		List<ToolDefinition> roleTools = roleToolFilter.getToolDefinitionsForRole(this);
+		if (!roleTools.isEmpty()) {
+			List<AiEngineToolDefinition> engineTools = roleTools.stream()
+					.map(t -> new AiEngineToolDefinition(t.getName(), t.getDescription(), t.getInputSchema()))
+					.toList();
+			request.setTools(engineTools);
+		}
 
 		try {
 			AiEngineResult result = engineRouterService.executeStep(getAiSdlcStepName(), request);

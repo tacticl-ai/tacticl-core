@@ -44,8 +44,8 @@ public class DevOpsRoleSkill extends AbstractPdlcRoleSkill {
 			- Resource sizing must include rationale (expected load, memory requirements)
 			""";
 
-	public DevOpsRoleSkill(AiEngineRouterService engineRouterService) {
-		super(engineRouterService);
+	public DevOpsRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
+		super(engineRouterService, roleToolFilter);
 	}
 
 	@Override

@@ -43,8 +43,8 @@ public class TechnicalWriterRoleSkill extends AbstractPdlcRoleSkill {
 			- Changelog entries must follow "Added/Changed/Fixed/Removed" categories
 			""";
 
-	public TechnicalWriterRoleSkill(AiEngineRouterService engineRouterService) {
-		super(engineRouterService);
+	public TechnicalWriterRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
+		super(engineRouterService, roleToolFilter);
 	}
 
 	@Override

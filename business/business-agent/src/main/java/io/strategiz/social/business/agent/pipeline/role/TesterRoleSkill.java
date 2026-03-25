@@ -106,6 +106,14 @@ public class TesterRoleSkill extends AbstractPdlcRoleSkill {
 				"pipelineRunId", ctx.pipelineRunId(),
 				"pdlcRole", getRole().name()));
 
+		List<ToolDefinition> roleTools = roleToolFilter.getToolDefinitionsForRole(this);
+		if (!roleTools.isEmpty()) {
+			List<AiEngineToolDefinition> engineTools = roleTools.stream()
+					.map(t -> new AiEngineToolDefinition(t.getName(), t.getDescription(), t.getInputSchema()))
+					.toList();
+			request.setTools(engineTools);
+		}
+
 		try {
 			AiEngineResult result = engineRouterService.executeStep(getAiSdlcStepName(), request);
 			long duration = System.currentTimeMillis() - start;

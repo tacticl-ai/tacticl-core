@@ -44,8 +44,8 @@ public class ArchitectRoleSkill extends AbstractPdlcRoleSkill {
 			- Data model changes must consider migration from existing data
 			""";
 
-	public ArchitectRoleSkill(AiEngineRouterService engineRouterService) {
-		super(engineRouterService);
+	public ArchitectRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
+		super(engineRouterService, roleToolFilter);
 	}
 
 	@Override

@@ -42,8 +42,8 @@ public class DesignerRoleSkill extends AbstractPdlcRoleSkill {
 			- Designs must be achievable within the existing React Native component library
 			""";
 
-	public DesignerRoleSkill(AiEngineRouterService engineRouterService) {
-		super(engineRouterService);
+	public DesignerRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
+		super(engineRouterService, roleToolFilter);
 	}
 
 	@Override

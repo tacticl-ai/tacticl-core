@@ -49,8 +49,8 @@ public class ImplementerRoleSkill extends AbstractPdlcRoleSkill {
 			- All public methods must have Javadoc
 			""";
 
-	public ImplementerRoleSkill(AiEngineRouterService engineRouterService) {
-		super(engineRouterService);
+	public ImplementerRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
+		super(engineRouterService, roleToolFilter);
 	}
 
 	@Override

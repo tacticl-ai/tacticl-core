@@ -46,8 +46,8 @@ public class RetroAnalystRoleSkill extends AbstractPdlcRoleSkill {
 			- Include comparison ratios (actual vs. expected) where possible
 			""";
 
-	public RetroAnalystRoleSkill(AiEngineRouterService engineRouterService) {
-		super(engineRouterService);
+	public RetroAnalystRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
+		super(engineRouterService, roleToolFilter);
 	}
 
 	@Override

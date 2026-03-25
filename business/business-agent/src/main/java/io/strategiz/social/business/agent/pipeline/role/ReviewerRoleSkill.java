@@ -1,8 +1,10 @@
 package io.strategiz.social.business.agent.pipeline.role;
 
 import io.cidadel.business.ai.engine.AiEngineRouterService;
+import io.cidadel.client.base.llm.model.ToolDefinition;
 import io.cidadel.framework.ai.engine.model.AiEngineRequest;
 import io.cidadel.framework.ai.engine.model.AiEngineResult;
+import io.cidadel.framework.ai.engine.model.AiEngineToolDefinition;
 import io.strategiz.social.data.entity.AiSdlcStep;
 import io.strategiz.social.data.entity.PdlcRole;
 import java.math.BigDecimal;
@@ -57,8 +59,8 @@ public class ReviewerRoleSkill extends AbstractPdlcRoleSkill {
 			- Rejection feedback must be actionable (not just "fix this")
 			""";
 
-	public ReviewerRoleSkill(AiEngineRouterService engineRouterService) {
-		super(engineRouterService);
+	public ReviewerRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
+		super(engineRouterService, roleToolFilter);
 	}
 
 	@Override
@@ -100,6 +102,14 @@ public class ReviewerRoleSkill extends AbstractPdlcRoleSkill {
 				"userId", ctx.userId(),
 				"pipelineRunId", ctx.pipelineRunId(),
 				"pdlcRole", getRole().name()));
+
+		List<ToolDefinition> roleTools = roleToolFilter.getToolDefinitionsForRole(this);
+		if (!roleTools.isEmpty()) {
+			List<AiEngineToolDefinition> engineTools = roleTools.stream()
+					.map(t -> new AiEngineToolDefinition(t.getName(), t.getDescription(), t.getInputSchema()))
+					.toList();
+			request.setTools(engineTools);
+		}
 
 		try {
 			AiEngineResult result = engineRouterService.executeStep(getAiSdlcStepName(), request);

@@ -42,8 +42,8 @@ public class ResearcherRoleSkill extends AbstractPdlcRoleSkill {
 			- Provide at least two alternative approaches when risks are high
 			""";
 
-	public ResearcherRoleSkill(AiEngineRouterService engineRouterService) {
-		super(engineRouterService);
+	public ResearcherRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
+		super(engineRouterService, roleToolFilter);
 	}
 
 	@Override

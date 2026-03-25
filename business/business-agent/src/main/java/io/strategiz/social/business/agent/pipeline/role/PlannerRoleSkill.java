@@ -43,8 +43,8 @@ public class PlannerRoleSkill extends AbstractPdlcRoleSkill {
 			- Include test tasks paired with their implementation tasks
 			""";
 
-	public PlannerRoleSkill(AiEngineRouterService engineRouterService) {
-		super(engineRouterService);
+	public PlannerRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
+		super(engineRouterService, roleToolFilter);
 	}
 
 	@Override
