@@ -11,8 +11,10 @@ import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineArtifact;
 import io.strategiz.social.data.entity.PipelineEvent;
 import io.strategiz.social.data.entity.PipelineRun;
+import io.strategiz.social.data.entity.Spark;
 import io.strategiz.social.data.repository.PipelineEventRepository;
 import io.strategiz.social.data.repository.PipelineRunRepository;
+import io.strategiz.social.data.repository.SparkRepository;
 import io.strategiz.social.service.agent.dto.CheckpointResolutionRequest;
 import io.strategiz.social.service.agent.dto.PipelineEventResponse;
 import io.strategiz.social.service.agent.dto.PipelineRunResponse;
@@ -52,16 +54,20 @@ public class PipelineController {
 
 	private final CheckpointService checkpointService;
 
+	private final SparkRepository sparkRepository;
+
 	public PipelineController(PipelineRunRepository pipelineRunRepository,
 			PipelineEventRepository pipelineEventRepository,
 			PipelineArtifactService pipelineArtifactService,
 			PlaybookRegistry playbookRegistry,
-			CheckpointService checkpointService) {
+			CheckpointService checkpointService,
+			SparkRepository sparkRepository) {
 		this.pipelineRunRepository = pipelineRunRepository;
 		this.pipelineEventRepository = pipelineEventRepository;
 		this.pipelineArtifactService = pipelineArtifactService;
 		this.playbookRegistry = playbookRegistry;
 		this.checkpointService = checkpointService;
+		this.sparkRepository = sparkRepository;
 	}
 
 	@GetMapping("/sparks/{sparkId}/pipeline")
@@ -180,11 +186,18 @@ public class PipelineController {
 		}
 
 		// 2. Verify the spark belongs to this user
-		Optional<PipelineRun> runOpt = checkpoint.getPipelineRunId() != null
-				? pipelineRunRepository.findById(checkpoint.getPipelineRunId())
-				: Optional.empty();
-		if (runOpt.isPresent() && !runOpt.get().getUserId().equals(user.getUserId())) {
-			return ResponseEntity.status(403).build();
+		if (checkpoint.getPipelineRunId() != null) {
+			Optional<PipelineRun> runOpt = pipelineRunRepository.findById(checkpoint.getPipelineRunId());
+			if (runOpt.isPresent() && !runOpt.get().getUserId().equals(user.getUserId())) {
+				return ResponseEntity.status(403).build();
+			}
+		}
+		else {
+			// No pipeline run linked — verify ownership directly via the Spark entity
+			Optional<Spark> sparkOpt = sparkRepository.findById(sparkId);
+			if (sparkOpt.isEmpty() || !sparkOpt.get().getUserId().equals(user.getUserId())) {
+				return ResponseEntity.status(403).build();
+			}
 		}
 
 		// 3. Apply the decision — CheckpointService validates state and resumes the pipeline

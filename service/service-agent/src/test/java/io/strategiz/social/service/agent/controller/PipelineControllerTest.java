@@ -20,8 +20,10 @@ import io.strategiz.social.data.entity.PipelineEventType;
 import io.strategiz.social.data.entity.PipelineRun;
 import io.strategiz.social.data.entity.PipelineStatus;
 import io.strategiz.social.data.entity.PipelineTier;
+import io.strategiz.social.data.entity.Spark;
 import io.strategiz.social.data.repository.PipelineEventRepository;
 import io.strategiz.social.data.repository.PipelineRunRepository;
+import io.strategiz.social.data.repository.SparkRepository;
 import io.strategiz.social.service.agent.dto.CheckpointResolutionRequest;
 import io.strategiz.social.service.agent.dto.PipelineEventResponse;
 import io.strategiz.social.service.agent.dto.PipelineRunResponse;
@@ -63,6 +65,9 @@ class PipelineControllerTest {
 	@Mock
 	private CheckpointService checkpointService;
 
+	@Mock
+	private SparkRepository sparkRepository;
+
 	@InjectMocks
 	private PipelineController controller;
 
@@ -84,6 +89,13 @@ class PipelineControllerTest {
 		run.setCurrentRole(PdlcRole.RESEARCHER);
 		run.setStartedAt(Instant.now());
 		return run;
+	}
+
+	private Spark buildSpark(String userId) {
+		Spark spark = new Spark();
+		spark.setId(SPARK_ID);
+		spark.setUserId(userId);
+		return spark;
 	}
 
 	// --- GET /api/sparks/{sparkId}/pipeline ---
@@ -263,6 +275,7 @@ class PipelineControllerTest {
 		checkpoint.setSparkId(SPARK_ID);
 		checkpoint.setPipelineRunId(null);
 		when(checkpointService.getCheckpoint("ckpt-1")).thenReturn(Optional.of(checkpoint));
+		when(sparkRepository.findById(SPARK_ID)).thenReturn(Optional.of(buildSpark(USER_ID)));
 		doNothing().when(checkpointService).resolveCheckpoint("ckpt-1", USER_ID, "APPROVED", null);
 
 		CheckpointResolutionRequest request = new CheckpointResolutionRequest();
@@ -280,6 +293,7 @@ class PipelineControllerTest {
 		checkpoint.setSparkId(SPARK_ID);
 		checkpoint.setPipelineRunId(null);
 		when(checkpointService.getCheckpoint("ckpt-1")).thenReturn(Optional.of(checkpoint));
+		when(sparkRepository.findById(SPARK_ID)).thenReturn(Optional.of(buildSpark(USER_ID)));
 		doNothing().when(checkpointService).resolveCheckpoint("ckpt-1", USER_ID, "MODIFIED",
 				"Please revise the architecture section");
 
@@ -290,6 +304,76 @@ class PipelineControllerTest {
 		ResponseEntity<Void> response = controller.resolveCheckpoint(SPARK_ID, "ckpt-1", request, auth(USER_ID));
 
 		assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
+	}
+
+	@Test
+	void resolveCheckpoint_wrongUser_returns403() {
+		// Checkpoint has a pipeline run owned by USER_ID; attacker authenticates as "other-user"
+		Checkpoint checkpoint = new Checkpoint();
+		checkpoint.setId("ckpt-1");
+		checkpoint.setSparkId(SPARK_ID);
+		checkpoint.setPipelineRunId(RUN_ID);
+		when(checkpointService.getCheckpoint("ckpt-1")).thenReturn(Optional.of(checkpoint));
+
+		PipelineRun run = buildRun(); // userId = USER_ID
+		when(pipelineRunRepository.findById(RUN_ID)).thenReturn(Optional.of(run));
+
+		CheckpointResolutionRequest request = new CheckpointResolutionRequest();
+		request.setDecision("APPROVED");
+
+		ResponseEntity<Void> response = controller.resolveCheckpoint(SPARK_ID, "ckpt-1", request, auth("other-user"));
+
+		assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+	}
+
+	@Test
+	void resolveCheckpoint_wrongUserViaSparkFallback_returns403() {
+		// Checkpoint has no pipeline run; attacker tries to resolve another user's checkpoint
+		Checkpoint checkpoint = new Checkpoint();
+		checkpoint.setId("ckpt-1");
+		checkpoint.setSparkId(SPARK_ID);
+		checkpoint.setPipelineRunId(null);
+		when(checkpointService.getCheckpoint("ckpt-1")).thenReturn(Optional.of(checkpoint));
+		// Spark is owned by USER_ID; attacker is "other-user"
+		when(sparkRepository.findById(SPARK_ID)).thenReturn(Optional.of(buildSpark(USER_ID)));
+
+		CheckpointResolutionRequest request = new CheckpointResolutionRequest();
+		request.setDecision("APPROVED");
+
+		ResponseEntity<Void> response = controller.resolveCheckpoint(SPARK_ID, "ckpt-1", request, auth("other-user"));
+
+		assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+	}
+
+	@Test
+	void resolveCheckpoint_checkpointNotFound_returns404() {
+		when(checkpointService.getCheckpoint("ckpt-missing")).thenReturn(Optional.empty());
+
+		CheckpointResolutionRequest request = new CheckpointResolutionRequest();
+		request.setDecision("APPROVED");
+
+		ResponseEntity<Void> response = controller.resolveCheckpoint(SPARK_ID, "ckpt-missing", request, auth(USER_ID));
+
+		assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+	}
+
+	@Test
+	void resolveCheckpoint_alreadyResolved_returns409() {
+		Checkpoint checkpoint = new Checkpoint();
+		checkpoint.setId("ckpt-1");
+		checkpoint.setSparkId(SPARK_ID);
+		checkpoint.setPipelineRunId(null);
+		when(checkpointService.getCheckpoint("ckpt-1")).thenReturn(Optional.of(checkpoint));
+		when(sparkRepository.findById(SPARK_ID)).thenReturn(Optional.of(buildSpark(USER_ID)));
+		org.mockito.Mockito.doThrow(new IllegalStateException("Checkpoint already resolved"))
+				.when(checkpointService).resolveCheckpoint("ckpt-1", USER_ID, "APPROVED", null);
+
+		CheckpointResolutionRequest request = new CheckpointResolutionRequest();
+		request.setDecision("APPROVED");
+
+		ResponseEntity<Void> response = controller.resolveCheckpoint(SPARK_ID, "ckpt-1", request, auth(USER_ID));
+
+		assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
 	}
 
 	// --- GET /api/playbooks ---

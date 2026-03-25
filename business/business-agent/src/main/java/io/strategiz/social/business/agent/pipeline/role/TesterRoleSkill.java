@@ -1,8 +1,10 @@
 package io.strategiz.social.business.agent.pipeline.role;
 
 import io.cidadel.business.ai.engine.AiEngineRouterService;
+import io.cidadel.client.base.llm.model.ToolDefinition;
 import io.cidadel.framework.ai.engine.model.AiEngineRequest;
 import io.cidadel.framework.ai.engine.model.AiEngineResult;
+import io.cidadel.framework.ai.engine.model.AiEngineToolDefinition;
 import io.strategiz.social.data.entity.AiSdlcStep;
 import io.strategiz.social.data.entity.PdlcRole;
 import java.math.BigDecimal;
@@ -57,8 +59,8 @@ public class TesterRoleSkill extends AbstractPdlcRoleSkill {
 			- Use constructor injection patterns matching the production code
 			""";
 
-	public TesterRoleSkill(AiEngineRouterService engineRouterService) {
-		super(engineRouterService);
+	public TesterRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
+		super(engineRouterService, roleToolFilter);
 	}
 
 	@Override
