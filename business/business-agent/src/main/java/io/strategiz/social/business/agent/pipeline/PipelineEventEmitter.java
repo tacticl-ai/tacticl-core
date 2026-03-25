@@ -1,5 +1,6 @@
 package io.strategiz.social.business.agent.pipeline;
 
+import io.strategiz.social.business.agent.service.UserBroadcaster;
 import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineEvent;
 import io.strategiz.social.data.entity.PipelineEventType;
@@ -11,7 +12,10 @@ import io.strategiz.social.data.repository.PipelineEventRepository;
 import io.strategiz.social.data.repository.PipelineRunRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,24 +23,48 @@ import org.springframework.stereotype.Service;
 
 /**
  * Single fan-out point for all PDLC pipeline state changes. Persists pipeline events to
- * Firestore and keeps the PipelineRun summary fields in sync.
+ * Firestore, keeps the PipelineRun summary fields in sync, and pushes real-time updates
+ * to connected user clients via WebSocket.
  *
- * <p>Future integrations (WebSocket push, FCM notifications) should be wired here once
- * the relevant broadcasters are available.
+ * <p>WebSocket push is performed via {@link UserBroadcaster}, which is injected as
+ * {@code Optional} so the emitter degrades gracefully when no WebSocket layer is present
+ * (e.g. unit tests, or deployments without the service-agent module on the classpath).
+ *
+ * <p>FCM push notifications are not yet wired — a {@code FcmService} interface should be
+ * added to business-agent and wired here (also via {@code Optional}) once it exists.
  */
 @Service
 public class PipelineEventEmitter {
 
 	private static final Logger logger = LoggerFactory.getLogger(PipelineEventEmitter.class);
 
+	/** Event types that are significant enough to warrant a WebSocket push to the client. */
+	private static final Set<PipelineEventType> BROADCAST_EVENTS = Set.of(
+			PipelineEventType.PIPELINE_STARTED,
+			PipelineEventType.PIPELINE_COMPLETED,
+			PipelineEventType.PIPELINE_FAILED,
+			PipelineEventType.PIPELINE_CANCELLED,
+			PipelineEventType.ROLE_STARTED,
+			PipelineEventType.ROLE_COMPLETED,
+			PipelineEventType.REWORK_TRIGGERED,
+			PipelineEventType.CHECKPOINT_REQUESTED,
+			PipelineEventType.CHECKPOINT_RESOLVED,
+			PipelineEventType.COST_THRESHOLD_WARNING,
+			PipelineEventType.COST_CEILING_REACHED
+	);
+
 	private final PipelineEventRepository pipelineEventRepository;
 
 	private final PipelineRunRepository pipelineRunRepository;
 
+	private final Optional<UserBroadcaster> userBroadcaster;
+
 	public PipelineEventEmitter(PipelineEventRepository pipelineEventRepository,
-			PipelineRunRepository pipelineRunRepository) {
+			PipelineRunRepository pipelineRunRepository,
+			Optional<UserBroadcaster> userBroadcaster) {
 		this.pipelineEventRepository = pipelineEventRepository;
 		this.pipelineRunRepository = pipelineRunRepository;
+		this.userBroadcaster = userBroadcaster;
 	}
 
 	/**
@@ -97,8 +125,15 @@ public class PipelineEventEmitter {
 		// 3. Persist updated run
 		pipelineRunRepository.save(run);
 
-		// 4. TODO: Push WebSocket event to connected clients (wire ActivityBroadcaster once integrated)
-		// 5. TODO: Send FCM push notification for significant events (PIPELINE_COMPLETED, PIPELINE_FAILED)
+		// 4. Push real-time WebSocket event to connected user clients
+		if (BROADCAST_EVENTS.contains(type)) {
+			pushWebSocketEvent(event, run);
+		}
+
+		// 5. TODO: Wire FCM push notifications for milestone events (PIPELINE_STARTED,
+		//    PIPELINE_COMPLETED, PIPELINE_FAILED, CHECKPOINT_REQUESTED) once a FcmService
+		//    interface exists in business-agent. Use Optional<FcmService> injection, same
+		//    pattern as UserBroadcaster.
 
 		logger.info("Pipeline event emitted: runId={} sparkId={} userId={} type={} role={}",
 				run.getId(), run.getSparkId(), run.getUserId(), type,
@@ -166,6 +201,40 @@ public class PipelineEventEmitter {
 	}
 
 	// --- Helpers ---
+
+	/**
+	 * Serialize the pipeline event as a WebSocket message and push it to all of the user's
+	 * connected client sessions. The message type is {@code "pipeline_event"} so mobile and
+	 * browser clients can route it independently from spark-level events.
+	 *
+	 * <p>Failures are logged but do not propagate — a WebSocket delivery failure must never
+	 * abort pipeline execution.
+	 *
+	 * @param event the persisted event to broadcast
+	 * @param run   the pipeline run, used for additional context fields
+	 */
+	private void pushWebSocketEvent(PipelineEvent event, PipelineRun run) {
+		userBroadcaster.ifPresent(broadcaster -> {
+			try {
+				Map<String, Object> payload = new HashMap<>();
+				payload.put("type", "pipeline_event");
+				payload.put("pipelineRunId", event.getPipelineRunId());
+				payload.put("sparkId", event.getSparkId());
+				payload.put("eventType", event.getEventType().name());
+				payload.put("role", event.getRole() != null ? event.getRole().name() : null);
+				payload.put("status", run.getStatus() != null ? run.getStatus().name() : null);
+				payload.put("timestamp", event.getTimestamp() != null ? event.getTimestamp().toEpochMilli() : null);
+				if (event.getMetadata() != null && !event.getMetadata().isEmpty()) {
+					payload.put("metadata", event.getMetadata());
+				}
+				broadcaster.broadcastToUser(event.getUserId(), payload);
+			}
+			catch (Exception ex) {
+				logger.error("Failed to push pipeline WebSocket event: runId={} type={}",
+						event.getPipelineRunId(), event.getEventType(), ex);
+			}
+		});
+	}
 
 	/**
 	 * Build a {@link RoleResultSummary} from the raw metadata map produced by

@@ -3,9 +3,11 @@ package io.strategiz.social.business.agent.pipeline;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentCaptor.forClass;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import io.strategiz.social.business.agent.service.UserBroadcaster;
 import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineEvent;
 import io.strategiz.social.data.entity.PipelineEventType;
@@ -38,13 +40,23 @@ class PipelineEventEmitterTest {
 	@Mock
 	private PipelineRunRepository pipelineRunRepository;
 
+	@Mock
+	private UserBroadcaster userBroadcaster;
+
+	/** Emitter with a live UserBroadcaster mock — used for WebSocket push tests. */
 	private PipelineEventEmitter emitter;
+
+	/** Emitter with no UserBroadcaster — verifies graceful degradation. */
+	private PipelineEventEmitter emitterWithoutBroadcaster;
 
 	private PipelineRun run;
 
 	@BeforeEach
 	void setUp() {
-		emitter = new PipelineEventEmitter(pipelineEventRepository, pipelineRunRepository, Optional.empty());
+		emitter = new PipelineEventEmitter(pipelineEventRepository, pipelineRunRepository,
+				Optional.of(userBroadcaster));
+		emitterWithoutBroadcaster = new PipelineEventEmitter(pipelineEventRepository,
+				pipelineRunRepository, Optional.empty());
 
 		run = new PipelineRun();
 		run.setId(RUN_ID);
@@ -184,6 +196,90 @@ class PipelineEventEmitterTest {
 		verify(pipelineEventRepository).save(captor.capture());
 		assertEquals(PipelineEventType.COST_CEILING_REACHED, captor.getValue().getEventType());
 		verify(pipelineRunRepository).save(run);
+	}
+
+	// --- WebSocket broadcast tests ---
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void emitEvent_broadcastsWebSocketPayload_forBroadcastEventType() {
+		emitter.emitEvent(run, PipelineEventType.PIPELINE_STARTED, null, Map.of());
+
+		ArgumentCaptor<Map<String, Object>> payloadCaptor =
+				(ArgumentCaptor<Map<String, Object>>) (ArgumentCaptor<?>) forClass(Map.class);
+		verify(userBroadcaster).broadcastToUser(org.mockito.ArgumentMatchers.eq(USER_ID),
+				payloadCaptor.capture());
+
+		Map<String, Object> payload = payloadCaptor.getValue();
+		assertEquals("pipeline_event", payload.get("type"));
+		assertEquals(RUN_ID, payload.get("pipelineRunId"));
+		assertEquals(SPARK_ID, payload.get("sparkId"));
+		assertEquals("PIPELINE_STARTED", payload.get("eventType"));
+		assertNotNull(payload.get("timestamp"));
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void emitEvent_includesRoleInWebSocketPayload_whenRoleIsPresent() {
+		emitter.emitEvent(run, PipelineEventType.ROLE_STARTED, PdlcRole.ARCHITECT, Map.of());
+
+		ArgumentCaptor<Map<String, Object>> payloadCaptor =
+				(ArgumentCaptor<Map<String, Object>>) (ArgumentCaptor<?>) forClass(Map.class);
+		verify(userBroadcaster).broadcastToUser(org.mockito.ArgumentMatchers.eq(USER_ID),
+				payloadCaptor.capture());
+
+		Map<String, Object> payload = payloadCaptor.getValue();
+		assertEquals("ARCHITECT", payload.get("role"));
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void emitEvent_includesMetadataInWebSocketPayload_whenMetadataIsNonEmpty() {
+		Map<String, Object> meta = Map.of("childSparkId", "child-999");
+
+		emitter.emitEvent(run, PipelineEventType.ROLE_STARTED, PdlcRole.IMPLEMENTER, meta);
+
+		ArgumentCaptor<Map<String, Object>> payloadCaptor =
+				(ArgumentCaptor<Map<String, Object>>) (ArgumentCaptor<?>) forClass(Map.class);
+		verify(userBroadcaster).broadcastToUser(org.mockito.ArgumentMatchers.eq(USER_ID),
+				payloadCaptor.capture());
+
+		Map<String, Object> payload = payloadCaptor.getValue();
+		assertNotNull(payload.get("metadata"));
+	}
+
+	@Test
+	void emitEvent_doesNotBroadcast_forNonBroadcastEventType() {
+		// ROLE_SKIPPED is not in BROADCAST_EVENTS
+		emitter.emitEvent(run, PipelineEventType.ROLE_SKIPPED, PdlcRole.TESTER, Map.of());
+
+		verify(userBroadcaster, never()).broadcastToUser(
+				org.mockito.ArgumentMatchers.anyString(),
+				org.mockito.ArgumentMatchers.any());
+	}
+
+	@Test
+	void emitEvent_gracefullyDegrades_whenNoBroadcasterPresent() {
+		// Must not throw even when UserBroadcaster is absent
+		emitterWithoutBroadcaster.emitEvent(run, PipelineEventType.PIPELINE_COMPLETED, null, Map.of());
+
+		verify(pipelineRunRepository).save(run);
+		// No assertion on userBroadcaster — it was never injected
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void emitEvent_includesRunStatusInWebSocketPayload() {
+		run.setStatus(PipelineStatus.EXECUTING);
+		emitter.emitEvent(run, PipelineEventType.PIPELINE_COMPLETED, null, Map.of());
+
+		ArgumentCaptor<Map<String, Object>> payloadCaptor =
+				(ArgumentCaptor<Map<String, Object>>) (ArgumentCaptor<?>) forClass(Map.class);
+		verify(userBroadcaster).broadcastToUser(org.mockito.ArgumentMatchers.eq(USER_ID),
+				payloadCaptor.capture());
+
+		// After PIPELINE_COMPLETED the run status is updated to COMPLETED before broadcast
+		assertEquals("COMPLETED", payloadCaptor.getValue().get("status"));
 	}
 
 }
