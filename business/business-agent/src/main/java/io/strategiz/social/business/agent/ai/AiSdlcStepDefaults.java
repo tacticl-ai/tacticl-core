@@ -69,6 +69,18 @@ public class AiSdlcStepDefaults implements AiEngineStepDefaults {
 				new AiStepEngineConfig("claude-code-cli", "claude-sonnet-4-5", List.of("codex-cli", "anthropic-agentic")));
 		DEFAULTS.put(AiSdlcStep.MONITORING_ANALYSIS.name(),
 				new AiStepEngineConfig("anthropic-agentic", "claude-sonnet-4-5", List.of("anthropic-api", "openai-api")));
+
+		// PDLC Pipeline Roles
+		DEFAULTS.put(AiSdlcStep.REQUIREMENTS_GATHERING.name(),
+				new AiStepEngineConfig("anthropic-agentic", "claude-sonnet-4-5", List.of("anthropic-api", "openai-api")));
+		DEFAULTS.put(AiSdlcStep.SYSTEM_DESIGN.name(),
+				new AiStepEngineConfig("anthropic-agentic", "claude-sonnet-4-5", List.of("anthropic-api", "openai-api")));
+		DEFAULTS.put(AiSdlcStep.UI_UX_DESIGN.name(),
+				new AiStepEngineConfig("anthropic-agentic", "claude-sonnet-4-5", List.of("anthropic-api", "openai-api")));
+		DEFAULTS.put(AiSdlcStep.SECURITY_REVIEW.name(),
+				new AiStepEngineConfig("anthropic-agentic", "claude-sonnet-4-5", List.of("anthropic-api", "openai-api")));
+		DEFAULTS.put(AiSdlcStep.RETROSPECTIVE.name(),
+				new AiStepEngineConfig("anthropic-api", "claude-sonnet-4-5", List.of("openai-api")));
 	}
 
 	@Override

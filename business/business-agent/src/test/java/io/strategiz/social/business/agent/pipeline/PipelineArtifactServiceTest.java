@@ -83,7 +83,7 @@ class PipelineArtifactServiceTest {
 
 	@Test
 	void getUpstreamArtifacts_returnsOnlyArtifactsBeforeCurrentRole() {
-		List<PdlcRole> stageOrder = List.of(PdlcRole.PM, PdlcRole.ARCHITECT, PdlcRole.ENGINEER, PdlcRole.REVIEWER);
+		List<PdlcRole> stageOrder = List.of(PdlcRole.PM, PdlcRole.ARCHITECT, PdlcRole.IMPLEMENTER, PdlcRole.REVIEWER);
 
 		PipelineArtifact pmArtifact = new PipelineArtifact();
 		pmArtifact.setRole(PdlcRole.PM);
@@ -92,7 +92,7 @@ class PipelineArtifactServiceTest {
 		architectArtifact.setRole(PdlcRole.ARCHITECT);
 
 		PipelineArtifact engineerArtifact = new PipelineArtifact();
-		engineerArtifact.setRole(PdlcRole.ENGINEER);
+		engineerArtifact.setRole(PdlcRole.IMPLEMENTER);
 
 		when(artifactRepository.findByPipelineRunId("run-1"))
 			.thenReturn(List.of(pmArtifact, architectArtifact, engineerArtifact));
@@ -103,13 +103,13 @@ class PipelineArtifactServiceTest {
 		assertEquals(3, upstream.size());
 		assertTrue(upstream.containsKey(PdlcRole.PM));
 		assertTrue(upstream.containsKey(PdlcRole.ARCHITECT));
-		assertTrue(upstream.containsKey(PdlcRole.ENGINEER));
+		assertTrue(upstream.containsKey(PdlcRole.IMPLEMENTER));
 		assertFalse(upstream.containsKey(PdlcRole.REVIEWER));
 	}
 
 	@Test
 	void getUpstreamArtifacts_returnsEmptyMapForFirstRole() {
-		List<PdlcRole> stageOrder = List.of(PdlcRole.PM, PdlcRole.ARCHITECT, PdlcRole.ENGINEER);
+		List<PdlcRole> stageOrder = List.of(PdlcRole.PM, PdlcRole.ARCHITECT, PdlcRole.IMPLEMENTER);
 
 		Map<PdlcRole, PipelineArtifact> upstream =
 			artifactService.getUpstreamArtifacts("run-1", PdlcRole.PM, stageOrder);
@@ -136,9 +136,9 @@ class PipelineArtifactServiceTest {
 		String summary = artifactService.buildArtifactSummary(artifacts);
 
 		assertTrue(summary.contains("## Previous Role Outputs"));
-		assertTrue(summary.contains("### Product Manager (Requirements)"));
+		assertTrue(summary.contains("### PM (Requirements)"));
 		assertTrue(summary.contains("User must be able to log in with email and password."));
-		assertTrue(summary.contains("### Architect (Design)"));
+		assertTrue(summary.contains("### ARCHITECT (Design)"));
 		assertTrue(summary.contains("JWT auth with refresh tokens stored in HttpOnly cookies."));
 	}
 

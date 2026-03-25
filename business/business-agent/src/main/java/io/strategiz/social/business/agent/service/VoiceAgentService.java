@@ -15,8 +15,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
 
 /**
@@ -38,12 +41,16 @@ public class VoiceAgentService {
 
 	private final SparkService sparkService;
 
+	private final TaskExecutor simpleSparkExecutor;
+
 	public VoiceAgentService(AiEngineRouterService engineRouterService, AgentSystemPrompt agentSystemPrompt,
-			AgentAuditLogRepository auditLogRepository, SparkService sparkService) {
+			AgentAuditLogRepository auditLogRepository, SparkService sparkService,
+			@Qualifier("simpleSparkExecutor") TaskExecutor simpleSparkExecutor) {
 		this.engineRouterService = engineRouterService;
 		this.agentSystemPrompt = agentSystemPrompt;
 		this.auditLogRepository = auditLogRepository;
 		this.sparkService = sparkService;
+		this.simpleSparkExecutor = simpleSparkExecutor;
 	}
 
 	/**
@@ -131,6 +138,33 @@ public class VoiceAgentService {
 		finally {
 			SparkContext.clear();
 		}
+	}
+
+	/**
+	 * Submit a voice command for asynchronous execution and return a {@link CompletableFuture}
+	 * that completes when execution finishes. The future is submitted to the
+	 * {@code simpleSparkExecutor} thread pool.
+	 *
+	 * <p>Timeout handling (completing exceptionally after {@code timeoutMs} milliseconds) is
+	 * the responsibility of the caller (AgentController) using
+	 * {@link CompletableFuture#orTimeout} or equivalent, so that the controller can respond
+	 * to the client appropriately without coupling timeout policy to the service layer.
+	 *
+	 * @param sparkId           the spark ID (already created by the controller)
+	 * @param commandText       the transcribed user command
+	 * @param userId            the authenticated user ID
+	 * @param sessionId         the conversation session ID
+	 * @param connectedPlatforms list of connected platform names
+	 * @param timezone          user's timezone
+	 * @param modelOverride     optional model override from the client
+	 * @param timeoutMs         the timeout in milliseconds (informational; enforced by caller)
+	 * @return a future that resolves to the {@link AgentResult} when execution completes
+	 */
+	public CompletableFuture<AgentResult> executeWithTimeout(String sparkId, String commandText, String userId,
+			String sessionId, List<String> connectedPlatforms, String timezone, String modelOverride, int timeoutMs) {
+		return CompletableFuture.supplyAsync(
+				() -> execute(sparkId, commandText, userId, sessionId, connectedPlatforms, timezone, modelOverride),
+				simpleSparkExecutor);
 	}
 
 	/** Extract tool names from engine events (TOOL_USE events). */

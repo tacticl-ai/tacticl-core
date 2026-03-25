@@ -10,7 +10,7 @@ import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineEvent;
 import io.strategiz.social.data.entity.PipelineEventType;
 import io.strategiz.social.data.entity.PipelineRun;
-import io.strategiz.social.data.entity.PipelineRunStatus;
+import io.strategiz.social.data.entity.PipelineStatus;
 import io.strategiz.social.data.repository.PipelineEventRepository;
 import io.strategiz.social.data.repository.PipelineRunRepository;
 import java.math.BigDecimal;
@@ -53,7 +53,7 @@ class PipelineEventEmitterTest {
 
 	@Test
 	void emitEvent_savesPipelineEventToRepository() {
-		emitter.emitEvent(run, PipelineEventType.ROLE_STARTED, PdlcRole.DEVELOPER,
+		emitter.emitEvent(run, PipelineEventType.ROLE_STARTED, PdlcRole.IMPLEMENTER,
 				Map.of("childSparkId", "child-001"));
 
 		ArgumentCaptor<PipelineEvent> captor = forClass(PipelineEvent.class);
@@ -65,7 +65,7 @@ class PipelineEventEmitterTest {
 		assertEquals(SPARK_ID, saved.getSparkId());
 		assertEquals(USER_ID, saved.getUserId());
 		assertEquals(PipelineEventType.ROLE_STARTED, saved.getEventType());
-		assertEquals(PdlcRole.DEVELOPER, saved.getRole());
+		assertEquals(PdlcRole.IMPLEMENTER, saved.getRole());
 		assertNotNull(saved.getTimestamp());
 	}
 
@@ -73,7 +73,7 @@ class PipelineEventEmitterTest {
 	void emitEvent_updatesRunStatusToExecutingOnRoleStarted() {
 		emitter.emitEvent(run, PipelineEventType.ROLE_STARTED, PdlcRole.ARCHITECT, Map.of());
 
-		assertEquals(PipelineRunStatus.EXECUTING, run.getStatus());
+		assertEquals(PipelineStatus.EXECUTING, run.getStatus());
 		assertEquals(PdlcRole.ARCHITECT, run.getCurrentRole());
 		verify(pipelineRunRepository).save(run);
 	}
@@ -82,7 +82,7 @@ class PipelineEventEmitterTest {
 	void emitEvent_setsStatusToCompletedAndCompletedAtOnPipelineCompleted() {
 		emitter.emitEvent(run, PipelineEventType.PIPELINE_COMPLETED, null, Map.of());
 
-		assertEquals(PipelineRunStatus.COMPLETED, run.getStatus());
+		assertEquals(PipelineStatus.COMPLETED, run.getStatus());
 		assertNotNull(run.getCompletedAt());
 		verify(pipelineRunRepository).save(run);
 	}
@@ -91,13 +91,13 @@ class PipelineEventEmitterTest {
 	void emitEvent_setsStatusToFailedOnPipelineFailed() {
 		emitter.emitEvent(run, PipelineEventType.PIPELINE_FAILED, null, Map.of());
 
-		assertEquals(PipelineRunStatus.FAILED, run.getStatus());
+		assertEquals(PipelineStatus.FAILED, run.getStatus());
 		verify(pipelineRunRepository).save(run);
 	}
 
 	@Test
 	void emitRoleCompleted_updatesRoleResultsMap() {
-		emitter.emitRoleCompleted(run, PdlcRole.QA_ENGINEER, 1500L, new BigDecimal("0.05"), 3000L,
+		emitter.emitRoleCompleted(run, PdlcRole.TESTER, 1500L, new BigDecimal("0.05"), 3000L,
 				"claude-sonnet-4-5");
 
 		ArgumentCaptor<PipelineEvent> captor = forClass(PipelineEvent.class);
@@ -105,14 +105,14 @@ class PipelineEventEmitterTest {
 
 		PipelineEvent saved = captor.getValue();
 		assertEquals(PipelineEventType.ROLE_COMPLETED, saved.getEventType());
-		assertEquals(PdlcRole.QA_ENGINEER, saved.getRole());
+		assertEquals(PdlcRole.TESTER, saved.getRole());
 		assertEquals(1500L, saved.getMetadata().get("tokens"));
 		assertEquals(new BigDecimal("0.05"), saved.getMetadata().get("cost"));
 		assertEquals(3000L, saved.getMetadata().get("durationMs"));
 		assertEquals("claude-sonnet-4-5", saved.getMetadata().get("model"));
 
 		// Run should have the role result stored under the role name
-		assertNotNull(run.getRoleResults().get(PdlcRole.QA_ENGINEER.name()));
+		assertNotNull(run.getRoleResults().get(PdlcRole.TESTER.name()));
 		verify(pipelineRunRepository).save(run);
 	}
 
@@ -120,7 +120,7 @@ class PipelineEventEmitterTest {
 	void emitReworkTriggered_incrementsReworkCount() {
 		assertEquals(0, run.getReworkCount());
 
-		emitter.emitReworkTriggered(run, PdlcRole.REVIEWER, PdlcRole.DEVELOPER,
+		emitter.emitReworkTriggered(run, PdlcRole.REVIEWER, PdlcRole.IMPLEMENTER,
 				"Output did not meet acceptance criteria");
 
 		assertEquals(1, run.getReworkCount());
@@ -131,15 +131,15 @@ class PipelineEventEmitterTest {
 		PipelineEvent saved = captor.getValue();
 		assertEquals(PipelineEventType.REWORK_TRIGGERED, saved.getEventType());
 		assertEquals("REVIEWER", saved.getMetadata().get("rejectingRole"));
-		assertEquals("DEVELOPER", saved.getMetadata().get("targetRole"));
+		assertEquals("IMPLEMENTER", saved.getMetadata().get("targetRole"));
 		assertEquals("Output did not meet acceptance criteria", saved.getMetadata().get("reason"));
 		verify(pipelineRunRepository).save(run);
 	}
 
 	@Test
 	void emitReworkTriggered_accumulatesReworkCount_acrossMultipleCalls() {
-		emitter.emitReworkTriggered(run, PdlcRole.REVIEWER, PdlcRole.DEVELOPER, "First rejection");
-		emitter.emitReworkTriggered(run, PdlcRole.REVIEWER, PdlcRole.DEVELOPER, "Second rejection");
+		emitter.emitReworkTriggered(run, PdlcRole.REVIEWER, PdlcRole.IMPLEMENTER, "First rejection");
+		emitter.emitReworkTriggered(run, PdlcRole.REVIEWER, PdlcRole.IMPLEMENTER, "Second rejection");
 
 		assertEquals(2, run.getReworkCount());
 		verify(pipelineEventRepository, times(2)).save(org.mockito.ArgumentMatchers.any(PipelineEvent.class));
@@ -148,11 +148,12 @@ class PipelineEventEmitterTest {
 
 	@Test
 	void emitPipelineStarted_setsStatusToExecuting() {
-		assertEquals(PipelineRunStatus.PENDING, run.getStatus());
+		// PipelineRun defaults to PipelineStatus.CREATED
+		assertEquals(PipelineStatus.CREATED, run.getStatus());
 
 		emitter.emitPipelineStarted(run);
 
-		assertEquals(PipelineRunStatus.EXECUTING, run.getStatus());
+		assertEquals(PipelineStatus.EXECUTING, run.getStatus());
 
 		ArgumentCaptor<PipelineEvent> captor = forClass(PipelineEvent.class);
 		verify(pipelineEventRepository).save(captor.capture());
@@ -160,22 +161,27 @@ class PipelineEventEmitterTest {
 	}
 
 	@Test
-	void emitEvent_addsCostThresholdWarningToMetadata() {
+	void emitEvent_costThresholdWarning_savesEventAndPersistsRun() {
 		Map<String, Object> warningDetails = Map.of("currentCost", "4.50", "threshold", "5.00");
 
 		emitter.emitEvent(run, PipelineEventType.COST_THRESHOLD_WARNING, null, warningDetails);
 
-		assertNotNull(run.getMetadata().get("costThresholdWarning"));
+		// Cost warning events are captured in the event document only; no run summary field update
+		ArgumentCaptor<PipelineEvent> captor = forClass(PipelineEvent.class);
+		verify(pipelineEventRepository).save(captor.capture());
+		assertEquals(PipelineEventType.COST_THRESHOLD_WARNING, captor.getValue().getEventType());
 		verify(pipelineRunRepository).save(run);
 	}
 
 	@Test
-	void emitEvent_addsCostCeilingReachedToMetadata() {
+	void emitEvent_costCeilingReached_savesEventAndPersistsRun() {
 		Map<String, Object> ceilingDetails = Map.of("currentCost", "10.00", "ceiling", "10.00");
 
 		emitter.emitEvent(run, PipelineEventType.COST_CEILING_REACHED, null, ceilingDetails);
 
-		assertNotNull(run.getMetadata().get("costCeilingReached"));
+		ArgumentCaptor<PipelineEvent> captor = forClass(PipelineEvent.class);
+		verify(pipelineEventRepository).save(captor.capture());
+		assertEquals(PipelineEventType.COST_CEILING_REACHED, captor.getValue().getEventType());
 		verify(pipelineRunRepository).save(run);
 	}
 

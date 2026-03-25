@@ -60,7 +60,7 @@ class PdlcClassifierServiceTest {
 		assertFalse(classification.activatedRoles().isEmpty());
 		assertTrue(classification.activatedRoles().contains(PdlcRole.PM));
 		assertTrue(classification.activatedRoles().contains(PdlcRole.IMPLEMENTER));
-		assertTrue(classification.activatedRoles().contains(PdlcRole.RETRO));
+		assertTrue(classification.activatedRoles().contains(PdlcRole.RETRO_ANALYST));
 		assertEquals(12, classification.activatedRoles().size());
 		assertTrue(classification.skippedRoles().isEmpty());
 		assertFalse(classification.dimensionScores().isEmpty());
@@ -98,7 +98,7 @@ class PdlcClassifierServiceTest {
 		assertEquals("INFRA_CHANGE", classification.playbook());
 		assertEquals(0.78, classification.confidence(), 0.001);
 		assertTrue(classification.activatedRoles().contains(PdlcRole.DEVOPS));
-		assertTrue(classification.activatedRoles().contains(PdlcRole.SECURITY));
+		assertTrue(classification.activatedRoles().contains(PdlcRole.SECURITY_ANALYST));
 		assertTrue(classification.needsConfirmation());
 		assertFalse(classification.isAutoRoute());
 		assertFalse(classification.needsUserInput());

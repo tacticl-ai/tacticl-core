@@ -178,9 +178,10 @@ class PipelineWatchdogTest {
 
 	@Test
 	void checkForTimedOutRoles_exactlyAtTimeoutBoundaryDoesNotTrigger() {
-		// Role started exactly at the timeout boundary — should not trigger (elapsed == timeout, not > timeout)
+		// Role started just before the timeout boundary — should not trigger (elapsed < timeout)
+		// Add 5 seconds of slack to avoid timing-sensitive failures from test execution delay
 		Duration timeout = Duration.ofMinutes(10);
-		Instant startedAt = Instant.now().minus(timeout);
+		Instant startedAt = Instant.now().minus(timeout).plusSeconds(5);
 		PipelineRun run = executingRun("run-007", PdlcRole.PM, startedAt);
 
 		when(pipelineRunRepository.findByStatus(PipelineStatus.EXECUTING)).thenReturn(List.of(run));

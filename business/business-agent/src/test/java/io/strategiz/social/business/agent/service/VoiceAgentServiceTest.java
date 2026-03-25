@@ -27,6 +27,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.task.TaskExecutor;
 
 @ExtendWith(MockitoExtension.class)
 class VoiceAgentServiceTest {
@@ -51,12 +52,15 @@ class VoiceAgentServiceTest {
 	@Mock
 	private SparkService sparkService;
 
+	@Mock
+	private TaskExecutor simpleSparkExecutor;
+
 	private VoiceAgentService voiceAgentService;
 
 	@BeforeEach
 	void setUp() {
 		voiceAgentService = new VoiceAgentService(engineRouterService, agentSystemPrompt, auditLogRepository,
-				sparkService);
+				sparkService, simpleSparkExecutor);
 	}
 
 	@Test
