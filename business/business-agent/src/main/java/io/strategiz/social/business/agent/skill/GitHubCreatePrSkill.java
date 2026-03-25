@@ -4,6 +4,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
+import io.strategiz.social.business.agent.service.GitHubTokenResolver;
 import io.strategiz.social.client.github.GitHubClient;
 import io.strategiz.social.client.github.model.GitHubPullRequest;
 import java.util.Optional;
@@ -21,8 +22,11 @@ public class GitHubCreatePrSkill implements AgentSkill {
 
 	private final Optional<GitHubClient> gitHubClient;
 
-	public GitHubCreatePrSkill(Optional<GitHubClient> gitHubClient) {
+	private final GitHubTokenResolver tokenResolver;
+
+	public GitHubCreatePrSkill(Optional<GitHubClient> gitHubClient, GitHubTokenResolver tokenResolver) {
 		this.gitHubClient = gitHubClient;
+		this.tokenResolver = tokenResolver;
 	}
 
 	@Override
@@ -79,9 +83,13 @@ public class GitHubCreatePrSkill implements AgentSkill {
 		String head = input.get("head").asText();
 		String base = input.has("base") ? input.get("base").asText() : "main";
 
+		Optional<String> token = tokenResolver.resolve(userId, repo);
+		if (token.isEmpty()) {
+			return "No GitHub access configured for this repository. Grant access with: manage_repo grant " + repo;
+		}
+
 		try {
-			// TODO: resolve the user's GitHub access token from their repo grant
-			String accessToken = null;
+			String accessToken = token.get();
 			GitHubPullRequest pr = gitHubClient.get().createPullRequest(repo, title, body, head, base, accessToken);
 			log.info("Created PR for user {} — repo: {}, PR #{}", userId, repo, pr.getNumber());
 			return String.format("Pull request created successfully.\nRepo: %s\nPR #%d: %s\nURL: %s\n%s → %s",

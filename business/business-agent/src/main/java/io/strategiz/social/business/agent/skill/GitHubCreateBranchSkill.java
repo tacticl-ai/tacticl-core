@@ -4,6 +4,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
+import io.strategiz.social.business.agent.service.GitHubTokenResolver;
 import io.strategiz.social.client.github.GitHubClient;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -20,8 +21,11 @@ public class GitHubCreateBranchSkill implements AgentSkill {
 
 	private final Optional<GitHubClient> gitHubClient;
 
-	public GitHubCreateBranchSkill(Optional<GitHubClient> gitHubClient) {
+	private final GitHubTokenResolver tokenResolver;
+
+	public GitHubCreateBranchSkill(Optional<GitHubClient> gitHubClient, GitHubTokenResolver tokenResolver) {
 		this.gitHubClient = gitHubClient;
+		this.tokenResolver = tokenResolver;
 	}
 
 	@Override
@@ -68,9 +72,13 @@ public class GitHubCreateBranchSkill implements AgentSkill {
 		String branchName = input.get("branchName").asText();
 		String baseBranch = input.has("baseBranch") ? input.get("baseBranch").asText() : "main";
 
+		Optional<String> token = tokenResolver.resolve(userId, repo);
+		if (token.isEmpty()) {
+			return "No GitHub access configured for this repository. Grant access with: manage_repo grant " + repo;
+		}
+
 		try {
-			// TODO: resolve the user's GitHub access token from their repo grant
-			String accessToken = null;
+			String accessToken = token.get();
 			String latestSha = gitHubClient.get().getLatestCommitSha(repo, baseBranch, accessToken);
 			gitHubClient.get().createBranch(repo, branchName, latestSha, accessToken);
 			log.info("Created branch for user {} — repo: {}, branch: {}, base: {}", userId, repo, branchName, baseBranch);

@@ -4,6 +4,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
+import io.strategiz.social.business.agent.service.GitHubTokenResolver;
 import io.strategiz.social.client.github.GitHubClient;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -20,8 +21,11 @@ public class GitHubMergePrSkill implements AgentSkill {
 
 	private final Optional<GitHubClient> gitHubClient;
 
-	public GitHubMergePrSkill(Optional<GitHubClient> gitHubClient) {
+	private final GitHubTokenResolver tokenResolver;
+
+	public GitHubMergePrSkill(Optional<GitHubClient> gitHubClient, GitHubTokenResolver tokenResolver) {
 		this.gitHubClient = gitHubClient;
+		this.tokenResolver = tokenResolver;
 	}
 
 	@Override
@@ -69,9 +73,13 @@ public class GitHubMergePrSkill implements AgentSkill {
 		int prNumber = input.get("prNumber").asInt();
 		String mergeMethod = input.has("mergeMethod") ? input.get("mergeMethod").asText() : "squash";
 
+		Optional<String> token = tokenResolver.resolve(userId, repo);
+		if (token.isEmpty()) {
+			return "No GitHub access configured for this repository. Grant access with: manage_repo grant " + repo;
+		}
+
 		try {
-			// TODO: resolve the user's GitHub access token from their repo grant
-			String accessToken = null;
+			String accessToken = token.get();
 			gitHubClient.get().mergePullRequest(repo, prNumber, mergeMethod, accessToken);
 			log.info("Merged PR for user {} — repo: {}, PR #{}, method: {}", userId, repo, prNumber, mergeMethod);
 			return String.format("Pull request #%d merged successfully in %s.\nMerge method: %s",

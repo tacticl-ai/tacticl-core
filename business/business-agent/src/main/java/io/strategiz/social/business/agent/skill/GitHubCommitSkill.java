@@ -4,6 +4,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
+import io.strategiz.social.business.agent.service.GitHubTokenResolver;
 import io.strategiz.social.client.github.GitHubClient;
 import io.strategiz.social.client.github.model.GitHubCommitResult;
 import java.util.Optional;
@@ -21,8 +22,11 @@ public class GitHubCommitSkill implements AgentSkill {
 
 	private final Optional<GitHubClient> gitHubClient;
 
-	public GitHubCommitSkill(Optional<GitHubClient> gitHubClient) {
+	private final GitHubTokenResolver tokenResolver;
+
+	public GitHubCommitSkill(Optional<GitHubClient> gitHubClient, GitHubTokenResolver tokenResolver) {
 		this.gitHubClient = gitHubClient;
+		this.tokenResolver = tokenResolver;
 	}
 
 	@Override
@@ -79,9 +83,13 @@ public class GitHubCommitSkill implements AgentSkill {
 		String message = input.get("message").asText();
 		String branch = input.get("branch").asText();
 
+		Optional<String> token = tokenResolver.resolve(userId, repo);
+		if (token.isEmpty()) {
+			return "No GitHub access configured for this repository. Grant access with: manage_repo grant " + repo;
+		}
+
 		try {
-			// TODO: resolve the user's GitHub access token from their repo grant
-			String accessToken = null;
+			String accessToken = token.get();
 			GitHubCommitResult result = gitHubClient.get().commitFile(repo, path, content, message, branch, null, accessToken);
 			String commitSha = (result.getCommit() != null) ? result.getCommit().getSha() : "unknown";
 			log.info("Committed file for user {} — repo: {}, path: {}, branch: {}", userId, repo, path, branch);

@@ -4,6 +4,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
+import io.strategiz.social.business.agent.service.GitHubTokenResolver;
 import io.strategiz.social.client.github.GitHubClient;
 import io.strategiz.social.client.github.model.GitHubFileContent;
 import java.util.List;
@@ -22,8 +23,11 @@ public class GitHubSearchCodeSkill implements AgentSkill {
 
 	private final Optional<GitHubClient> gitHubClient;
 
-	public GitHubSearchCodeSkill(Optional<GitHubClient> gitHubClient) {
+	private final GitHubTokenResolver tokenResolver;
+
+	public GitHubSearchCodeSkill(Optional<GitHubClient> gitHubClient, GitHubTokenResolver tokenResolver) {
 		this.gitHubClient = gitHubClient;
+		this.tokenResolver = tokenResolver;
 	}
 
 	@Override
@@ -65,9 +69,13 @@ public class GitHubSearchCodeSkill implements AgentSkill {
 		String repo = input.get("repo").asText();
 		String query = input.get("query").asText();
 
+		Optional<String> token = tokenResolver.resolve(userId, repo);
+		if (token.isEmpty()) {
+			return "No GitHub access configured for this repository. Grant access with: manage_repo grant " + repo;
+		}
+
 		try {
-			// TODO: resolve the user's GitHub access token from their repo grant
-			String accessToken = null;
+			String accessToken = token.get();
 			List<GitHubFileContent> results = gitHubClient.get().searchCode(repo, query, accessToken);
 
 			if (results.isEmpty()) {

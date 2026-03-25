@@ -4,6 +4,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
+import io.strategiz.social.business.agent.service.GitHubTokenResolver;
 import io.strategiz.social.client.github.GitHubClient;
 import io.strategiz.social.client.github.model.GitHubFileContent;
 import java.util.List;
@@ -22,8 +23,11 @@ public class GitHubListFilesSkill implements AgentSkill {
 
 	private final Optional<GitHubClient> gitHubClient;
 
-	public GitHubListFilesSkill(Optional<GitHubClient> gitHubClient) {
+	private final GitHubTokenResolver tokenResolver;
+
+	public GitHubListFilesSkill(Optional<GitHubClient> gitHubClient, GitHubTokenResolver tokenResolver) {
 		this.gitHubClient = gitHubClient;
+		this.tokenResolver = tokenResolver;
 	}
 
 	@Override
@@ -70,9 +74,13 @@ public class GitHubListFilesSkill implements AgentSkill {
 		String path = input.has("path") ? input.get("path").asText() : "/";
 		String branch = input.has("branch") ? input.get("branch").asText() : "main";
 
+		Optional<String> token = tokenResolver.resolve(userId, repo);
+		if (token.isEmpty()) {
+			return "No GitHub access configured for this repository. Grant access with: manage_repo grant " + repo;
+		}
+
 		try {
-			// TODO: resolve the user's GitHub access token from their repo grant
-			String accessToken = null;
+			String accessToken = token.get();
 			List<GitHubFileContent> entries = gitHubClient.get().listFiles(repo, path, branch, accessToken);
 
 			if (entries.isEmpty()) {

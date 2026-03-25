@@ -4,6 +4,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
+import io.strategiz.social.business.agent.service.GitHubTokenResolver;
 import io.strategiz.social.client.github.GitHubClient;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -20,8 +21,11 @@ public class GitHubReviewPrSkill implements AgentSkill {
 
 	private final Optional<GitHubClient> gitHubClient;
 
-	public GitHubReviewPrSkill(Optional<GitHubClient> gitHubClient) {
+	private final GitHubTokenResolver tokenResolver;
+
+	public GitHubReviewPrSkill(Optional<GitHubClient> gitHubClient, GitHubTokenResolver tokenResolver) {
 		this.gitHubClient = gitHubClient;
+		this.tokenResolver = tokenResolver;
 	}
 
 	@Override
@@ -74,9 +78,13 @@ public class GitHubReviewPrSkill implements AgentSkill {
 		String action = input.get("action").asText();
 		String body = input.get("body").asText();
 
+		Optional<String> token = tokenResolver.resolve(userId, repo);
+		if (token.isEmpty()) {
+			return "No GitHub access configured for this repository. Grant access with: manage_repo grant " + repo;
+		}
+
 		try {
-			// TODO: resolve the user's GitHub access token from their repo grant
-			String accessToken = null;
+			String accessToken = token.get();
 			gitHubClient.get().reviewPullRequest(repo, prNumber, action, body, accessToken);
 			log.info("Submitted PR review for user {} — repo: {}, PR #{}, action: {}", userId, repo, prNumber, action);
 			return String.format("Review submitted for PR #%d in %s.\nAction: %s\nComment: %s",

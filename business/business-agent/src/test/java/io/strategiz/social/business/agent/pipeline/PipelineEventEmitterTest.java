@@ -15,6 +15,7 @@ import io.strategiz.social.data.repository.PipelineEventRepository;
 import io.strategiz.social.data.repository.PipelineRunRepository;
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,7 +44,7 @@ class PipelineEventEmitterTest {
 
 	@BeforeEach
 	void setUp() {
-		emitter = new PipelineEventEmitter(pipelineEventRepository, pipelineRunRepository);
+		emitter = new PipelineEventEmitter(pipelineEventRepository, pipelineRunRepository, Optional.empty());
 
 		run = new PipelineRun();
 		run.setId(RUN_ID);

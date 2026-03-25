@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
+import io.strategiz.social.business.agent.service.GitHubTokenResolver;
 import io.strategiz.social.client.github.GitHubClient;
 import io.strategiz.social.client.github.model.GitHubFileContent;
 import java.nio.charset.StandardCharsets;
@@ -27,21 +28,24 @@ class GitHubReadFileSkillTest {
 	@Mock
 	private GitHubClient gitHubClient;
 
+	@Mock
+	private GitHubTokenResolver tokenResolver;
+
 	@Test
 	void getName_returnsGitHubReadFile() {
-		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.of(gitHubClient));
+		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.of(gitHubClient), tokenResolver);
 		assertEquals("github_read_file", skill.getName());
 	}
 
 	@Test
 	void getConfirmationTier_returns0() {
-		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.of(gitHubClient));
+		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.of(gitHubClient), tokenResolver);
 		assertEquals(0, skill.getConfirmationTier());
 	}
 
 	@Test
 	void getToolDefinition_hasCorrectSchema() {
-		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.of(gitHubClient));
+		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.of(gitHubClient), tokenResolver);
 		ToolDefinition definition = skill.getToolDefinition();
 
 		assertEquals("github_read_file", definition.getName());
@@ -62,10 +66,11 @@ class GitHubReadFileSkillTest {
 
 	@Test
 	void execute_clientPresent_returnsFileContent() {
-		when(gitHubClient.readFile(eq("owner/repo"), eq("src/Main.java"), eq("main"), any()))
+		when(tokenResolver.resolve(eq("user-1"), eq("owner/repo"))).thenReturn(Optional.of("gh-token"));
+		when(gitHubClient.readFile(eq("owner/repo"), eq("src/Main.java"), eq("main"), eq("gh-token")))
 				.thenReturn(fileContentWith("public class Main { }"));
 
-		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.of(gitHubClient));
+		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.of(gitHubClient), tokenResolver);
 
 		ObjectNode input = MAPPER.createObjectNode();
 		input.put("repo", "owner/repo");
@@ -81,10 +86,11 @@ class GitHubReadFileSkillTest {
 
 	@Test
 	void execute_clientPresent_defaultsBranchToMain() {
-		when(gitHubClient.readFile(eq("owner/repo"), eq("README.md"), eq("main"), any()))
+		when(tokenResolver.resolve(eq("user-1"), eq("owner/repo"))).thenReturn(Optional.of("gh-token"));
+		when(gitHubClient.readFile(eq("owner/repo"), eq("README.md"), eq("main"), eq("gh-token")))
 				.thenReturn(fileContentWith("# My Project"));
 
-		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.of(gitHubClient));
+		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.of(gitHubClient), tokenResolver);
 
 		ObjectNode input = MAPPER.createObjectNode();
 		input.put("repo", "owner/repo");
@@ -99,7 +105,7 @@ class GitHubReadFileSkillTest {
 
 	@Test
 	void execute_clientEmpty_returnsNotConfiguredMessage() {
-		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.empty());
+		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.empty(), tokenResolver);
 
 		ObjectNode input = MAPPER.createObjectNode();
 		input.put("repo", "owner/repo");
@@ -111,11 +117,28 @@ class GitHubReadFileSkillTest {
 	}
 
 	@Test
+	void execute_noTokenResolved_returnsNoAccessMessage() {
+		when(tokenResolver.resolve(eq("user-1"), eq("owner/repo"))).thenReturn(Optional.empty());
+
+		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.of(gitHubClient), tokenResolver);
+
+		ObjectNode input = MAPPER.createObjectNode();
+		input.put("repo", "owner/repo");
+		input.put("path", "src/Main.java");
+
+		String result = skill.execute(input, "user-1");
+
+		assertTrue(result.contains("No GitHub access configured"));
+		assertTrue(result.contains("manage_repo grant"));
+	}
+
+	@Test
 	void execute_clientThrowsException_returnsErrorMessage() {
-		when(gitHubClient.readFile(eq("owner/repo"), eq("missing.txt"), eq("main"), any()))
+		when(tokenResolver.resolve(eq("user-1"), eq("owner/repo"))).thenReturn(Optional.of("gh-token"));
+		when(gitHubClient.readFile(eq("owner/repo"), eq("missing.txt"), eq("main"), eq("gh-token")))
 				.thenThrow(new RuntimeException("404 Not Found"));
 
-		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.of(gitHubClient));
+		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.of(gitHubClient), tokenResolver);
 
 		ObjectNode input = MAPPER.createObjectNode();
 		input.put("repo", "owner/repo");

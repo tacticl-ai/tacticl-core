@@ -4,6 +4,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
+import io.strategiz.social.business.agent.service.GitHubTokenResolver;
 import io.strategiz.social.client.github.GitHubClient;
 import io.strategiz.social.client.github.model.GitHubFileContent;
 import java.util.Optional;
@@ -21,8 +22,11 @@ public class GitHubReadFileSkill implements AgentSkill {
 
 	private final Optional<GitHubClient> gitHubClient;
 
-	public GitHubReadFileSkill(Optional<GitHubClient> gitHubClient) {
+	private final GitHubTokenResolver tokenResolver;
+
+	public GitHubReadFileSkill(Optional<GitHubClient> gitHubClient, GitHubTokenResolver tokenResolver) {
 		this.gitHubClient = gitHubClient;
+		this.tokenResolver = tokenResolver;
 	}
 
 	@Override
@@ -69,9 +73,13 @@ public class GitHubReadFileSkill implements AgentSkill {
 		String path = input.get("path").asText();
 		String branch = input.has("branch") ? input.get("branch").asText() : "main";
 
+		Optional<String> token = tokenResolver.resolve(userId, repo);
+		if (token.isEmpty()) {
+			return "No GitHub access configured for this repository. Grant access with: manage_repo grant " + repo;
+		}
+
 		try {
-			// TODO: resolve the user's GitHub access token from their repo grant
-			String accessToken = null;
+			String accessToken = token.get();
 			GitHubFileContent fileContent = gitHubClient.get().readFile(repo, path, branch, accessToken);
 			String content = fileContent.getDecodedContent();
 			return String.format("File: %s (branch: %s)\nRepo: %s\n\n%s", path, branch, repo, content);
