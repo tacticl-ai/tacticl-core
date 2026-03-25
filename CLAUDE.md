@@ -150,6 +150,44 @@ Both cloud and device are **full-power SDLC agent pipelines**. Routing is a user
 
 **Architecture docs**: `docs/architecture/cloud-orchestrator-architecture.md`, `docs/architecture/device-agent-architecture.md`
 
+## PDLC Pipeline Engine
+
+Multi-role pipeline for complex development sparks. Where `VoiceAgentService` runs a single agent loop, the PDLC engine routes `code`/`devops` sparks through up to 12 specialized roles with quality gates, rework loops, and human checkpoints.
+
+**Pipeline Tiers** (set by `PdlcClassifierService`, Stage 2 classifier):
+- `SIMPLE` — single agent loop (VoiceAgentService, existing path)
+- `PLAYBOOK` — named workflow (subset of roles, e.g., BUG_FIX, SMALL_FEATURE)
+- `FULL_PDLC` — complete 12-role pipeline
+
+**12 Roles** (enum `PdlcRole`): PM, RESEARCHER, ARCHITECT, DESIGNER, PLANNER, IMPLEMENTER, REVIEWER, TESTER, SECURITY_ANALYST, TECHNICAL_WRITER, DEVOPS, RETRO_ANALYST
+
+**8 Playbooks**: FULL_PDLC, BUG_FIX, SMALL_FEATURE, REFACTOR, INFRA_CHANGE, DOCS_ONLY, UI_CHANGE, SECURITY_PATCH
+
+**Key Services** (all in `business-agent`):
+- `PdlcClassifierService` — six-dimension rubric, selects tier + playbook
+- `PdlcPipelineOrchestrator` — lifecycle engine, async `@Async("pdlcPipelineExecutor")`
+- `PlaybookRegistry` — data-driven playbook configs (`PlaybookConfig`)
+- `PipelineStateManager` — Firestore persistence, all run mutations
+- `PipelineEventEmitter` — fan-out to Firestore + WebSocket + FCM
+- `PipelineArtifactService` — stores role outputs (Firestore + GitHub refs)
+- `ReworkTracker` — enforces 3-iteration max rework per role, escalates to checkpoint
+- `PipelineCostManager` — `pipelineCostCeiling` ($50 default) + monthly `spendingLimit` ($0 default = blocked until user enables)
+- `PipelineRecoveryJob` — startup recovery of interrupted pipelines (claim-based, 30min stale threshold)
+- `PipelineWatchdog` — 60s scheduled timeout checker per role
+
+**New Firestore Collections**: `pipeline_runs/`, `pipeline_events/`, `pipeline_artifacts/`, `pdlc_role_knowledge/`
+
+**Key REST Endpoints**:
+- `GET /api/sparks/{sparkId}/pipeline` — pipeline run status
+- `GET /api/sparks/{sparkId}/pipeline/events` — event timeline (paginated)
+- `GET /api/sparks/{sparkId}/pipeline/artifacts/{role}` — role artifact
+- `POST /api/sparks/{sparkId}/pipeline/checkpoint/{checkpointId}` — resolve checkpoint
+- `GET /api/playbooks` — list available playbooks
+
+**Deployment note**: Claude Code CLI must be in the Cloud Run image (required by IMPLEMENTER, TESTER, DEVOPS roles). GitHub repo access must be granted via `manage_repo` skill.
+
+**Full architecture doc**: `docs/architecture/pdlc-pipeline-architecture.md`
+
 ## Spark Lifecycle
 
 Every chat command is a **Spark** — the single top-level entity for all user requests. There is no manual spark creation; sparks are created exclusively via the chat/voice agent flow.

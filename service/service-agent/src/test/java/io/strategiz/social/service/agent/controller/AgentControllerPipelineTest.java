@@ -8,6 +8,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -137,11 +139,11 @@ class AgentControllerPipelineTest {
 		when(sparkService.createSpark(anyString(), anyString(), anyString(), anyString(),
 				isNull(), isNull(), isNull(), isNull())).thenReturn(spark);
 
-		// Default: no connected integrations
-		when(integrationRepository.findAllByUserId(USER_ID)).thenReturn(List.of());
+		// Default: no connected integrations (lenient — only called when cloud path runs VoiceAgentService)
+		lenient().when(integrationRepository.findAllByUserId(USER_ID)).thenReturn(List.of());
 
-		// Default: no setup actions
-		when(setupActionDetector.detect(anyString(), anyString())).thenReturn(List.of());
+		// Default: no setup actions (lenient — only called when cloud path runs VoiceAgentService)
+		lenient().when(setupActionDetector.detect(anyString(), anyString())).thenReturn(List.of());
 	}
 
 	// --- Test: code spark triggers PDLC classifier ---
@@ -199,7 +201,7 @@ class AgentControllerPipelineTest {
 		verify(pdlcPipelineOrchestrator).executePipeline(PIPELINE_RUN_ID);
 		// VoiceAgentService NOT called
 		verify(voiceAgentService, never()).execute(anyString(), anyString(), anyString(),
-				anyString(), any(), anyString(), anyString());
+				anyString(), any(), anyString(), nullable(String.class));
 
 		AgentCommandResponse body = resp.getBody();
 		assertNotNull(body);
@@ -233,7 +235,7 @@ class AgentControllerPipelineTest {
 
 		verify(pdlcPipelineOrchestrator).executePipeline(PIPELINE_RUN_ID);
 		verify(voiceAgentService, never()).execute(anyString(), anyString(), anyString(),
-				anyString(), any(), anyString(), anyString());
+				anyString(), any(), anyString(), nullable(String.class));
 
 		AgentCommandResponse body = resp.getBody();
 		assertNotNull(body);
@@ -254,7 +256,7 @@ class AgentControllerPipelineTest {
 		ResponseEntity<AgentCommandResponse> resp = controller.executeCommand(request, authenticatedUser);
 
 		verify(voiceAgentService).execute(eq(SPARK_ID), anyString(), eq(USER_ID),
-				anyString(), any(), anyString(), anyString());
+				anyString(), any(), anyString(), nullable(String.class));
 		verify(pdlcPipelineOrchestrator, never()).executePipeline(anyString());
 
 		AgentCommandResponse body = resp.getBody();
@@ -289,7 +291,7 @@ class AgentControllerPipelineTest {
 		// Pipeline should be used because of the override
 		verify(pdlcPipelineOrchestrator).executePipeline(PIPELINE_RUN_ID);
 		verify(voiceAgentService, never()).execute(anyString(), anyString(), anyString(),
-				anyString(), any(), anyString(), anyString());
+				anyString(), any(), anyString(), nullable(String.class));
 
 		AgentCommandResponse body = resp.getBody();
 		assertNotNull(body);
@@ -309,7 +311,7 @@ class AgentControllerPipelineTest {
 
 		// Unknown override is ignored — falls back to classifier result (SIMPLE → SYNC)
 		verify(voiceAgentService).execute(anyString(), anyString(), anyString(),
-				anyString(), any(), anyString(), anyString());
+				anyString(), any(), anyString(), nullable(String.class));
 		verify(pdlcPipelineOrchestrator, never()).executePipeline(anyString());
 
 		AgentCommandResponse body = resp.getBody();
@@ -413,7 +415,7 @@ class AgentControllerPipelineTest {
 
 	private void stubVoiceAgentSuccess() {
 		when(voiceAgentService.execute(anyString(), anyString(), anyString(),
-				anyString(), any(), anyString(), anyString()))
+				anyString(), any(), anyString(), nullable(String.class)))
 				.thenReturn(VoiceAgentService.AgentResult.success("Done.", List.of(), "claude-haiku-4-5"));
 	}
 

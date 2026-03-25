@@ -7,8 +7,8 @@ import org.junit.jupiter.api.Test;
 class AiSdlcStepTest {
 
 	@Test
-	void hasNineteenValues() {
-		assertEquals(19, AiSdlcStep.values().length);
+	void hasTwentyFourValues() {
+		assertEquals(24, AiSdlcStep.values().length);
 	}
 
 	@Test
@@ -60,6 +60,15 @@ class AiSdlcStepTest {
 	void devOpsCategoryPresent() {
 		assertNotNull(AiSdlcStep.valueOf("DEPLOYMENT_SCRIPT"));
 		assertNotNull(AiSdlcStep.valueOf("MONITORING_ANALYSIS"));
+	}
+
+	@Test
+	void pdlcPipelineRolesCategoryPresent() {
+		assertNotNull(AiSdlcStep.valueOf("REQUIREMENTS_GATHERING"));
+		assertNotNull(AiSdlcStep.valueOf("SYSTEM_DESIGN"));
+		assertNotNull(AiSdlcStep.valueOf("UI_UX_DESIGN"));
+		assertNotNull(AiSdlcStep.valueOf("SECURITY_REVIEW"));
+		assertNotNull(AiSdlcStep.valueOf("RETROSPECTIVE"));
 	}
 
 	@Test
