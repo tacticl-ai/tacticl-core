@@ -3,13 +3,16 @@ package io.strategiz.social.service.agent.controller;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 
 import io.cidadel.framework.authorization.context.AuthenticatedUser;
+import io.strategiz.social.business.agent.pipeline.CheckpointService;
 import io.strategiz.social.business.agent.pipeline.PipelineArtifactService;
 import io.strategiz.social.business.agent.pipeline.PlaybookConfig;
 import io.strategiz.social.business.agent.pipeline.PlaybookRegistry;
 import io.strategiz.social.business.agent.pipeline.PlaybookStage;
+import io.strategiz.social.data.entity.Checkpoint;
 import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineArtifact;
 import io.strategiz.social.data.entity.PipelineEvent;
@@ -56,6 +59,9 @@ class PipelineControllerTest {
 
 	@Mock
 	private PlaybookRegistry playbookRegistry;
+
+	@Mock
+	private CheckpointService checkpointService;
 
 	@InjectMocks
 	private PipelineController controller;
@@ -252,6 +258,13 @@ class PipelineControllerTest {
 
 	@Test
 	void resolveCheckpoint_accepted_returns202() {
+		Checkpoint checkpoint = new Checkpoint();
+		checkpoint.setId("ckpt-1");
+		checkpoint.setSparkId(SPARK_ID);
+		checkpoint.setPipelineRunId(null);
+		when(checkpointService.getCheckpoint("ckpt-1")).thenReturn(Optional.of(checkpoint));
+		doNothing().when(checkpointService).resolveCheckpoint("ckpt-1", USER_ID, "APPROVED", null);
+
 		CheckpointResolutionRequest request = new CheckpointResolutionRequest();
 		request.setDecision("APPROVED");
 
@@ -262,6 +275,14 @@ class PipelineControllerTest {
 
 	@Test
 	void resolveCheckpoint_withFeedback_returns202() {
+		Checkpoint checkpoint = new Checkpoint();
+		checkpoint.setId("ckpt-1");
+		checkpoint.setSparkId(SPARK_ID);
+		checkpoint.setPipelineRunId(null);
+		when(checkpointService.getCheckpoint("ckpt-1")).thenReturn(Optional.of(checkpoint));
+		doNothing().when(checkpointService).resolveCheckpoint("ckpt-1", USER_ID, "MODIFIED",
+				"Please revise the architecture section");
+
 		CheckpointResolutionRequest request = new CheckpointResolutionRequest();
 		request.setDecision("MODIFIED");
 		request.setFeedback("Please revise the architecture section");
