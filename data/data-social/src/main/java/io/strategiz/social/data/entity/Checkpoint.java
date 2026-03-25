@@ -36,6 +36,12 @@ public class Checkpoint extends BaseEntity {
 
 	private Instant decidedAt;
 
+	private String pipelineRunId;
+
+	private PdlcRole pdlcRole;
+
+	private CheckpointType checkpointType;
+
 	public Checkpoint() {
 	}
 
@@ -119,6 +125,30 @@ public class Checkpoint extends BaseEntity {
 
 	public void setDecidedAt(Instant decidedAt) {
 		this.decidedAt = decidedAt;
+	}
+
+	public String getPipelineRunId() {
+		return pipelineRunId;
+	}
+
+	public void setPipelineRunId(String pipelineRunId) {
+		this.pipelineRunId = pipelineRunId;
+	}
+
+	public PdlcRole getPdlcRole() {
+		return pdlcRole;
+	}
+
+	public void setPdlcRole(PdlcRole pdlcRole) {
+		this.pdlcRole = pdlcRole;
+	}
+
+	public CheckpointType getCheckpointType() {
+		return checkpointType;
+	}
+
+	public void setCheckpointType(CheckpointType checkpointType) {
+		this.checkpointType = checkpointType;
 	}
 
 }

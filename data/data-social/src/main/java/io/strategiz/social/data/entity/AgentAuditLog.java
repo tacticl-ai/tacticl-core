@@ -37,6 +37,10 @@ public class AgentAuditLog extends BaseEntity {
 
 	private long executionTimeMs;
 
+	private String pipelineRunId;
+
+	private PdlcRole pdlcRole;
+
 	@Override
 	public String getId() {
 		return id;
@@ -125,6 +129,22 @@ public class AgentAuditLog extends BaseEntity {
 
 	public void setExecutionTimeMs(long executionTimeMs) {
 		this.executionTimeMs = executionTimeMs;
+	}
+
+	public String getPipelineRunId() {
+		return pipelineRunId;
+	}
+
+	public void setPipelineRunId(String pipelineRunId) {
+		this.pipelineRunId = pipelineRunId;
+	}
+
+	public PdlcRole getPdlcRole() {
+		return pdlcRole;
+	}
+
+	public void setPdlcRole(PdlcRole pdlcRole) {
+		this.pdlcRole = pdlcRole;
 	}
 
 }

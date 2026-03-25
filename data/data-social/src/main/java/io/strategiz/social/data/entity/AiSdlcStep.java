@@ -32,7 +32,14 @@ public enum AiSdlcStep {
 
 	// DevOps
 	DEPLOYMENT_SCRIPT("Generate or modify deployment configs"),
-	MONITORING_ANALYSIS("Analyze logs, metrics, and alerts");
+	MONITORING_ANALYSIS("Analyze logs, metrics, and alerts"),
+
+	// PDLC Pipeline Roles
+	REQUIREMENTS_GATHERING("Gather and define requirements and acceptance criteria"),
+	SYSTEM_DESIGN("Design system architecture and component breakdown"),
+	UI_UX_DESIGN("Design user interface and user experience"),
+	SECURITY_REVIEW("Review code for security vulnerabilities"),
+	RETROSPECTIVE("Analyze pipeline execution and generate learnings");
 
 	private final String description;
 

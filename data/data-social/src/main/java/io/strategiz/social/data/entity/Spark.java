@@ -60,6 +60,10 @@ public class Spark extends BaseEntity {
 
 	private Instant completedAt;
 
+	private PdlcRole pdlcRole;
+
+	private String pipelineExecutionMode;
+
 	public Spark() {
 		this.status = SparkState.PENDING;
 		this.priority = SparkPriority.NORMAL;
@@ -238,6 +242,22 @@ public class Spark extends BaseEntity {
 
 	public void setCompletedAt(Instant completedAt) {
 		this.completedAt = completedAt;
+	}
+
+	public PdlcRole getPdlcRole() {
+		return pdlcRole;
+	}
+
+	public void setPdlcRole(PdlcRole pdlcRole) {
+		this.pdlcRole = pdlcRole;
+	}
+
+	public String getPipelineExecutionMode() {
+		return pipelineExecutionMode;
+	}
+
+	public void setPipelineExecutionMode(String pipelineExecutionMode) {
+		this.pipelineExecutionMode = pipelineExecutionMode;
 	}
 
 }

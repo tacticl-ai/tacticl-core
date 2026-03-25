@@ -26,6 +26,16 @@ public class UserConfig {
 
 	private BrowserSettings browserSettings;
 
+	private int syncTimeoutMs = 3000;
+
+	private boolean forceAsyncAll = false;
+
+	private PipelineCheckpointConfig pipelineCheckpoints;
+
+	private BigDecimal pipelineCostCeiling = new BigDecimal("50");
+
+	private double costWarningThreshold = 0.8;
+
 	public UserConfig() {
 	}
 
@@ -87,6 +97,46 @@ public class UserConfig {
 
 	public void setBrowserSettings(BrowserSettings browserSettings) {
 		this.browserSettings = browserSettings;
+	}
+
+	public int getSyncTimeoutMs() {
+		return syncTimeoutMs;
+	}
+
+	public void setSyncTimeoutMs(int syncTimeoutMs) {
+		this.syncTimeoutMs = syncTimeoutMs;
+	}
+
+	public boolean isForceAsyncAll() {
+		return forceAsyncAll;
+	}
+
+	public void setForceAsyncAll(boolean forceAsyncAll) {
+		this.forceAsyncAll = forceAsyncAll;
+	}
+
+	public PipelineCheckpointConfig getPipelineCheckpoints() {
+		return pipelineCheckpoints;
+	}
+
+	public void setPipelineCheckpoints(PipelineCheckpointConfig pipelineCheckpoints) {
+		this.pipelineCheckpoints = pipelineCheckpoints;
+	}
+
+	public BigDecimal getPipelineCostCeiling() {
+		return pipelineCostCeiling;
+	}
+
+	public void setPipelineCostCeiling(BigDecimal pipelineCostCeiling) {
+		this.pipelineCostCeiling = pipelineCostCeiling;
+	}
+
+	public double getCostWarningThreshold() {
+		return costWarningThreshold;
+	}
+
+	public void setCostWarningThreshold(double costWarningThreshold) {
+		this.costWarningThreshold = costWarningThreshold;
 	}
 
 }
