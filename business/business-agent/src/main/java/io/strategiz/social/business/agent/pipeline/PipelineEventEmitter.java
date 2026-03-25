@@ -5,11 +5,9 @@ import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineEvent;
 import io.strategiz.social.data.entity.PipelineEventType;
 import io.strategiz.social.data.entity.PipelineRun;
-import io.strategiz.social.data.entity.PipelineStatus;
 import io.strategiz.social.data.entity.RoleResultSummary;
 import io.strategiz.social.data.entity.RoleStatus;
 import io.strategiz.social.data.repository.PipelineEventRepository;
-import io.strategiz.social.data.repository.PipelineRunRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashMap;
@@ -22,9 +20,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Single fan-out point for all PDLC pipeline state changes. Persists pipeline events to
- * Firestore, keeps the PipelineRun summary fields in sync, and pushes real-time updates
- * to connected user clients via WebSocket.
+ * Single fan-out point for all PDLC pipeline events. Persists pipeline events to Firestore and
+ * pushes real-time updates to connected user clients via WebSocket.
+ *
+ * <p><strong>Ownership contract:</strong> This class is responsible only for persisting
+ * {@link PipelineEvent} documents and broadcasting WebSocket notifications. All
+ * {@link PipelineRun} mutations and saves are the exclusive responsibility of
+ * {@link PipelineStateManager}. This class must never call {@code run.set*()} or
+ * {@code pipelineRunRepository.save()}.
  *
  * <p>WebSocket push is performed via {@link UserBroadcaster}, which is injected as
  * {@code Optional} so the emitter degrades gracefully when no WebSocket layer is present
@@ -55,22 +58,22 @@ public class PipelineEventEmitter {
 
 	private final PipelineEventRepository pipelineEventRepository;
 
-	private final PipelineRunRepository pipelineRunRepository;
-
 	private final Optional<UserBroadcaster> userBroadcaster;
 
 	public PipelineEventEmitter(PipelineEventRepository pipelineEventRepository,
-			PipelineRunRepository pipelineRunRepository,
 			Optional<UserBroadcaster> userBroadcaster) {
 		this.pipelineEventRepository = pipelineEventRepository;
-		this.pipelineRunRepository = pipelineRunRepository;
 		this.userBroadcaster = userBroadcaster;
 	}
 
 	/**
-	 * Persist a pipeline event and update the PipelineRun summary based on the event type.
+	 * Persist a pipeline event and push a real-time WebSocket notification when appropriate.
 	 *
-	 * @param run      the pipeline run this event belongs to
+	 * <p>This method does NOT modify the {@link PipelineRun}. All run state mutations must be
+	 * performed by {@link PipelineStateManager} before calling this method so that the
+	 * WebSocket payload reflects the already-committed run state.
+	 *
+	 * @param run      the pipeline run this event belongs to (read-only; not mutated here)
 	 * @param type     the type of event
 	 * @param role     the PDLC role associated with this event (may be null for run-level events)
 	 * @param metadata arbitrary key-value pairs specific to this event type
@@ -91,46 +94,12 @@ public class PipelineEventEmitter {
 
 		pipelineEventRepository.save(event);
 
-		// 2. Update PipelineRun summary fields
-		switch (type) {
-			case ROLE_STARTED -> {
-				run.setCurrentRole(role);
-				run.setStatus(PipelineStatus.EXECUTING);
-			}
-			case ROLE_COMPLETED -> {
-				if (role != null && metadata != null) {
-					RoleResultSummary summary = buildRoleResultSummary(metadata);
-					run.getRoleResults().put(role.name(), summary);
-				}
-			}
-			case PIPELINE_COMPLETED -> {
-				run.setStatus(PipelineStatus.COMPLETED);
-				run.setCompletedAt(Instant.now());
-			}
-			case PIPELINE_FAILED -> {
-				run.setStatus(PipelineStatus.FAILED);
-			}
-			case REWORK_TRIGGERED -> {
-				run.setReworkCount(run.getReworkCount() + 1);
-			}
-			case COST_THRESHOLD_WARNING, COST_CEILING_REACHED -> {
-				// Cost warning metadata is captured in the event document only;
-				// PipelineRun has no metadata map — consumers read the event stream.
-			}
-			default -> {
-				// PIPELINE_STARTED and other informational events require no run summary update
-			}
-		}
-
-		// 3. Persist updated run
-		pipelineRunRepository.save(run);
-
-		// 4. Push real-time WebSocket event to connected user clients
+		// 2. Push real-time WebSocket event to connected user clients
 		if (BROADCAST_EVENTS.contains(type)) {
 			pushWebSocketEvent(event, run);
 		}
 
-		// 5. TODO: Wire FCM push notifications for milestone events (PIPELINE_STARTED,
+		// 3. TODO: Wire FCM push notifications for milestone events (PIPELINE_STARTED,
 		//    PIPELINE_COMPLETED, PIPELINE_FAILED, CHECKPOINT_REQUESTED) once a FcmService
 		//    interface exists in business-agent. Use Optional<FcmService> injection, same
 		//    pattern as UserBroadcaster.
@@ -141,12 +110,14 @@ public class PipelineEventEmitter {
 	}
 
 	/**
-	 * Emit a PIPELINE_STARTED event. Sets the run status to EXECUTING.
+	 * Emit a PIPELINE_STARTED event.
+	 *
+	 * <p>The run status must already be set to EXECUTING by {@link PipelineStateManager} before
+	 * calling this method.
 	 *
 	 * @param run the pipeline run that has just started
 	 */
 	public void emitPipelineStarted(PipelineRun run) {
-		run.setStatus(PipelineStatus.EXECUTING);
 		emitEvent(run, PipelineEventType.PIPELINE_STARTED, null, Map.of());
 	}
 
@@ -234,42 +205,6 @@ public class PipelineEventEmitter {
 						event.getPipelineRunId(), event.getEventType(), ex);
 			}
 		});
-	}
-
-	/**
-	 * Build a {@link RoleResultSummary} from the raw metadata map produced by
-	 * {@link #emitRoleCompleted}. Fields not present in the metadata are left at defaults.
-	 */
-	private RoleResultSummary buildRoleResultSummary(Map<String, Object> metadata) {
-		RoleResultSummary summary = new RoleResultSummary();
-		summary.setStatus(RoleStatus.COMPLETED);
-
-		Object tokens = metadata.get("tokens");
-		if (tokens instanceof Number num) {
-			summary.setTokens(num.longValue());
-		}
-
-		Object cost = metadata.get("cost");
-		if (cost instanceof BigDecimal bd) {
-			summary.setCost(bd);
-		}
-
-		Object durationMs = metadata.get("durationMs");
-		if (durationMs instanceof Number num) {
-			summary.setDurationMs(num.longValue());
-		}
-
-		Object model = metadata.get("model");
-		if (model instanceof String s) {
-			summary.setModel(s);
-		}
-
-		Object childSparkId = metadata.get("childSparkId");
-		if (childSparkId instanceof String s) {
-			summary.setChildSparkId(s);
-		}
-
-		return summary;
 	}
 
 }

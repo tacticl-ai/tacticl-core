@@ -2,10 +2,12 @@ package io.strategiz.social.business.agent.pipeline;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -50,7 +52,7 @@ class PipelineStateManagerTest {
 	}
 
 	@Test
-	void createRun_persistsRunAndEmitsStartedEvent() {
+	void createRun_persistsRunWithCreatedStatus_doesNotEmitEvent() {
 		PlaybookConfig playbook = new PlaybookConfig(
 				"BUG_FIX", "Bug Fix", "Fix a bug", PipelineTier.PLAYBOOK,
 				List.of(), Map.of(), Map.of(), true);
@@ -67,6 +69,7 @@ class PipelineStateManagerTest {
 		assertEquals("BUG_FIX", result.getPlaybook());
 		assertEquals(PipelineTier.PLAYBOOK, result.getPipelineTier());
 		assertEquals(List.of(PdlcRole.RESEARCHER, PdlcRole.IMPLEMENTER), result.getActivatedRoles());
+		assertEquals(PipelineStatus.CREATED, result.getStatus());
 		assertNotNull(result.getStartedAt());
 		assertNotNull(result.getClassificationResult());
 		assertEquals("PLAYBOOK", result.getClassificationResult().get("tier"));
@@ -77,8 +80,22 @@ class PipelineStateManagerTest {
 		verify(pipelineRunRepository).save(captor.capture());
 		assertEquals(result.getId(), captor.getValue().getId());
 
-		// Verify PIPELINE_STARTED event
-		verify(pipelineEventEmitter).emitPipelineStarted(result);
+		// createRun must NOT emit any event — the orchestrator calls markExecuting() for that
+		verify(pipelineEventEmitter, never()).emitPipelineStarted(any());
+		verify(pipelineEventEmitter, never()).emitEvent(any(), any(), any(), any());
+	}
+
+	@Test
+	void markExecuting_setsStatusAndEmitsPipelineStarted() {
+		PipelineRun run = createTestRun();
+		when(pipelineRunRepository.findById(RUN_ID)).thenReturn(Optional.of(run));
+
+		stateManager.markExecuting(RUN_ID);
+
+		assertEquals(PipelineStatus.EXECUTING, run.getStatus());
+		verify(pipelineRunRepository).save(run);
+		// emitPipelineStarted must be called AFTER the save so WebSocket sees committed state
+		verify(pipelineEventEmitter).emitPipelineStarted(run);
 	}
 
 	@Test
@@ -105,25 +122,35 @@ class PipelineStateManagerTest {
 	}
 
 	@Test
-	void markCompleted_setsMetricsAndEmitsCompletedEvent() {
+	void markCompleted_setsStatusCompletedAtAndMetrics_thenEmitsEvent() {
 		PipelineRun run = createTestRun();
 		when(pipelineRunRepository.findById(RUN_ID)).thenReturn(Optional.of(run));
 
 		stateManager.markCompleted(RUN_ID, 5000L, new BigDecimal("1.50"));
 
+		// StateManager must set all fields before the single save
+		assertEquals(PipelineStatus.COMPLETED, run.getStatus());
+		assertNotNull(run.getCompletedAt());
+		assertNull(run.getCurrentRole());
 		assertEquals(5000L, run.getTotalTokens());
 		assertEquals(new BigDecimal("1.50"), run.getTotalCost());
 
+		// Save happens exactly once, then the event is emitted
+		verify(pipelineRunRepository).save(run);
 		verify(pipelineEventEmitter).emitEvent(
 				eq(run), eq(PipelineEventType.PIPELINE_COMPLETED), eq(null), any());
 	}
 
 	@Test
-	void markFailed_emitsFailedEvent() {
+	void markFailed_setsStatusFailedAndSaves_thenEmitsEvent() {
 		PipelineRun run = createTestRun();
 		when(pipelineRunRepository.findById(RUN_ID)).thenReturn(Optional.of(run));
 
 		stateManager.markFailed(RUN_ID, "Something went wrong");
+
+		// StateManager must set status FAILED before the single save
+		assertEquals(PipelineStatus.FAILED, run.getStatus());
+		verify(pipelineRunRepository).save(run);
 
 		verify(pipelineEventEmitter).emitEvent(
 				eq(run), eq(PipelineEventType.PIPELINE_FAILED), eq(null), any());

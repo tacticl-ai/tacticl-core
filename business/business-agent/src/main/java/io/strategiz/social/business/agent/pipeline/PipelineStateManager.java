@@ -1,6 +1,7 @@
 package io.strategiz.social.business.agent.pipeline;
 
 import io.strategiz.social.data.entity.PdlcRole;
+import io.strategiz.social.data.entity.PipelineEventType;
 import io.strategiz.social.data.entity.PipelineRun;
 import io.strategiz.social.data.entity.PipelineStatus;
 import io.strategiz.social.data.entity.RoleResultSummary;
@@ -18,7 +19,12 @@ import org.springframework.stereotype.Service;
 
 /**
  * Manages PipelineRun persistence and state transitions. All run-level mutations flow through
- * this service to ensure events are emitted consistently and the run document stays in sync.
+ * this service to ensure the run document is saved exactly once per transition, and events are
+ * emitted after the save so the WebSocket payload reflects committed state.
+ *
+ * <p><strong>Ownership contract:</strong> This class is the sole owner of all
+ * {@link PipelineRun} mutations and {@code pipelineRunRepository.save()} calls.
+ * {@link PipelineEventEmitter} must never mutate the run or persist it.
  */
 @Service
 public class PipelineStateManager {
@@ -36,7 +42,10 @@ public class PipelineStateManager {
 	}
 
 	/**
-	 * Create a new PipelineRun, persist it, and emit a PIPELINE_STARTED event.
+	 * Create a new PipelineRun and persist it with status {@code CREATED}.
+	 *
+	 * <p>The caller (orchestrator) is responsible for calling {@link #markExecuting(String)}
+	 * once execution actually begins, which will emit the {@code PIPELINE_STARTED} event.
 	 *
 	 * @param sparkId        the parent spark that triggered this pipeline
 	 * @param userId         the user who owns this pipeline run
@@ -68,9 +77,6 @@ public class PipelineStateManager {
 		run.setClassificationResult(classificationData);
 
 		pipelineRunRepository.save(run);
-
-		// Emit the PIPELINE_STARTED event (also sets status to EXECUTING)
-		pipelineEventEmitter.emitPipelineStarted(run);
 
 		log.info("[PIPELINE] Created run={} spark={} playbook={} tier={} activatedRoles={}",
 				run.getId(), sparkId, playbook.name(), playbook.tier(), classification.activatedRoles());
@@ -110,7 +116,11 @@ public class PipelineStateManager {
 	}
 
 	/**
-	 * Mark a pipeline run as EXECUTING (pipeline has begun processing stages).
+	 * Mark a pipeline run as EXECUTING (pipeline has begun processing stages) and emit the
+	 * {@code PIPELINE_STARTED} event.
+	 *
+	 * <p>The run is saved with status {@code EXECUTING} before the event is emitted, ensuring
+	 * the WebSocket payload reflects committed state.
 	 *
 	 * @param runId the pipeline run ID
 	 */
@@ -118,7 +128,8 @@ public class PipelineStateManager {
 		pipelineRunRepository.findById(runId).ifPresent(run -> {
 			run.setStatus(PipelineStatus.EXECUTING);
 			pipelineRunRepository.save(run);
-			log.debug("[PIPELINE] Marked EXECUTING: run={}", runId);
+			pipelineEventEmitter.emitPipelineStarted(run);
+			log.debug("[PIPELINE] Marked EXECUTING and emitted PIPELINE_STARTED: run={}", runId);
 		});
 	}
 
@@ -136,7 +147,11 @@ public class PipelineStateManager {
 	}
 
 	/**
-	 * Mark a pipeline run as COMPLETED with aggregated cost metrics.
+	 * Mark a pipeline run as COMPLETED with aggregated cost metrics and emit the
+	 * {@code PIPELINE_COMPLETED} event.
+	 *
+	 * <p>Sets status to {@code COMPLETED}, records {@code completedAt}, clears
+	 * {@code currentRole}, and saves exactly once before emitting the event.
 	 *
 	 * @param runId       the pipeline run ID
 	 * @param totalTokens aggregated token count across all roles
@@ -144,25 +159,32 @@ public class PipelineStateManager {
 	 */
 	public void markCompleted(String runId, long totalTokens, BigDecimal totalCost) {
 		pipelineRunRepository.findById(runId).ifPresent(run -> {
+			run.setStatus(PipelineStatus.COMPLETED);
+			run.setCompletedAt(Instant.now());
+			run.setCurrentRole(null);
 			run.setTotalTokens(totalTokens);
 			run.setTotalCost(totalCost);
-			run.setCurrentRole(null);
 			pipelineRunRepository.save(run);
-			pipelineEventEmitter.emitEvent(run, io.strategiz.social.data.entity.PipelineEventType.PIPELINE_COMPLETED,
+			pipelineEventEmitter.emitEvent(run, PipelineEventType.PIPELINE_COMPLETED,
 					null, Map.of("totalTokens", totalTokens, "totalCost", totalCost));
 			log.info("[PIPELINE] Completed run={} tokens={} cost={}", runId, totalTokens, totalCost);
 		});
 	}
 
 	/**
-	 * Mark a pipeline run as FAILED with an error description.
+	 * Mark a pipeline run as FAILED with an error description and emit the
+	 * {@code PIPELINE_FAILED} event.
+	 *
+	 * <p>Sets status to {@code FAILED} and saves exactly once before emitting the event.
 	 *
 	 * @param runId the pipeline run ID
 	 * @param error the error message
 	 */
 	public void markFailed(String runId, String error) {
 		pipelineRunRepository.findById(runId).ifPresent(run -> {
-			pipelineEventEmitter.emitEvent(run, io.strategiz.social.data.entity.PipelineEventType.PIPELINE_FAILED,
+			run.setStatus(PipelineStatus.FAILED);
+			pipelineRunRepository.save(run);
+			pipelineEventEmitter.emitEvent(run, PipelineEventType.PIPELINE_FAILED,
 					null, Map.of("error", error != null ? error : "Unknown error"));
 			log.info("[PIPELINE] Failed run={} error={}", runId, error);
 		});

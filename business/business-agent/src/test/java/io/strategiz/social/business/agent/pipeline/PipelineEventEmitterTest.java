@@ -14,7 +14,6 @@ import io.strategiz.social.data.entity.PipelineEventType;
 import io.strategiz.social.data.entity.PipelineRun;
 import io.strategiz.social.data.entity.PipelineStatus;
 import io.strategiz.social.data.repository.PipelineEventRepository;
-import io.strategiz.social.data.repository.PipelineRunRepository;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Optional;
@@ -38,9 +37,6 @@ class PipelineEventEmitterTest {
 	private PipelineEventRepository pipelineEventRepository;
 
 	@Mock
-	private PipelineRunRepository pipelineRunRepository;
-
-	@Mock
 	private UserBroadcaster userBroadcaster;
 
 	/** Emitter with a live UserBroadcaster mock — used for WebSocket push tests. */
@@ -53,10 +49,9 @@ class PipelineEventEmitterTest {
 
 	@BeforeEach
 	void setUp() {
-		emitter = new PipelineEventEmitter(pipelineEventRepository, pipelineRunRepository,
-				Optional.of(userBroadcaster));
+		emitter = new PipelineEventEmitter(pipelineEventRepository, Optional.of(userBroadcaster));
 		emitterWithoutBroadcaster = new PipelineEventEmitter(pipelineEventRepository,
-				pipelineRunRepository, Optional.empty());
+				Optional.empty());
 
 		run = new PipelineRun();
 		run.setId(RUN_ID);
@@ -83,33 +78,37 @@ class PipelineEventEmitterTest {
 	}
 
 	@Test
-	void emitEvent_updatesRunStatusToExecutingOnRoleStarted() {
+	void emitEvent_doesNotMutateRunOrSaveRun_onRoleStarted() {
+		PipelineStatus statusBefore = run.getStatus();
+		PdlcRole currentRoleBefore = run.getCurrentRole();
+
 		emitter.emitEvent(run, PipelineEventType.ROLE_STARTED, PdlcRole.ARCHITECT, Map.of());
 
-		assertEquals(PipelineStatus.EXECUTING, run.getStatus());
-		assertEquals(PdlcRole.ARCHITECT, run.getCurrentRole());
-		verify(pipelineRunRepository).save(run);
+		// Emitter must not mutate the run — PipelineStateManager owns all run mutations
+		assertEquals(statusBefore, run.getStatus());
+		assertEquals(currentRoleBefore, run.getCurrentRole());
 	}
 
 	@Test
-	void emitEvent_setsStatusToCompletedAndCompletedAtOnPipelineCompleted() {
+	void emitEvent_doesNotMutateRunOrSaveRun_onPipelineCompleted() {
+		PipelineStatus statusBefore = run.getStatus();
+
 		emitter.emitEvent(run, PipelineEventType.PIPELINE_COMPLETED, null, Map.of());
 
-		assertEquals(PipelineStatus.COMPLETED, run.getStatus());
-		assertNotNull(run.getCompletedAt());
-		verify(pipelineRunRepository).save(run);
+		assertEquals(statusBefore, run.getStatus());
 	}
 
 	@Test
-	void emitEvent_setsStatusToFailedOnPipelineFailed() {
+	void emitEvent_doesNotMutateRunOrSaveRun_onPipelineFailed() {
+		PipelineStatus statusBefore = run.getStatus();
+
 		emitter.emitEvent(run, PipelineEventType.PIPELINE_FAILED, null, Map.of());
 
-		assertEquals(PipelineStatus.FAILED, run.getStatus());
-		verify(pipelineRunRepository).save(run);
+		assertEquals(statusBefore, run.getStatus());
 	}
 
 	@Test
-	void emitRoleCompleted_updatesRoleResultsMap() {
+	void emitRoleCompleted_savesEventWithCorrectMetadata() {
 		emitter.emitRoleCompleted(run, PdlcRole.TESTER, 1500L, new BigDecimal("0.05"), 3000L,
 				"claude-sonnet-4-5");
 
@@ -123,20 +122,17 @@ class PipelineEventEmitterTest {
 		assertEquals(new BigDecimal("0.05"), saved.getMetadata().get("cost"));
 		assertEquals(3000L, saved.getMetadata().get("durationMs"));
 		assertEquals("claude-sonnet-4-5", saved.getMetadata().get("model"));
-
-		// Run should have the role result stored under the role name
-		assertNotNull(run.getRoleResults().get(PdlcRole.TESTER.name()));
-		verify(pipelineRunRepository).save(run);
 	}
 
 	@Test
-	void emitReworkTriggered_incrementsReworkCount() {
+	void emitReworkTriggered_doesNotMutateReworkCount() {
 		assertEquals(0, run.getReworkCount());
 
 		emitter.emitReworkTriggered(run, PdlcRole.REVIEWER, PdlcRole.IMPLEMENTER,
 				"Output did not meet acceptance criteria");
 
-		assertEquals(1, run.getReworkCount());
+		// Emitter must not increment reworkCount — PipelineStateManager.incrementRework() owns this
+		assertEquals(0, run.getReworkCount());
 
 		ArgumentCaptor<PipelineEvent> captor = forClass(PipelineEvent.class);
 		verify(pipelineEventRepository).save(captor.capture());
@@ -146,27 +142,21 @@ class PipelineEventEmitterTest {
 		assertEquals("REVIEWER", saved.getMetadata().get("rejectingRole"));
 		assertEquals("IMPLEMENTER", saved.getMetadata().get("targetRole"));
 		assertEquals("Output did not meet acceptance criteria", saved.getMetadata().get("reason"));
-		verify(pipelineRunRepository).save(run);
 	}
 
 	@Test
-	void emitReworkTriggered_accumulatesReworkCount_acrossMultipleCalls() {
+	void emitReworkTriggered_savesEventForEachCall() {
 		emitter.emitReworkTriggered(run, PdlcRole.REVIEWER, PdlcRole.IMPLEMENTER, "First rejection");
 		emitter.emitReworkTriggered(run, PdlcRole.REVIEWER, PdlcRole.IMPLEMENTER, "Second rejection");
 
-		assertEquals(2, run.getReworkCount());
+		// reworkCount must stay untouched — belongs to StateManager
+		assertEquals(0, run.getReworkCount());
 		verify(pipelineEventRepository, times(2)).save(org.mockito.ArgumentMatchers.any(PipelineEvent.class));
-		verify(pipelineRunRepository, times(2)).save(run);
 	}
 
 	@Test
-	void emitPipelineStarted_setsStatusToExecuting() {
-		// PipelineRun defaults to PipelineStatus.CREATED
-		assertEquals(PipelineStatus.CREATED, run.getStatus());
-
+	void emitPipelineStarted_savesEventWithCorrectType() {
 		emitter.emitPipelineStarted(run);
-
-		assertEquals(PipelineStatus.EXECUTING, run.getStatus());
 
 		ArgumentCaptor<PipelineEvent> captor = forClass(PipelineEvent.class);
 		verify(pipelineEventRepository).save(captor.capture());
@@ -174,20 +164,27 @@ class PipelineEventEmitterTest {
 	}
 
 	@Test
-	void emitEvent_costThresholdWarning_savesEventAndPersistsRun() {
+	void emitPipelineStarted_doesNotMutateRunStatus() {
+		PipelineStatus statusBefore = run.getStatus();
+
+		emitter.emitPipelineStarted(run);
+
+		assertEquals(statusBefore, run.getStatus());
+	}
+
+	@Test
+	void emitEvent_costThresholdWarning_savesEventOnly() {
 		Map<String, Object> warningDetails = Map.of("currentCost", "4.50", "threshold", "5.00");
 
 		emitter.emitEvent(run, PipelineEventType.COST_THRESHOLD_WARNING, null, warningDetails);
 
-		// Cost warning events are captured in the event document only; no run summary field update
 		ArgumentCaptor<PipelineEvent> captor = forClass(PipelineEvent.class);
 		verify(pipelineEventRepository).save(captor.capture());
 		assertEquals(PipelineEventType.COST_THRESHOLD_WARNING, captor.getValue().getEventType());
-		verify(pipelineRunRepository).save(run);
 	}
 
 	@Test
-	void emitEvent_costCeilingReached_savesEventAndPersistsRun() {
+	void emitEvent_costCeilingReached_savesEventOnly() {
 		Map<String, Object> ceilingDetails = Map.of("currentCost", "10.00", "ceiling", "10.00");
 
 		emitter.emitEvent(run, PipelineEventType.COST_CEILING_REACHED, null, ceilingDetails);
@@ -195,7 +192,6 @@ class PipelineEventEmitterTest {
 		ArgumentCaptor<PipelineEvent> captor = forClass(PipelineEvent.class);
 		verify(pipelineEventRepository).save(captor.capture());
 		assertEquals(PipelineEventType.COST_CEILING_REACHED, captor.getValue().getEventType());
-		verify(pipelineRunRepository).save(run);
 	}
 
 	// --- WebSocket broadcast tests ---
@@ -263,14 +259,15 @@ class PipelineEventEmitterTest {
 		// Must not throw even when UserBroadcaster is absent
 		emitterWithoutBroadcaster.emitEvent(run, PipelineEventType.PIPELINE_COMPLETED, null, Map.of());
 
-		verify(pipelineRunRepository).save(run);
-		// No assertion on userBroadcaster — it was never injected
+		// Event is still persisted
+		verify(pipelineEventRepository).save(org.mockito.ArgumentMatchers.any(PipelineEvent.class));
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
 	void emitEvent_includesRunStatusInWebSocketPayload() {
-		run.setStatus(PipelineStatus.EXECUTING);
+		// Status is pre-set on the run by PipelineStateManager before calling emitEvent
+		run.setStatus(PipelineStatus.COMPLETED);
 		emitter.emitEvent(run, PipelineEventType.PIPELINE_COMPLETED, null, Map.of());
 
 		ArgumentCaptor<Map<String, Object>> payloadCaptor =
@@ -278,7 +275,7 @@ class PipelineEventEmitterTest {
 		verify(userBroadcaster).broadcastToUser(org.mockito.ArgumentMatchers.eq(USER_ID),
 				payloadCaptor.capture());
 
-		// After PIPELINE_COMPLETED the run status is updated to COMPLETED before broadcast
+		// The status in the payload reflects what StateManager set before calling emitEvent
 		assertEquals("COMPLETED", payloadCaptor.getValue().get("status"));
 	}
 
