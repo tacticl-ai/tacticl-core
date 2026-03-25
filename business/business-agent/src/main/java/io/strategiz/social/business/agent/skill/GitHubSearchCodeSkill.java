@@ -5,6 +5,7 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
 import io.strategiz.social.client.github.GitHubClient;
+import io.strategiz.social.client.github.model.GitHubFileContent;
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -65,7 +66,9 @@ public class GitHubSearchCodeSkill implements AgentSkill {
 		String query = input.get("query").asText();
 
 		try {
-			List<GitHubClient.CodeSearchResult> results = gitHubClient.get().searchCode(repo, query);
+			// TODO: resolve the user's GitHub access token from their repo grant
+			String accessToken = null;
+			List<GitHubFileContent> results = gitHubClient.get().searchCode(repo, query, accessToken);
 
 			if (results.isEmpty()) {
 				return "No code matches found for \"" + query + "\" in " + repo;
@@ -75,15 +78,8 @@ public class GitHubSearchCodeSkill implements AgentSkill {
 			sb.append(String.format("Found %d result(s) for \"%s\" in %s:\n\n", results.size(), query, repo));
 
 			for (int i = 0; i < results.size(); i++) {
-				GitHubClient.CodeSearchResult result = results.get(i);
+				GitHubFileContent result = results.get(i);
 				sb.append(String.format("%d. %s\n", i + 1, result.getPath()));
-				if (result.getSnippet() != null && !result.getSnippet().isBlank()) {
-					sb.append("   ```\n");
-					for (String line : result.getSnippet().split("\n")) {
-						sb.append("   ").append(line).append("\n");
-					}
-					sb.append("   ```\n");
-				}
 				sb.append("\n");
 			}
 

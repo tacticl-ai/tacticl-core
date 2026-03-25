@@ -75,7 +75,9 @@ public class GitHubReviewPrSkill implements AgentSkill {
 		String body = input.get("body").asText();
 
 		try {
-			gitHubClient.get().reviewPullRequest(repo, prNumber, action, body);
+			// TODO: resolve the user's GitHub access token from their repo grant
+			String accessToken = null;
+			gitHubClient.get().reviewPullRequest(repo, prNumber, action, body, accessToken);
 			log.info("Submitted PR review for user {} — repo: {}, PR #{}, action: {}", userId, repo, prNumber, action);
 			return String.format("Review submitted for PR #%d in %s.\nAction: %s\nComment: %s",
 					prNumber, repo, action, body);

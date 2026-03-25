@@ -2,12 +2,17 @@ package io.strategiz.social.business.agent.skill;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
 import io.strategiz.social.client.github.GitHubClient;
+import io.strategiz.social.client.github.model.GitHubFileContent;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,10 +53,17 @@ class GitHubReadFileSkillTest {
 		assertTrue(schemaJson.contains("\"required\""));
 	}
 
+	private static GitHubFileContent fileContentWith(String rawText) {
+		String encoded = Base64.getEncoder().encodeToString(rawText.getBytes(StandardCharsets.UTF_8));
+		GitHubFileContent fc = new GitHubFileContent();
+		fc.setContent(encoded);
+		return fc;
+	}
+
 	@Test
 	void execute_clientPresent_returnsFileContent() {
-		when(gitHubClient.readFile("owner/repo", "src/Main.java", "main"))
-				.thenReturn("public class Main { }");
+		when(gitHubClient.readFile(eq("owner/repo"), eq("src/Main.java"), eq("main"), any()))
+				.thenReturn(fileContentWith("public class Main { }"));
 
 		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.of(gitHubClient));
 
@@ -69,8 +81,8 @@ class GitHubReadFileSkillTest {
 
 	@Test
 	void execute_clientPresent_defaultsBranchToMain() {
-		when(gitHubClient.readFile("owner/repo", "README.md", "main"))
-				.thenReturn("# My Project");
+		when(gitHubClient.readFile(eq("owner/repo"), eq("README.md"), eq("main"), any()))
+				.thenReturn(fileContentWith("# My Project"));
 
 		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.of(gitHubClient));
 
@@ -100,7 +112,7 @@ class GitHubReadFileSkillTest {
 
 	@Test
 	void execute_clientThrowsException_returnsErrorMessage() {
-		when(gitHubClient.readFile("owner/repo", "missing.txt", "main"))
+		when(gitHubClient.readFile(eq("owner/repo"), eq("missing.txt"), eq("main"), any()))
 				.thenThrow(new RuntimeException("404 Not Found"));
 
 		GitHubReadFileSkill skill = new GitHubReadFileSkill(Optional.of(gitHubClient));

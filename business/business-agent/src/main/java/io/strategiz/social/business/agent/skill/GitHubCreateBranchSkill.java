@@ -69,8 +69,10 @@ public class GitHubCreateBranchSkill implements AgentSkill {
 		String baseBranch = input.has("baseBranch") ? input.get("baseBranch").asText() : "main";
 
 		try {
-			String latestSha = gitHubClient.get().getLatestCommitSha(repo, baseBranch);
-			gitHubClient.get().createBranch(repo, branchName, latestSha);
+			// TODO: resolve the user's GitHub access token from their repo grant
+			String accessToken = null;
+			String latestSha = gitHubClient.get().getLatestCommitSha(repo, baseBranch, accessToken);
+			gitHubClient.get().createBranch(repo, branchName, latestSha, accessToken);
 			log.info("Created branch for user {} — repo: {}, branch: {}, base: {}", userId, repo, branchName, baseBranch);
 			return String.format("Branch created: '%s' in %s (based on '%s', SHA: %s)",
 					branchName, repo, baseBranch, latestSha.substring(0, Math.min(7, latestSha.length())));

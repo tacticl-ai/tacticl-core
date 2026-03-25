@@ -5,6 +5,7 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
 import io.strategiz.social.client.github.GitHubClient;
+import io.strategiz.social.client.github.model.GitHubPullRequest;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,10 +80,12 @@ public class GitHubCreatePrSkill implements AgentSkill {
 		String base = input.has("base") ? input.get("base").asText() : "main";
 
 		try {
-			GitHubClient.PullRequestResult pr = gitHubClient.get().createPullRequest(repo, title, body, head, base);
+			// TODO: resolve the user's GitHub access token from their repo grant
+			String accessToken = null;
+			GitHubPullRequest pr = gitHubClient.get().createPullRequest(repo, title, body, head, base, accessToken);
 			log.info("Created PR for user {} — repo: {}, PR #{}", userId, repo, pr.getNumber());
 			return String.format("Pull request created successfully.\nRepo: %s\nPR #%d: %s\nURL: %s\n%s → %s",
-					repo, pr.getNumber(), title, pr.getUrl(), head, base);
+					repo, pr.getNumber(), title, pr.getHtmlUrl(), head, base);
 		}
 		catch (Exception e) {
 			log.error("Failed to create PR for user {} — repo: {}, head: {}", userId, repo, head, e);

@@ -5,6 +5,7 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
 import io.strategiz.social.client.github.GitHubClient;
+import io.strategiz.social.client.github.model.GitHubFileContent;
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -70,7 +71,9 @@ public class GitHubListFilesSkill implements AgentSkill {
 		String branch = input.has("branch") ? input.get("branch").asText() : "main";
 
 		try {
-			List<GitHubClient.FileEntry> entries = gitHubClient.get().listFiles(repo, path, branch);
+			// TODO: resolve the user's GitHub access token from their repo grant
+			String accessToken = null;
+			List<GitHubFileContent> entries = gitHubClient.get().listFiles(repo, path, branch, accessToken);
 
 			if (entries.isEmpty()) {
 				return "Directory is empty: " + path + " in " + repo + " (branch: " + branch + ")";
@@ -79,7 +82,7 @@ public class GitHubListFilesSkill implements AgentSkill {
 			StringBuilder sb = new StringBuilder();
 			sb.append(String.format("Contents of %s in %s (branch: %s):\n\n", path, repo, branch));
 
-			for (GitHubClient.FileEntry entry : entries) {
+			for (GitHubFileContent entry : entries) {
 				String typeMarker = "dir".equals(entry.getType()) ? "[DIR] " : "      ";
 				sb.append(typeMarker).append(entry.getName()).append("\n");
 			}

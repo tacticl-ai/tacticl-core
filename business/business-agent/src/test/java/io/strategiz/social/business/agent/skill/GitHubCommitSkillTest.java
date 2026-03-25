@@ -2,12 +2,16 @@ package io.strategiz.social.business.agent.skill;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
 import io.strategiz.social.client.github.GitHubClient;
+import io.strategiz.social.client.github.model.GitHubCommitResult;
+import io.strategiz.social.client.github.model.GitHubFileContent;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,8 +55,12 @@ class GitHubCommitSkillTest {
 
 	@Test
 	void execute_clientPresent_returnsCommitSha() {
-		when(gitHubClient.commitFile("owner/repo", "src/Hello.java", "public class Hello {}", "Add Hello class", "feature/hello"))
-				.thenReturn("abc1234def5678");
+		GitHubCommitResult.CommitInfo commitInfo = new GitHubCommitResult.CommitInfo("abc1234def5678", "Add Hello class", null);
+		GitHubCommitResult commitResult = new GitHubCommitResult(new GitHubFileContent(), commitInfo);
+		when(gitHubClient.commitFile(
+				eq("owner/repo"), eq("src/Hello.java"), eq("public class Hello {}"),
+				eq("Add Hello class"), eq("feature/hello"), any(), any()))
+				.thenReturn(commitResult);
 
 		GitHubCommitSkill skill = new GitHubCommitSkill(Optional.of(gitHubClient));
 
@@ -90,7 +98,9 @@ class GitHubCommitSkillTest {
 
 	@Test
 	void execute_clientThrowsException_returnsErrorMessage() {
-		when(gitHubClient.commitFile("owner/repo", "src/Hello.java", "public class Hello {}", "Add Hello class", "feature/hello"))
+		when(gitHubClient.commitFile(
+				eq("owner/repo"), eq("src/Hello.java"), eq("public class Hello {}"),
+				eq("Add Hello class"), eq("feature/hello"), any(), any()))
 				.thenThrow(new RuntimeException("Branch not found"));
 
 		GitHubCommitSkill skill = new GitHubCommitSkill(Optional.of(gitHubClient));

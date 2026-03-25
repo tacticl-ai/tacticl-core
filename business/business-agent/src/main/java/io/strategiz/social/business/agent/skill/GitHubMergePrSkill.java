@@ -70,10 +70,12 @@ public class GitHubMergePrSkill implements AgentSkill {
 		String mergeMethod = input.has("mergeMethod") ? input.get("mergeMethod").asText() : "squash";
 
 		try {
-			String mergeSha = gitHubClient.get().mergePullRequest(repo, prNumber, mergeMethod);
+			// TODO: resolve the user's GitHub access token from their repo grant
+			String accessToken = null;
+			gitHubClient.get().mergePullRequest(repo, prNumber, mergeMethod, accessToken);
 			log.info("Merged PR for user {} — repo: {}, PR #{}, method: {}", userId, repo, prNumber, mergeMethod);
-			return String.format("Pull request #%d merged successfully in %s.\nMerge method: %s\nMerge commit SHA: %s",
-					prNumber, repo, mergeMethod, mergeSha);
+			return String.format("Pull request #%d merged successfully in %s.\nMerge method: %s",
+					prNumber, repo, mergeMethod);
 		}
 		catch (Exception e) {
 			log.error("Failed to merge PR for user {} — repo: {}, PR #{}", userId, repo, prNumber, e);

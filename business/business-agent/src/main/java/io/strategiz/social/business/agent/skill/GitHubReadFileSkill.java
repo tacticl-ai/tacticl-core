@@ -5,6 +5,7 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
 import io.strategiz.social.client.github.GitHubClient;
+import io.strategiz.social.client.github.model.GitHubFileContent;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,7 +70,10 @@ public class GitHubReadFileSkill implements AgentSkill {
 		String branch = input.has("branch") ? input.get("branch").asText() : "main";
 
 		try {
-			String content = gitHubClient.get().readFile(repo, path, branch);
+			// TODO: resolve the user's GitHub access token from their repo grant
+			String accessToken = null;
+			GitHubFileContent fileContent = gitHubClient.get().readFile(repo, path, branch, accessToken);
+			String content = fileContent.getDecodedContent();
 			return String.format("File: %s (branch: %s)\nRepo: %s\n\n%s", path, branch, repo, content);
 		}
 		catch (Exception e) {

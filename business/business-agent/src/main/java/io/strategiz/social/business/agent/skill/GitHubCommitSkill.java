@@ -5,6 +5,7 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 import io.cidadel.client.base.llm.model.ToolDefinition;
 import io.strategiz.social.client.github.GitHubClient;
+import io.strategiz.social.client.github.model.GitHubCommitResult;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,7 +80,10 @@ public class GitHubCommitSkill implements AgentSkill {
 		String branch = input.get("branch").asText();
 
 		try {
-			String commitSha = gitHubClient.get().commitFile(repo, path, content, message, branch);
+			// TODO: resolve the user's GitHub access token from their repo grant
+			String accessToken = null;
+			GitHubCommitResult result = gitHubClient.get().commitFile(repo, path, content, message, branch, null, accessToken);
+			String commitSha = (result.getCommit() != null) ? result.getCommit().getSha() : "unknown";
 			log.info("Committed file for user {} — repo: {}, path: {}, branch: {}", userId, repo, path, branch);
 			return String.format("File committed successfully.\nRepo: %s\nFile: %s\nBranch: %s\nCommit SHA: %s\nMessage: %s",
 					repo, path, branch, commitSha, message);
