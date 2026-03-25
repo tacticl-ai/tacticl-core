@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -74,13 +75,16 @@ class PdlcPipelineOrchestratorTest {
 	@Mock
 	private ReworkTracker reworkTracker;
 
+	@Mock
+	private Executor pdlcPipelineExecutor;
+
 	private PdlcPipelineOrchestrator orchestrator;
 
 	@BeforeEach
 	void setUp() {
 		orchestrator = new PdlcPipelineOrchestrator(pipelineStateManager, pipelineEventEmitter,
 				pipelineArtifactService, sparkService, playbookRegistry, roleExecutor,
-				checkpointService, reworkTracker);
+				checkpointService, reworkTracker, pdlcPipelineExecutor);
 
 		// Default: checkpoint gates auto-approve so tests can focus on pipeline flow
 		Checkpoint autoApproved = new Checkpoint();
