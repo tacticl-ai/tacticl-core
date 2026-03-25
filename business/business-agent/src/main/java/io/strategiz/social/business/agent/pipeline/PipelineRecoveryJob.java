@@ -18,8 +18,9 @@ import org.springframework.stereotype.Component;
  * Crash recovery job that runs on startup to resume pipeline runs that were interrupted mid-execution.
  *
  * <p>On startup, queries for all EXECUTING pipelines and claims any that are unclaimed or whose
- * claim is stale (older than 30 minutes). For each claimed run it emits a PIPELINE_RESUMED event.
- * Actual re-execution will be wired when PdlcPipelineOrchestrator.executePipeline is available.
+ * claim is stale (older than 30 minutes). For each claimed run it emits a PIPELINE_RESUMED event
+ * and dispatches re-execution via {@link PdlcPipelineOrchestrator#executePipeline(String)}, which
+ * resumes from the current role asynchronously on the pipeline thread pool.
  */
 @Component
 public class PipelineRecoveryJob {
@@ -32,10 +33,14 @@ public class PipelineRecoveryJob {
 
 	private final PipelineEventEmitter pipelineEventEmitter;
 
+	private final PdlcPipelineOrchestrator pdlcPipelineOrchestrator;
+
 	public PipelineRecoveryJob(PipelineRunRepository pipelineRunRepository,
-			PipelineEventEmitter pipelineEventEmitter) {
+			PipelineEventEmitter pipelineEventEmitter,
+			PdlcPipelineOrchestrator pdlcPipelineOrchestrator) {
 		this.pipelineRunRepository = pipelineRunRepository;
 		this.pipelineEventEmitter = pipelineEventEmitter;
+		this.pdlcPipelineOrchestrator = pdlcPipelineOrchestrator;
 	}
 
 	/**
@@ -88,7 +93,9 @@ public class PipelineRecoveryJob {
 
 		logger.info("Resumed pipeline {} from role {}", runId, currentRole);
 
-		// NOTE: Actual re-execution will be wired when PdlcPipelineOrchestrator.executePipeline is available.
+		// Dispatch re-execution asynchronously — the orchestrator loads the run, checks which roles
+		// are already completed, and continues from the current role.
+		pdlcPipelineOrchestrator.executePipeline(runId);
 	}
 
 	/**

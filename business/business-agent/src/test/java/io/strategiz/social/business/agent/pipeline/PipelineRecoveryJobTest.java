@@ -32,11 +32,14 @@ class PipelineRecoveryJobTest {
 	@Mock
 	private PipelineEventEmitter pipelineEventEmitter;
 
+	@Mock
+	private PdlcPipelineOrchestrator pdlcPipelineOrchestrator;
+
 	private PipelineRecoveryJob recoveryJob;
 
 	@BeforeEach
 	void setUp() {
-		recoveryJob = new PipelineRecoveryJob(pipelineRunRepository, pipelineEventEmitter);
+		recoveryJob = new PipelineRecoveryJob(pipelineRunRepository, pipelineEventEmitter, pdlcPipelineOrchestrator);
 	}
 
 	// --- helpers ---
@@ -83,6 +86,16 @@ class PipelineRecoveryJobTest {
 	}
 
 	@Test
+	void recoverInterruptedPipelines_executesPipelineAfterClaiming() {
+		PipelineRun run = executingRun("run-exec-001", PdlcRole.IMPLEMENTER);
+		when(pipelineRunRepository.findByStatus(PipelineStatus.EXECUTING)).thenReturn(List.of(run));
+
+		recoveryJob.recoverInterruptedPipelines();
+
+		verify(pdlcPipelineOrchestrator).executePipeline("run-exec-001");
+	}
+
+	@Test
 	void recoverInterruptedPipelines_skipsRunWithFreshClaim() {
 		PipelineRun run = executingRun("run-003", PdlcRole.TESTER);
 		// Claim is fresh (2 minutes old — well within 30-minute threshold)
@@ -94,6 +107,7 @@ class PipelineRecoveryJobTest {
 
 		verify(pipelineRunRepository, never()).save(any());
 		verify(pipelineEventEmitter, never()).emitEvent(any(), any(), any(), any());
+		verify(pdlcPipelineOrchestrator, never()).executePipeline(any());
 	}
 
 	@Test
@@ -130,6 +144,7 @@ class PipelineRecoveryJobTest {
 
 		verify(pipelineRunRepository, never()).save(any());
 		verify(pipelineEventEmitter, never()).emitEvent(any(), any(), any(), any());
+		verify(pdlcPipelineOrchestrator, never()).executePipeline(any());
 	}
 
 	@Test
