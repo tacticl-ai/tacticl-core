@@ -3,9 +3,9 @@ package io.strategiz.social.data.entity;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 import com.google.cloud.firestore.annotation.IgnoreExtraProperties;
@@ -59,7 +59,7 @@ public class PipelineRun extends BaseEntity {
 	public PipelineRun() {
 		this.status = PipelineStatus.CREATED;
 		this.activatedRoles = new ArrayList<>();
-		this.roleResults = new HashMap<>();
+		this.roleResults = new ConcurrentHashMap<>();
 		this.reworkCount = 0;
 		this.totalTokens = 0;
 		this.totalCost = BigDecimal.ZERO;

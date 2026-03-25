@@ -21,8 +21,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -63,10 +65,13 @@ public class PdlcPipelineOrchestrator {
 
 	private final ReworkTracker reworkTracker;
 
+	private final Executor pdlcPipelineExecutor;
+
 	public PdlcPipelineOrchestrator(PipelineStateManager pipelineStateManager,
 			PipelineEventEmitter pipelineEventEmitter, PipelineArtifactService pipelineArtifactService,
 			SparkService sparkService, PlaybookRegistry playbookRegistry, PdlcRoleExecutor roleExecutor,
-			CheckpointService checkpointService, ReworkTracker reworkTracker) {
+			CheckpointService checkpointService, ReworkTracker reworkTracker,
+			@Qualifier("pdlcPipelineExecutor") Executor pdlcPipelineExecutor) {
 		this.pipelineStateManager = pipelineStateManager;
 		this.pipelineEventEmitter = pipelineEventEmitter;
 		this.pipelineArtifactService = pipelineArtifactService;
@@ -75,6 +80,7 @@ public class PdlcPipelineOrchestrator {
 		this.roleExecutor = roleExecutor;
 		this.checkpointService = checkpointService;
 		this.reworkTracker = reworkTracker;
+		this.pdlcPipelineExecutor = pdlcPipelineExecutor;
 	}
 
 	/**
@@ -386,7 +392,7 @@ public class PdlcPipelineOrchestrator {
 	 */
 	void executeParallelRoles(PipelineRun run, List<PdlcRole> roles) {
 		List<CompletableFuture<Void>> futures = roles.stream()
-				.map(role -> CompletableFuture.runAsync(() -> executeRole(run, role)))
+				.map(role -> CompletableFuture.runAsync(() -> executeRole(run, role), pdlcPipelineExecutor))
 				.toList();
 
 		try {
