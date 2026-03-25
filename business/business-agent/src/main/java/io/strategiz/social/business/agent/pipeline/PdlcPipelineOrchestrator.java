@@ -76,6 +76,10 @@ public class PdlcPipelineOrchestrator {
 		}
 		PipelineRun run = runOpt.get();
 
+		// Emit PIPELINE_STARTED and transition to EXECUTING now that execution is actually beginning
+		pipelineEventEmitter.emitPipelineStarted(run);
+		pipelineStateManager.markExecuting(pipelineRunId);
+
 		// 2. Load PlaybookConfig for this run
 		Optional<PlaybookConfig> playbookOpt = playbookRegistry.getPlaybook(run.getPlaybook());
 		if (playbookOpt.isEmpty()) {

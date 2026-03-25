@@ -110,6 +110,32 @@ public class PipelineStateManager {
 	}
 
 	/**
+	 * Mark a pipeline run as EXECUTING (pipeline has begun processing stages).
+	 *
+	 * @param runId the pipeline run ID
+	 */
+	public void markExecuting(String runId) {
+		pipelineRunRepository.findById(runId).ifPresent(run -> {
+			run.setStatus(PipelineStatus.EXECUTING);
+			pipelineRunRepository.save(run);
+			log.debug("[PIPELINE] Marked EXECUTING: run={}", runId);
+		});
+	}
+
+	/**
+	 * Mark a pipeline run as CHECKPOINT (waiting for user approval before continuing).
+	 *
+	 * @param runId the pipeline run ID
+	 */
+	public void markCheckpoint(String runId) {
+		pipelineRunRepository.findById(runId).ifPresent(run -> {
+			run.setStatus(PipelineStatus.CHECKPOINT);
+			pipelineRunRepository.save(run);
+			log.debug("[PIPELINE] Marked CHECKPOINT: run={}", runId);
+		});
+	}
+
+	/**
 	 * Mark a pipeline run as COMPLETED with aggregated cost metrics.
 	 *
 	 * @param runId       the pipeline run ID
@@ -121,6 +147,7 @@ public class PipelineStateManager {
 			run.setTotalTokens(totalTokens);
 			run.setTotalCost(totalCost);
 			run.setCurrentRole(null);
+			pipelineRunRepository.save(run);
 			pipelineEventEmitter.emitEvent(run, io.strategiz.social.data.entity.PipelineEventType.PIPELINE_COMPLETED,
 					null, Map.of("totalTokens", totalTokens, "totalCost", totalCost));
 			log.info("[PIPELINE] Completed run={} tokens={} cost={}", runId, totalTokens, totalCost);
