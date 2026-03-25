@@ -9,13 +9,14 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Loads GitHub OAuth credentials from Vault and injects them into {@link GitHubConfig}.
+ * Loads GitHub credentials from Vault and injects them into {@link GitHubConfig}.
  *
  * <p>
  * Vault paths:
  * <ul>
  *   <li>{@code github.client-id} - GitHub OAuth App client ID</li>
  *   <li>{@code github.client-secret} - GitHub OAuth App client secret</li>
+ *   <li>{@code github.owner} - GitHub user or organization name owning the repositories</li>
  * </ul>
  */
 @Configuration
@@ -54,7 +55,17 @@ public class GitHubVaultConfig {
 				log.info("Loaded GitHub client secret from Vault");
 			}
 			else {
-				log.warn("GitHub client secret not found in Vault - GitHub features will be disabled");
+				log.warn(
+						"GitHub client secret not found in Vault - GitHub features will be disabled");
+			}
+
+			String owner = secretManager.readSecret("github.owner", null);
+			if (owner != null && !owner.isEmpty()) {
+				gitHubConfig.setOwner(owner);
+				log.info("Loaded GitHub owner '{}' from Vault", owner);
+			}
+			else {
+				log.warn("GitHub owner not found in Vault - repository operations may fail");
 			}
 
 			if (gitHubConfig.isConfigured()) {

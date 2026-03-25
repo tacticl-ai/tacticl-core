@@ -2,4 +2,10 @@ plugins {
     alias(libs.plugins.spring.dependency.management)
 }
 
-// All dependencies provided by parent
+dependencies {
+    // Rate limiting (module-specific, matches client-twitter pattern)
+    implementation(libs.bucket4j.core)
+
+    // JUnit Platform launcher required at runtime (client parent omits it)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}

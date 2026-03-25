@@ -1,16 +1,28 @@
 package io.strategiz.social.client.github.config;
 
 /**
- * Configuration properties for GitHub OAuth.
+ * Configuration properties for the GitHub API client.
  *
  * <p>
- * Client ID and secret are loaded from Vault at startup by {@link GitHubVaultConfig}.
+ * OAuth credentials (client ID and secret) and the repository owner are loaded from
+ * Vault at startup by {@link GitHubVaultConfig}.
+ *
+ * <p>
+ * Vault paths:
+ * <ul>
+ *   <li>{@code github.client-id} — GitHub OAuth App client ID</li>
+ *   <li>{@code github.client-secret} — GitHub OAuth App client secret</li>
+ *   <li>{@code github.owner} — GitHub user or organization that owns the repositories</li>
+ * </ul>
  */
 public class GitHubConfig {
 
 	private String clientId;
 
 	private String clientSecret;
+
+	/** GitHub user or organization name that owns the target repositories. */
+	private String owner;
 
 	public String getClientId() {
 		return clientId;
@@ -28,9 +40,18 @@ public class GitHubConfig {
 		this.clientSecret = clientSecret;
 	}
 
+	public String getOwner() {
+		return owner;
+	}
+
+	public void setOwner(String owner) {
+		this.owner = owner;
+	}
+
 	/** Check if the client is properly configured with OAuth credentials. */
 	public boolean isConfigured() {
-		return clientId != null && !clientId.isBlank() && clientSecret != null && !clientSecret.isBlank();
+		return clientId != null && !clientId.isBlank() && clientSecret != null
+				&& !clientSecret.isBlank();
 	}
 
 }
