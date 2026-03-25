@@ -29,6 +29,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 		"io.cidadel.client.grok",
 		// AI engine framework (cidadel 0.4.11+)
 		"io.cidadel.framework.ai.engine",
+		"io.cidadel.data.ai.engine",
 		"io.cidadel.business.ai.engine",
 		"io.cidadel.service.ai.engine",
 		"io.cidadel.client.claudecode",

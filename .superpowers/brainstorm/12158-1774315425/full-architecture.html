@@ -1,0 +1,603 @@
+<h2>SDLC Pipeline Engine — Full Architecture Breakdown</h2>
+<p class="subtitle">Every layer from chat input to Firestore, showing existing (green) vs new (amber) components</p>
+
+<style>
+  .tier {
+    margin-bottom: 32px; border-radius: 12px; overflow: hidden;
+    border: 1px solid #333;
+  }
+  .tier-header {
+    padding: 14px 20px; font-weight: 700; font-size: 14px;
+    text-transform: uppercase; letter-spacing: 1.5px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .tier-body { padding: 20px; background: #111118; }
+  .tier-entry { background: #0d0d15; }
+  .tier-entry .tier-header { background: #1a1a3a; color: #818cf8; }
+  .tier-service { }
+  .tier-service .tier-header { background: #1a2a1a; color: #4ade80; }
+  .tier-orch { }
+  .tier-orch .tier-header { background: #2a1a0a; color: #f59e0b; }
+  .tier-role { }
+  .tier-role .tier-header { background: #2a1a0a; color: #f59e0b; }
+  .tier-engine { }
+  .tier-engine .tier-header { background: #1a2a1a; color: #4ade80; }
+  .tier-db { }
+  .tier-db .tier-header { background: #1a1a3a; color: #818cf8; }
+
+  .flow-arrow {
+    text-align: center; color: #444; font-size: 24px; margin: 8px 0;
+    font-family: monospace;
+  }
+
+  .component {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 6px; margin: 4px;
+    font-size: 13px; font-family: monospace;
+  }
+  .comp-existing { background: #0d1a0d; border: 1px solid #2d5a3d; color: #4ade80; }
+  .comp-new { background: #1a150a; border: 1px solid #5a4a2d; color: #f59e0b; }
+  .comp-modified { background: #1a0d1a; border: 1px solid #5a2d5a; color: #c084fc; }
+
+  .legend {
+    display: flex; gap: 20px; margin-bottom: 24px; padding: 12px 16px;
+    background: #0d0d15; border-radius: 8px; border: 1px solid #222;
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #999; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-existing { background: #4ade80; }
+  .dot-new { background: #f59e0b; }
+  .dot-modified { background: #c084fc; }
+
+  .sub-section {
+    margin: 12px 0; padding: 16px; background: #0a0a12;
+    border: 1px solid #222; border-radius: 8px;
+  }
+  .sub-section h4 { color: #ddd; margin-bottom: 10px; font-size: 14px; }
+  .sub-section p { color: #888; font-size: 13px; line-height: 1.5; margin-bottom: 8px; }
+
+  .role-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px;
+  }
+  .role-box {
+    background: #1a150a; border: 1px solid #3a3020; border-radius: 6px;
+    padding: 10px; font-size: 12px;
+  }
+  .role-box .role-name { color: #f59e0b; font-weight: 600; margin-bottom: 4px; }
+  .role-box .role-detail { color: #777; font-size: 11px; line-height: 1.4; }
+
+  .db-table {
+    width: 100%; border-collapse: collapse; margin-top: 12px;
+  }
+  .db-table th {
+    text-align: left; padding: 8px 12px; font-size: 12px; color: #888;
+    border-bottom: 1px solid #333; text-transform: uppercase; letter-spacing: 1px;
+  }
+  .db-table td {
+    padding: 8px 12px; font-size: 13px; border-bottom: 1px solid #1a1a2a;
+    font-family: monospace;
+  }
+  .db-table .coll-name { color: #60a5fa; }
+  .db-table .coll-new { color: #f59e0b; }
+  .db-table .coll-desc { color: #888; font-family: sans-serif; }
+  .db-table .coll-fields { color: #9ca3af; font-size: 11px; }
+
+  .decision-diamond {
+    background: #1a1a2e; border: 2px solid #818cf8; border-radius: 8px;
+    padding: 12px 20px; text-align: center; margin: 8px auto;
+    max-width: 500px; color: #818cf8; font-size: 14px; font-weight: 600;
+  }
+  .decision-paths {
+    display: flex; justify-content: center; gap: 40px; margin: 8px 0;
+    font-size: 13px; color: #888;
+  }
+  .decision-path { text-align: center; }
+  .decision-path .label { color: #4ade80; font-weight: 600; font-size: 12px; }
+
+  .artifact-flow {
+    display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    margin: 8px 0; font-size: 12px;
+  }
+  .artifact {
+    background: #1a1a2e; border: 1px solid #333; border-radius: 4px;
+    padding: 4px 10px; color: #818cf8;
+  }
+  .arrow-small { color: #444; }
+</style>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot dot-existing"></div> Existing (no changes)</div>
+  <div class="legend-item"><div class="legend-dot dot-new"></div> New component</div>
+  <div class="legend-item"><div class="legend-dot dot-modified"></div> Modified</div>
+</div>
+
+<!-- TIER 1: Entry Point -->
+<div class="tier tier-entry">
+  <div class="tier-header">
+    <span>① Entry Point — Client → API</span>
+  </div>
+  <div class="tier-body">
+    <div class="sub-section">
+      <p><strong>Same entry point as today.</strong> Chat/voice message hits the existing endpoint. No changes here.</p>
+      <div>
+        <span class="component comp-existing">Mobile App (React Native)</span>
+        <span style="color:#444; margin: 0 8px;">→</span>
+        <span class="component comp-existing">POST /api/agent/command { text, sessionId }</span>
+        <span style="color:#444; margin: 0 8px;">→</span>
+        <span class="component comp-existing">AgentController</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">▼</div>
+
+<!-- TIER 2: Service Layer -->
+<div class="tier tier-service">
+  <div class="tier-header">
+    <span>② Service Layer — Classification & Routing</span>
+  </div>
+  <div class="tier-body">
+    <div class="sub-section">
+      <h4>Step 2a: Create Spark (existing)</h4>
+      <p>AgentController creates a Spark entity, exactly as today.</p>
+      <span class="component comp-existing">SparkService.createSpark()</span>
+    </div>
+
+    <div class="flow-arrow">▼</div>
+
+    <div class="sub-section">
+      <h4>Step 2b: Type Classification (existing)</h4>
+      <p>Haiku classifies into: code, social, research, devops, creative, data</p>
+      <span class="component comp-existing">SparkClassifierService.classifySparkType()</span>
+    </div>
+
+    <div class="flow-arrow">▼</div>
+
+    <div class="sub-section">
+      <h4>Step 2c: SDLC Depth Classification (NEW)</h4>
+      <p>For <code>code</code> and <code>devops</code> type sparks, a second classifier evaluates complexity
+      using the multi-dimensional rubric (scope, risk, domain breadth, integration, testing, reversibility).
+      Outputs pipeline tier + activated roles.</p>
+      <span class="component comp-new">SdlcClassifierService</span>
+
+      <div style="margin-top: 12px;">
+        <div class="decision-diamond">Pipeline Depth Decision</div>
+        <div class="decision-paths">
+          <div class="decision-path">
+            <div class="label">SIMPLE</div>
+            <div>Single agent loop<br>Existing VoiceAgentService</div>
+          </div>
+          <div class="decision-path">
+            <div class="label">FOCUSED</div>
+            <div>3-5 role mini-pipeline<br>e.g., Research → Implement → Review → Test</div>
+          </div>
+          <div class="decision-path">
+            <div class="label">FULL_SDLC</div>
+            <div>All applicable roles<br>12-stage pipeline</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 16px; padding: 12px; background: #0d0d15; border-radius: 6px; font-size: 12px; color: #999;">
+        <strong style="color: #f59e0b;">Classifier Output:</strong><br>
+        <code style="color: #ccc;">{ tier: "FULL_SDLC", confidence: 0.91,
+        activatedRoles: [PM, RESEARCHER, ARCHITECT, PLANNER, IMPLEMENTER, REVIEWER, TESTER, SECURITY, DEVOPS, RETRO],
+        skippedRoles: [DESIGNER],
+        reasoning: "Multi-component system with external API integration..." }</code>
+      </div>
+    </div>
+
+    <div class="flow-arrow">▼</div>
+
+    <div class="sub-section">
+      <h4>Step 2d: Routing Decision (MODIFIED)</h4>
+      <p>AgentController routes based on classification result. Simple → existing path. Focused/Full → new pipeline.</p>
+      <div>
+        <span class="component comp-modified">AgentController (routing logic)</span>
+        <span style="color:#444; margin: 0 8px;">→</span>
+        <span class="component comp-existing">VoiceAgentService (SIMPLE)</span>
+        <span style="color:#666; margin: 0 4px;">|</span>
+        <span class="component comp-new">SdlcPipelineOrchestrator (FOCUSED / FULL_SDLC)</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">▼</div>
+
+<!-- TIER 3: Pipeline Orchestration -->
+<div class="tier tier-orch">
+  <div class="tier-header">
+    <span>③ Orchestration Layer — Pipeline Lifecycle (NEW)</span>
+  </div>
+  <div class="tier-body">
+    <div class="sub-section">
+      <h4>SdlcPipelineOrchestrator</h4>
+      <p>The brain of the pipeline. Creates the PipelineRun, iterates through activated roles in order,
+      manages artifact handoff between roles, handles rework loops, and tracks completion.</p>
+
+      <div style="margin: 16px 0; padding: 16px; background: #0a0a12; border: 1px solid #333; border-radius: 8px; font-family: monospace; font-size: 12px; color: #8b8; line-height: 2;">
+<pre style="margin:0; white-space: pre-wrap;">
+orchestrate(parentSparkId, classificationResult):
+  1. Create PipelineRun in Firestore
+  2. For each activatedRole in order:
+     a. Create child Spark (parentSparkId = user's spark)
+     b. Build role-specific context:
+        - Role system prompt + knowledge base + few-shot examples
+        - Artifacts from previous roles (requirements, design, code, etc.)
+        - Rework feedback (if this is a retry)
+     c. Execute role via AiEngineRouterService.executeStep(role.sdlcStep, request)
+     d. Evaluate role output against success criteria
+     e. Store artifacts in PipelineArtifact
+     f. Update PipelineRun.roleResults
+  3. If role output is REJECTED by downstream role:
+     a. Increment reworkCount
+     b. Record rework origin (which role triggered rework)
+     c. Jump back to the target role with rejection feedback
+     d. Create NEW child spark for the rework iteration
+  4. After final role completes:
+     a. Run RetroAnalyst role
+     b. Mark PipelineRun as COMPLETED
+     c. Mark parent Spark as COMPLETED
+     d. Aggregate total tokens/cost from all child sparks
+</pre>
+      </div>
+
+      <span class="component comp-new">SdlcPipelineOrchestrator</span>
+      <span class="component comp-new">PipelineArtifactService</span>
+      <span class="component comp-new">ReworkTracker</span>
+    </div>
+
+    <div class="sub-section">
+      <h4>Artifact Flow Between Roles</h4>
+      <p>Each role consumes artifacts from upstream and produces artifacts for downstream.
+      Artifacts are stored in Firestore and referenced by ID — not passed inline (keeps context windows manageable).</p>
+      <div class="artifact-flow">
+        <span class="artifact">PM: requirements + acceptance criteria</span>
+        <span class="arrow-small">→</span>
+        <span class="artifact">Researcher: context + findings</span>
+        <span class="arrow-small">→</span>
+        <span class="artifact">Architect: design doc + API contracts</span>
+        <span class="arrow-small">→</span>
+        <span class="artifact">Planner: task breakdown + execution order</span>
+        <span class="arrow-small">→</span>
+        <span class="artifact">Implementer: source code + commits</span>
+        <span class="arrow-small">→</span>
+        <span class="artifact">Reviewer: review result (ACCEPT/REJECT + comments)</span>
+        <span class="arrow-small">→</span>
+        <span class="artifact">Tester: test results + coverage</span>
+        <span class="arrow-small">→</span>
+        <span class="artifact">Security: security report</span>
+        <span class="arrow-small">→</span>
+        <span class="artifact">Docs: documentation</span>
+        <span class="arrow-small">→</span>
+        <span class="artifact">DevOps: deploy config</span>
+        <span class="arrow-small">→</span>
+        <span class="artifact">Retro: pipeline analysis</span>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <h4>Rework Loop Mechanics</h4>
+      <p>When a downstream role rejects (Reviewer rejects code, Tester finds bugs, Security finds vulnerabilities),
+      the orchestrator creates a new child spark for the upstream role with the rejection feedback as context.</p>
+      <div style="font-family: monospace; font-size: 12px; color: #f87171; line-height: 1.8; margin-top: 8px; padding: 12px; background: #1a0d0d; border-radius: 6px;">
+        Implementer (spark-101) → produces code<br>
+        Reviewer (spark-102) → REJECTS: "Missing error handling on API calls"<br>
+        <span style="color: #f59e0b;">↳ Rework triggered → Implementer (spark-103) with rejection feedback</span><br>
+        Implementer (spark-103) → fixes code<br>
+        Reviewer (spark-104) → ACCEPTS<br>
+        <span style="color: #4ade80;">↳ Continue to Tester</span>
+      </div>
+      <p style="margin-top: 8px;"><strong style="color: #f59e0b;">Max rework per role: 3</strong> — after 3 rejections, escalate to user checkpoint for guidance.</p>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">▼</div>
+
+<!-- TIER 4: Role Execution -->
+<div class="tier tier-role">
+  <div class="tier-header">
+    <span>④ Role Execution Layer — 12 Specialized Agent Skills (NEW)</span>
+  </div>
+  <div class="tier-body">
+    <div class="sub-section">
+      <h4>SdlcRoleSkill Interface</h4>
+      <p>Each role implements a common interface. The orchestrator calls roles through this contract.
+      Each role has its own system prompt, knowledge base, tools, and success criteria.</p>
+      <div style="font-family: monospace; font-size: 12px; color: #ccc; padding: 12px; background: #0a0a12; border-radius: 6px; line-height: 1.7;">
+        <span style="color: #f59e0b;">interface SdlcRoleSkill</span> {<br>
+        &nbsp;&nbsp;SdlcRole getRole();&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// PM, ARCHITECT, IMPLEMENTER, etc.<br>
+        &nbsp;&nbsp;String getSystemPrompt();&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Role-specific instructions<br>
+        &nbsp;&nbsp;List&lt;KnowledgeEntry&gt; getKnowledge();// Domain knowledge base<br>
+        &nbsp;&nbsp;List&lt;FewShotExample&gt; getExamples();&nbsp;// Input→Output examples<br>
+        &nbsp;&nbsp;List&lt;String&gt; getAvailableTools();&nbsp;&nbsp;&nbsp;// Which agent skills this role can use<br>
+        &nbsp;&nbsp;String getSdlcStepName();&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Maps to AiSdlcStep for engine routing<br>
+        &nbsp;&nbsp;SuccessCriteria getSuccessCriteria();// How to evaluate output quality<br>
+        &nbsp;&nbsp;RoleResult execute(RoleContext ctx);&nbsp;// Run the role with upstream artifacts<br>
+        }
+      </div>
+    </div>
+
+    <div class="role-grid">
+      <div class="role-box">
+        <div class="role-name">① PM</div>
+        <div class="role-detail">
+          <strong>Step:</strong> REQUIREMENTS_GATHERING<br>
+          <strong>Engine:</strong> anthropic-agentic / sonnet<br>
+          <strong>Tools:</strong> search_web, browse_web<br>
+          <strong>Output:</strong> Requirements doc, acceptance criteria, scope
+        </div>
+      </div>
+      <div class="role-box">
+        <div class="role-name">② Researcher</div>
+        <div class="role-detail">
+          <strong>Step:</strong> WEB_RESEARCH + CODE_ANALYSIS<br>
+          <strong>Engine:</strong> codex-cli / anthropic-agentic<br>
+          <strong>Tools:</strong> search_web, browse_web<br>
+          <strong>Output:</strong> Research findings, codebase context, risks
+        </div>
+      </div>
+      <div class="role-box">
+        <div class="role-name">③ Architect</div>
+        <div class="role-detail">
+          <strong>Step:</strong> SYSTEM_DESIGN<br>
+          <strong>Engine:</strong> anthropic-agentic / opus<br>
+          <strong>Tools:</strong> search_web, browse_web<br>
+          <strong>Output:</strong> Architecture, data models, API contracts
+        </div>
+      </div>
+      <div class="role-box">
+        <div class="role-name">④ Designer</div>
+        <div class="role-detail">
+          <strong>Step:</strong> UI_UX_DESIGN<br>
+          <strong>Engine:</strong> anthropic-agentic / sonnet<br>
+          <strong>Tools:</strong> browse_web, image_analysis<br>
+          <strong>Output:</strong> Wireframes, user flows, component specs
+        </div>
+      </div>
+      <div class="role-box">
+        <div class="role-name">⑤ Planner</div>
+        <div class="role-detail">
+          <strong>Step:</strong> TASK_DECOMPOSITION<br>
+          <strong>Engine:</strong> anthropic-agentic / sonnet<br>
+          <strong>Tools:</strong> none (pure reasoning)<br>
+          <strong>Output:</strong> Task breakdown, dependencies, order
+        </div>
+      </div>
+      <div class="role-box">
+        <div class="role-name">⑥ Implementer</div>
+        <div class="role-detail">
+          <strong>Step:</strong> CODE_GENERATION<br>
+          <strong>Engine:</strong> claude-code-cli / opus<br>
+          <strong>Tools:</strong> full device/cloud toolset<br>
+          <strong>Output:</strong> Source code, migrations, configs
+        </div>
+      </div>
+      <div class="role-box">
+        <div class="role-name">⑦ Reviewer</div>
+        <div class="role-detail">
+          <strong>Step:</strong> CODE_REVIEW<br>
+          <strong>Engine:</strong> anthropic-agentic / sonnet<br>
+          <strong>Tools:</strong> browse_web (for style guides)<br>
+          <strong>Output:</strong> ACCEPT/REJECT + comments
+        </div>
+      </div>
+      <div class="role-box">
+        <div class="role-name">⑧ Tester</div>
+        <div class="role-detail">
+          <strong>Step:</strong> TEST_GENERATION + TEST_EXECUTION<br>
+          <strong>Engine:</strong> claude-code-cli / sonnet<br>
+          <strong>Tools:</strong> full device/cloud toolset<br>
+          <strong>Output:</strong> Test suites, results, coverage, bugs
+        </div>
+      </div>
+      <div class="role-box">
+        <div class="role-name">⑨ Security</div>
+        <div class="role-detail">
+          <strong>Step:</strong> SECURITY_REVIEW<br>
+          <strong>Engine:</strong> anthropic-agentic / opus<br>
+          <strong>Tools:</strong> browse_web, search_web<br>
+          <strong>Output:</strong> Vulnerability report, remediations
+        </div>
+      </div>
+      <div class="role-box">
+        <div class="role-name">⑩ Tech Writer</div>
+        <div class="role-detail">
+          <strong>Step:</strong> DOCUMENTATION<br>
+          <strong>Engine:</strong> anthropic-agentic / sonnet<br>
+          <strong>Tools:</strong> none (pure generation)<br>
+          <strong>Output:</strong> API docs, README, changelog, PR desc
+        </div>
+      </div>
+      <div class="role-box">
+        <div class="role-name">⑪ DevOps</div>
+        <div class="role-detail">
+          <strong>Step:</strong> DEPLOYMENT_SCRIPT<br>
+          <strong>Engine:</strong> claude-code-cli / sonnet<br>
+          <strong>Tools:</strong> full device/cloud toolset<br>
+          <strong>Output:</strong> CI/CD, deploy configs, monitoring
+        </div>
+      </div>
+      <div class="role-box">
+        <div class="role-name">⑫ Retro Analyst</div>
+        <div class="role-detail">
+          <strong>Step:</strong> RETROSPECTIVE<br>
+          <strong>Engine:</strong> anthropic-agentic / sonnet<br>
+          <strong>Tools:</strong> none (analysis only)<br>
+          <strong>Output:</strong> Rework analysis, proficiency scores, learnings
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">▼</div>
+
+<!-- TIER 5: AI Engine Layer -->
+<div class="tier tier-engine">
+  <div class="tier-header">
+    <span>⑤ AI Engine Layer — Execution (Existing + Extended)</span>
+  </div>
+  <div class="tier-body">
+    <div class="sub-section">
+      <h4>Engine Resolution per Role</h4>
+      <p>Each role maps to an SDLC step, which resolves to an engine via the existing <code>AiEngineRouterService</code>.
+      New SDLC steps are added to <code>AiSdlcStep</code> enum and <code>AiSdlcStepDefaults</code>.</p>
+      <div>
+        <span class="component comp-existing">AiEngineRouterService</span>
+        <span class="component comp-existing">AiEngineRegistry</span>
+        <span class="component comp-modified">AiSdlcStep (add new steps)</span>
+        <span class="component comp-modified">AiSdlcStepDefaults (add new defaults)</span>
+      </div>
+      <div style="margin-top: 12px;">
+        <span class="component comp-existing">AgenticApiAiEngine (multi-turn tool loop)</span>
+        <span class="component comp-existing">ApiAiEngineAdapter (single-turn)</span>
+        <span class="component comp-existing">claude-code-cli engine</span>
+        <span class="component comp-existing">codex-cli engine</span>
+      </div>
+    </div>
+    <div class="sub-section">
+      <h4>Tool Access per Role</h4>
+      <p>Each role has a <strong>filtered tool set</strong>. The Implementer gets full device/cloud tools.
+      The PM gets search + browse only. The Retro Analyst gets no tools (pure analysis).
+      Orchestrator passes <code>allowedTools</code> to the engine request.</p>
+      <div>
+        <span class="component comp-existing">ToolRegistry (19 existing skills)</span>
+        <span class="component comp-new">RoleToolFilter (filters tools per role config)</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-arrow">▼</div>
+
+<!-- TIER 6: Database -->
+<div class="tier tier-db">
+  <div class="tier-header">
+    <span>⑥ Database Layer — Firestore Collections</span>
+  </div>
+  <div class="tier-body">
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Collection</th>
+          <th>Status</th>
+          <th>Description</th>
+          <th>Key Fields</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="coll-name">sparks/</td>
+          <td><span class="component comp-existing" style="padding: 2px 8px; font-size: 11px;">existing</span></td>
+          <td class="coll-desc">Parent spark (user's request) + child sparks (one per role execution)</td>
+          <td class="coll-fields">parentSparkId, type, status, totalTokens, estimatedCost, completedAt</td>
+        </tr>
+        <tr>
+          <td class="coll-new">pipeline_runs/</td>
+          <td><span class="component comp-new" style="padding: 2px 8px; font-size: 11px;">NEW</span></td>
+          <td class="coll-desc">One doc per SDLC pipeline execution. Tracks overall pipeline state, role sequence, rework.</td>
+          <td class="coll-fields">sparkId, userId, pipelineTier, activatedRoles[], currentRole, roleResults{}, reworkCount, reworkOrigins[], status, totalTokens, totalCost, startedAt, completedAt, classifierOutput{}</td>
+        </tr>
+        <tr>
+          <td class="coll-new">pipeline_artifacts/</td>
+          <td><span class="component comp-new" style="padding: 2px 8px; font-size: 11px;">NEW</span></td>
+          <td class="coll-desc">Artifacts produced by each role. Referenced by pipeline run + role. Consumed by downstream roles.</td>
+          <td class="coll-fields">pipelineRunId, role, sparkId, artifactType (REQUIREMENTS | DESIGN | CODE | REVIEW | TEST_RESULTS | SECURITY_REPORT | DOCS), content{}, version, createdAt</td>
+        </tr>
+        <tr>
+          <td class="coll-new">sdlc_role_knowledge/</td>
+          <td><span class="component comp-new" style="padding: 2px 8px; font-size: 11px;">NEW</span></td>
+          <td class="coll-desc">Knowledge base entries for each role. RAG-indexed. Grows via retro learnings.</td>
+          <td class="coll-fields">role, category (BEST_PRACTICE | ANTI_PATTERN | EXAMPLE | RETRO_LEARNING), content, embedding[], source, createdAt</td>
+        </tr>
+        <tr>
+          <td class="coll-new">pipeline_rework_events/</td>
+          <td><span class="component comp-new" style="padding: 2px 8px; font-size: 11px;">NEW</span></td>
+          <td class="coll-desc">Every rework event. Who rejected, why, which role was sent back to. Critical for the dashboard.</td>
+          <td class="coll-fields">pipelineRunId, rejectingRole, targetRole, reason, rejectionSparkId, reworkSparkId, reworkIteration, createdAt</td>
+        </tr>
+        <tr>
+          <td class="coll-name">execution_logs/</td>
+          <td><span class="component comp-existing" style="padding: 2px 8px; font-size: 11px;">existing</span></td>
+          <td class="coll-desc">Individual tool calls within each role's execution (unchanged)</td>
+          <td class="coll-fields">sparkId, toolName, toolInput, toolOutput, tokenUsage, durationMs</td>
+        </tr>
+        <tr>
+          <td class="coll-name">agent_audit_log/</td>
+          <td><span class="component comp-modified" style="padding: 2px 8px; font-size: 11px;">modified</span></td>
+          <td class="coll-desc">Add pipelineRunId + role fields to link audit entries to pipeline context</td>
+          <td class="coll-fields">+ pipelineRunId, + sdlcRole, (existing: userId, commandText, toolsInvoked, success, tokenCount, executionTimeMs)</td>
+        </tr>
+        <tr>
+          <td class="coll-name">checkpoints/</td>
+          <td><span class="component comp-existing" style="padding: 2px 8px; font-size: 11px;">existing</span></td>
+          <td class="coll-desc">User approval checkpoints — reused for SDLC confidence gates + rework escalation</td>
+          <td class="coll-fields">sparkId, title, description, options, userDecision, decidedAt</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="sub-section" style="margin-top: 20px;">
+      <h4>Data Relationships</h4>
+      <div style="font-family: monospace; font-size: 12px; color: #8b8; line-height: 2; padding: 12px; background: #0a0a12; border-radius: 6px;">
+<pre style="margin:0;">
+Spark (parent) ──────────┬──→ PipelineRun (1:1)
+  │                      │        │
+  │                      │        ├──→ pipeline_artifacts/ (1:many, one per role)
+  │                      │        ├──→ pipeline_rework_events/ (1:many)
+  │                      │        └──→ roleResults{} (embedded map)
+  │                      │
+  ├──→ Spark (child 1: PM)        ──→ execution_logs/ (1:many)
+  ├──→ Spark (child 2: Architect) ──→ execution_logs/ (1:many)
+  ├──→ Spark (child 3: Implement) ──→ execution_logs/ (1:many)
+  ├──→ Spark (child 4: Review)    ──→ execution_logs/ (1:many)
+  ├──→ Spark (child 5: Implement) ──→ execution_logs/ (1:many)  ← REWORK
+  ├──→ Spark (child 6: Review)    ──→ execution_logs/ (1:many)  ← RE-REVIEW
+  ├──→ Spark (child 7: Tester)    ──→ execution_logs/ (1:many)
+  └──→ ...
+
+User ──→ sparks/ (many)
+     ──→ pipeline_runs/ (many, via sparkId join)
+     ──→ sdlc_role_knowledge/ (shared across all users, grows via retro)
+</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 32px; padding: 20px; background: #1a1a2e; border: 1px solid #333; border-radius: 12px;">
+  <h3 style="color: #60a5fa; margin-bottom: 16px;">Summary: What's New vs What's Reused</h3>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+    <div>
+      <h4 style="color: #4ade80; margin-bottom: 8px;">Reused (Existing Infrastructure)</h4>
+      <ul style="color: #999; font-size: 13px; line-height: 1.8;">
+        <li>Spark entity + parentSparkId for child sparks</li>
+        <li>SparkService (create, markRunning, markCompleted)</li>
+        <li>AiEngineRouterService + all engines</li>
+        <li>ToolRegistry + 19 existing skills</li>
+        <li>AgentAuditLog (extended with 2 fields)</li>
+        <li>ExecutionLog (unchanged)</li>
+        <li>Checkpoint system (for escalation)</li>
+        <li>SparkClassifierService (type classification)</li>
+      </ul>
+    </div>
+    <div>
+      <h4 style="color: #f59e0b; margin-bottom: 8px;">New Components</h4>
+      <ul style="color: #999; font-size: 13px; line-height: 1.8;">
+        <li>SdlcClassifierService (depth + role selection)</li>
+        <li>SdlcPipelineOrchestrator (pipeline lifecycle)</li>
+        <li>SdlcRoleSkill interface + 12 role implementations</li>
+        <li>PipelineArtifactService (artifact storage/retrieval)</li>
+        <li>ReworkTracker (rework event management)</li>
+        <li>RoleToolFilter (per-role tool access)</li>
+        <li>4 new Firestore collections</li>
+        <li>5+ new AiSdlcStep enum values</li>
+        <li>Knowledge base infrastructure (RAG layer)</li>
+      </ul>
+    </div>
+  </div>
+</div>

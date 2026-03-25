@@ -1,0 +1,645 @@
+<h2>Async Execution & Full Pipeline Traceability</h2>
+<p class="subtitle">Pipeline runs asynchronously with real-time visibility into every state change, artifact, and decision</p>
+
+<style>
+  .section { margin-bottom: 36px; }
+  .section-header {
+    font-size: 16px; font-weight: 700; color: #e0e0e0;
+    margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #333;
+  }
+  .sub { margin: 16px 0; padding: 16px; background: #0d0d15; border: 1px solid #222; border-radius: 8px; }
+  .sub h4 { color: #ddd; margin-bottom: 10px; }
+  .sub p { color: #888; font-size: 13px; line-height: 1.6; }
+  .code-block {
+    background: #0a0a12; border: 1px solid #333; border-radius: 6px;
+    padding: 16px; font-family: monospace; font-size: 12px; color: #8b8;
+    line-height: 1.8; overflow-x: auto; margin: 12px 0;
+  }
+  .component {
+    display: inline-flex; align-items: center; padding: 6px 12px;
+    border-radius: 6px; margin: 3px; font-size: 12px; font-family: monospace;
+  }
+  .comp-new { background: #1a150a; border: 1px solid #5a4a2d; color: #f59e0b; }
+  .comp-existing { background: #0d1a0d; border: 1px solid #2d5a3d; color: #4ade80; }
+  .comp-modified { background: #1a0d1a; border: 1px solid #5a2d5a; color: #c084fc; }
+
+  .timeline { margin: 16px 0; position: relative; padding-left: 28px; }
+  .timeline::before {
+    content: ''; position: absolute; left: 8px; top: 0; bottom: 0;
+    width: 2px; background: #333;
+  }
+  .tl-event {
+    position: relative; margin-bottom: 12px; padding: 10px 14px;
+    background: #111118; border: 1px solid #222; border-radius: 6px;
+    font-size: 12px;
+  }
+  .tl-event::before {
+    content: ''; position: absolute; left: -24px; top: 14px;
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .tl-start::before { background: #60a5fa; }
+  .tl-role::before { background: #4ade80; }
+  .tl-artifact::before { background: #818cf8; }
+  .tl-rework::before { background: #f87171; }
+  .tl-complete::before { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
+  .tl-checkpoint::before { background: #f59e0b; }
+  .tl-time { color: #666; font-size: 11px; }
+  .tl-label { color: #ccc; font-weight: 600; }
+  .tl-detail { color: #888; margin-top: 4px; }
+  .tl-meta { display: flex; gap: 12px; margin-top: 6px; font-size: 11px; }
+  .tl-meta span { color: #666; }
+  .tl-meta .tokens { color: #4ade80; }
+  .tl-meta .cost { color: #f59e0b; }
+  .tl-meta .duration { color: #60a5fa; }
+
+  .channels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0; }
+  .channel-box {
+    background: #0d0d15; border: 1px solid #333; border-radius: 8px; padding: 16px;
+  }
+  .channel-box h5 { color: #60a5fa; margin-bottom: 8px; font-size: 13px; }
+  .channel-box p { color: #888; font-size: 12px; line-height: 1.5; }
+  .channel-box .target { color: #999; font-size: 11px; margin-top: 8px; font-style: italic; }
+
+  .state-flow {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+    font-family: monospace; font-size: 12px; margin: 12px 0;
+  }
+  .state { padding: 4px 10px; border-radius: 4px; }
+  .state-pending { background: #1a1a2e; color: #818cf8; border: 1px solid #333; }
+  .state-active { background: #1a2e1a; color: #4ade80; border: 1px solid #2d5a3d; }
+  .state-done { background: #0d1a0d; color: #2d7a4d; border: 1px solid #1a3a1a; }
+  .state-rework { background: #2e1a1a; color: #f87171; border: 1px solid #5a2d2d; }
+  .state-waiting { background: #2a1a0a; color: #f59e0b; border: 1px solid #5a4a2d; }
+  .arrow-s { color: #444; }
+
+  .db-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  .db-table th { text-align: left; padding: 8px 12px; font-size: 11px; color: #666; border-bottom: 1px solid #333; text-transform: uppercase; letter-spacing: 1px; }
+  .db-table td { padding: 8px 12px; font-size: 12px; border-bottom: 1px solid #1a1a2a; color: #999; }
+  .db-table .fname { color: #60a5fa; font-family: monospace; }
+  .db-table .fnew { color: #f59e0b; font-family: monospace; }
+</style>
+
+<!-- Section 1: Async Execution Model -->
+<div class="section">
+  <div class="section-header">1. Async Execution Model</div>
+
+  <div class="sub">
+    <h4>Request → Immediate Response → Background Pipeline</h4>
+    <p>The API returns <strong>immediately</strong> with the sparkId and pipelineRunId. The pipeline runs
+    on a background thread. The client polls or subscribes for progress.</p>
+
+    <div class="code-block">
+<strong style="color: #60a5fa;">POST /api/agent/command</strong> { text: "Build a notification system with WebSocket...", sessionId: "..." }
+
+<strong style="color: #4ade80;">Response (immediate, ~200ms):</strong>
+{
+  "sparkId": "spark-abc123",
+  "pipelineRunId": "pipeline-xyz789",       <span style="color: #f59e0b;">← NEW: only present for SDLC sparks</span>
+  "pipelineTier": "FULL_SDLC",
+  "activatedRoles": ["PM", "RESEARCHER", "ARCHITECT", "PLANNER",
+                     "IMPLEMENTER", "REVIEWER", "TESTER", "SECURITY", "DEVOPS", "RETRO"],
+  "responseText": "Starting full SDLC pipeline for your notification system. I'll work through
+                   10 stages — you can track progress in real-time.",
+  "status": "PIPELINE_STARTED"
+}
+
+<span style="color: #888;">// Pipeline executes asynchronously in background</span>
+<span style="color: #888;">// Client subscribes to updates via WebSocket / FCM / polling</span>
+    </div>
+  </div>
+
+  <div class="sub">
+    <h4>Execution Infrastructure</h4>
+    <p>Pipeline runs on Spring's <code>@Async</code> with a dedicated thread pool. Each role executes
+    sequentially (or in parallel for independent roles like Tester + Security). Pipeline state is
+    Firestore-backed, so it survives server restarts.</p>
+
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0;">
+      <span class="component comp-new">@Async("sdlcPipelineExecutor")</span>
+      <span class="component comp-new">SdlcPipelineExecutor (ThreadPoolTaskExecutor)</span>
+      <span class="component comp-new">PipelineStateManager</span>
+    </div>
+
+    <div class="code-block">
+<strong style="color: #f59e0b;">SdlcPipelineOrchestrator:</strong>
+
+@Async("sdlcPipelineExecutor")
+public void executePipeline(String pipelineRunId) {
+  PipelineRun run = pipelineRunRepository.findById(pipelineRunId);
+
+  for (SdlcRole role : run.getActivatedRoles()) {
+    // 1. Emit: ROLE_STARTED event
+    emitEvent(run, PipelineEventType.ROLE_STARTED, role);
+    updateState(run, role, RoleStatus.EXECUTING);
+
+    // 2. Create child spark
+    String childSparkId = sparkService.createChildSpark(run.getSparkId(), role);
+
+    // 3. Build role context (upstream artifacts + knowledge + examples)
+    RoleContext ctx = buildRoleContext(run, role);
+
+    // 4. Execute role
+    RoleResult result = roleSkillRegistry.getRole(role).execute(ctx);
+
+    // 5. Emit: ROLE_COMPLETED event with metrics
+    emitEvent(run, PipelineEventType.ROLE_COMPLETED, role, result.getMetrics());
+
+    // 6. Store artifacts
+    artifactService.store(run.getId(), role, result.getArtifacts());
+
+    // 7. Evaluate: does downstream role accept this output?
+    if (result.requiresDownstreamValidation() && nextRoleRejects(run, role, result)) {
+      // Rework loop (see section 3)
+      handleRework(run, role, rejectionFeedback);
+    }
+
+    // 8. Update pipeline state
+    updateState(run, role, RoleStatus.COMPLETED);
+  }
+
+  // 9. Aggregate metrics, mark complete
+  completePipeline(run);
+}
+
+<strong style="color: #888;">Thread Pool Config:</strong>
+corePoolSize: 4        <span style="color: #666;">// 4 pipelines can run concurrently</span>
+maxPoolSize: 8         <span style="color: #666;">// burst to 8</span>
+queueCapacity: 50      <span style="color: #666;">// 50 pipelines can queue</span>
+threadNamePrefix: "sdlc-pipeline-"
+    </div>
+  </div>
+
+  <div class="sub">
+    <h4>Resumability — Crash Recovery</h4>
+    <p>If the server restarts mid-pipeline, the orchestrator picks up where it left off.
+    PipelineRun tracks <code>currentRole</code> and each role's status. On startup, a recovery job
+    finds pipelines in <code>EXECUTING</code> state and resumes from the last incomplete role.</p>
+
+    <div class="code-block">
+<strong style="color: #f59e0b;">PipelineRecoveryJob (@PostConstruct):</strong>
+
+1. Query pipeline_runs WHERE status = EXECUTING
+2. For each:
+   a. Find last role with status = COMPLETED
+   b. Resume from next role in sequence
+   c. Emit PIPELINE_RESUMED event
+   d. Continue normal execution loop
+    </div>
+
+    <div style="margin-top: 8px;">
+      <span class="component comp-new">PipelineRecoveryJob</span>
+      <span class="component comp-new">@PostConstruct startup hook</span>
+    </div>
+  </div>
+</div>
+
+<!-- Section 2: Real-time Progress Channels -->
+<div class="section">
+  <div class="section-header">2. Real-Time Progress — Three Channels</div>
+
+  <div class="channels">
+    <div class="channel-box">
+      <h5>① WebSocket (Existing Infra)</h5>
+      <p>Push pipeline events to connected mobile/web clients in real-time. Same WebSocket infrastructure
+      used for device agent communication.</p>
+      <p>Events: role_started, role_completed, role_rejected, rework_triggered, checkpoint_requested,
+      artifact_produced, pipeline_completed</p>
+      <div class="target">Target: Mobile app (live view), Admin console (live dashboard)</div>
+    </div>
+    <div class="channel-box">
+      <h5>② FCM Push (Existing Infra)</h5>
+      <p>Push notifications for key milestones when the user isn't actively watching.
+      Batched to avoid notification spam.</p>
+      <p>Events: pipeline_started, checkpoint_needed (user action required),
+      pipeline_completed, pipeline_failed</p>
+      <div class="target">Target: Mobile app (background notifications)</div>
+    </div>
+    <div class="channel-box">
+      <h5>③ Polling API (New Endpoint)</h5>
+      <p>REST endpoint for clients that can't use WebSocket. Returns current pipeline state
+      with full event history.</p>
+      <p><code>GET /api/sparks/{id}/pipeline</code> — returns PipelineRun with all events,
+      role statuses, artifacts, and metrics.</p>
+      <div class="target">Target: Admin console, external integrations, CLI tools</div>
+    </div>
+  </div>
+
+  <div class="sub">
+    <h4>Event Emitter Architecture</h4>
+    <p>All pipeline state changes flow through a single <code>PipelineEventEmitter</code> that
+    fans out to all three channels + writes to Firestore for persistence.</p>
+
+    <div class="code-block">
+<strong style="color: #f59e0b;">PipelineEventEmitter:</strong>
+
+emitEvent(PipelineRun run, PipelineEventType type, SdlcRole role, Map metadata):
+  1. Create PipelineEvent {
+       pipelineRunId, sparkId, userId, eventType, role,
+       timestamp, metadata (tokens, cost, duration, artifacts, errors)
+     }
+  2. Persist to Firestore → pipeline_events/ collection
+  3. Fan out:
+     a. WebSocket → push to user's session channel
+     b. FCM → push notification (if milestone event + user not connected)
+     c. In-memory → update PipelineRun.roleResults (denormalized for fast reads)
+
+<strong style="color: #888;">Event Types:</strong>
+PIPELINE_STARTED          ROLE_STARTED           ROLE_COMPLETED
+ROLE_REJECTED             REWORK_TRIGGERED       REWORK_COMPLETED
+ARTIFACT_PRODUCED         CHECKPOINT_REQUESTED   CHECKPOINT_RESOLVED
+PARALLEL_ROLES_STARTED    PIPELINE_COMPLETED     PIPELINE_FAILED
+PIPELINE_RESUMED          COST_THRESHOLD_WARNING
+    </div>
+
+    <div style="margin-top: 8px;">
+      <span class="component comp-new">PipelineEventEmitter</span>
+      <span class="component comp-new">PipelineEvent entity</span>
+      <span class="component comp-existing">WebSocket (device infra)</span>
+      <span class="component comp-existing">FCM (existing push)</span>
+    </div>
+  </div>
+</div>
+
+<!-- Section 3: Full Traceability -->
+<div class="section">
+  <div class="section-header">3. Full Traceability — Pipeline Event Timeline</div>
+
+  <div class="sub">
+    <h4>What Gets Tracked (Every Single Step)</h4>
+    <p>Every state change, every artifact, every LLM call, every tool invocation, every rework event.
+    This is the data that feeds the admin dashboard's proficiency and rework analytics.</p>
+  </div>
+
+  <div class="sub">
+    <h4>Example Pipeline Timeline</h4>
+    <p style="margin-bottom: 16px;">A real SDLC pipeline run for "Build a notification system with WebSocket support"</p>
+
+    <div class="timeline">
+      <div class="tl-event tl-start">
+        <div class="tl-time">00:00:00</div>
+        <div class="tl-label">PIPELINE_STARTED</div>
+        <div class="tl-detail">Tier: FULL_SDLC | Roles: 10 activated | Classifier confidence: 0.91</div>
+        <div class="tl-meta"><span>Pipeline: pipeline-xyz789</span> <span>Spark: spark-abc123</span></div>
+      </div>
+
+      <div class="tl-event tl-role">
+        <div class="tl-time">00:00:01</div>
+        <div class="tl-label">ROLE_STARTED → Product Manager</div>
+        <div class="tl-detail">Child spark: spark-pm-001 | Engine: anthropic-agentic | Model: claude-sonnet-4-5</div>
+      </div>
+      <div class="tl-event tl-artifact">
+        <div class="tl-time">00:01:23</div>
+        <div class="tl-label">ROLE_COMPLETED → Product Manager</div>
+        <div class="tl-detail">Artifact: requirements-v1 (REQUIREMENTS) | 3 acceptance criteria defined</div>
+        <div class="tl-meta">
+          <span class="tokens">Tokens: 12,450 (in: 8,200 / out: 4,250)</span>
+          <span class="cost">Cost: $0.19</span>
+          <span class="duration">Duration: 82s</span>
+        </div>
+      </div>
+
+      <div class="tl-event tl-role">
+        <div class="tl-time">00:01:24</div>
+        <div class="tl-label">ROLE_STARTED → Researcher</div>
+        <div class="tl-detail">Child spark: spark-research-002 | Engine: codex-cli | Tools: search_web, browse_web</div>
+      </div>
+      <div class="tl-event tl-artifact">
+        <div class="tl-time">00:03:45</div>
+        <div class="tl-label">ROLE_COMPLETED → Researcher</div>
+        <div class="tl-detail">Artifact: research-v1 (RESEARCH) | Found: Spring WebSocket docs, existing notification patterns in codebase</div>
+        <div class="tl-meta">
+          <span class="tokens">Tokens: 34,100</span>
+          <span class="cost">Cost: $0.51</span>
+          <span class="duration">Duration: 141s</span>
+        </div>
+      </div>
+
+      <div class="tl-event tl-role">
+        <div class="tl-time">00:03:46</div>
+        <div class="tl-label">ROLE_STARTED → Architect</div>
+        <div class="tl-detail">Child spark: spark-arch-003 | Engine: anthropic-agentic | Model: claude-opus-4-6</div>
+      </div>
+      <div class="tl-event tl-artifact">
+        <div class="tl-time">00:06:12</div>
+        <div class="tl-label">ROLE_COMPLETED → Architect</div>
+        <div class="tl-detail">Artifact: design-v1 (DESIGN) | 4 components, 2 API contracts, 1 data model</div>
+        <div class="tl-meta">
+          <span class="tokens">Tokens: 52,300</span>
+          <span class="cost">Cost: $3.92</span>
+          <span class="duration">Duration: 146s</span>
+        </div>
+      </div>
+
+      <div class="tl-event tl-role">
+        <div class="tl-time">00:06:13</div>
+        <div class="tl-label">ROLE_STARTED → Planner</div>
+        <div class="tl-detail">Child spark: spark-plan-004</div>
+      </div>
+      <div class="tl-event tl-artifact">
+        <div class="tl-time">00:07:30</div>
+        <div class="tl-label">ROLE_COMPLETED → Planner</div>
+        <div class="tl-detail">Artifact: plan-v1 (PLAN) | 8 tasks, 3 parallelizable, critical path: 5 tasks</div>
+        <div class="tl-meta">
+          <span class="tokens">Tokens: 18,700</span>
+          <span class="cost">Cost: $0.28</span>
+          <span class="duration">Duration: 77s</span>
+        </div>
+      </div>
+
+      <div class="tl-event tl-role">
+        <div class="tl-time">00:07:31</div>
+        <div class="tl-label">ROLE_STARTED → Implementer</div>
+        <div class="tl-detail">Child spark: spark-impl-005 | Engine: claude-code-cli | Model: claude-opus-4-6</div>
+      </div>
+      <div class="tl-event tl-artifact">
+        <div class="tl-time">00:15:44</div>
+        <div class="tl-label">ROLE_COMPLETED → Implementer</div>
+        <div class="tl-detail">Artifact: code-v1 (CODE) | 12 files changed, 847 lines added, 3 new classes</div>
+        <div class="tl-meta">
+          <span class="tokens">Tokens: 189,500</span>
+          <span class="cost">Cost: $14.21</span>
+          <span class="duration">Duration: 493s</span>
+        </div>
+      </div>
+
+      <div class="tl-event tl-role">
+        <div class="tl-time">00:15:45</div>
+        <div class="tl-label">ROLE_STARTED → Reviewer</div>
+        <div class="tl-detail">Child spark: spark-review-006</div>
+      </div>
+      <div class="tl-event tl-rework">
+        <div class="tl-time">00:18:02</div>
+        <div class="tl-label" style="color: #f87171;">ROLE_REJECTED → Reviewer</div>
+        <div class="tl-detail" style="color: #f87171;">Reason: "Missing error handling on WebSocket disconnect. No reconnection logic. Rate limiting not implemented."</div>
+        <div class="tl-meta">
+          <span class="tokens">Tokens: 45,200</span>
+          <span class="cost">Cost: $0.68</span>
+          <span class="duration">Duration: 137s</span>
+        </div>
+      </div>
+
+      <div class="tl-event tl-rework">
+        <div class="tl-time">00:18:03</div>
+        <div class="tl-label" style="color: #f59e0b;">REWORK_TRIGGERED → Implementer (iteration 2)</div>
+        <div class="tl-detail">Target: IMPLEMENTER | Origin: REVIEWER | Rework #1 of max 3</div>
+      </div>
+
+      <div class="tl-event tl-role">
+        <div class="tl-time">00:18:04</div>
+        <div class="tl-label">ROLE_STARTED → Implementer (rework)</div>
+        <div class="tl-detail">Child spark: spark-impl-007 | Rework with reviewer feedback injected</div>
+      </div>
+      <div class="tl-event tl-artifact">
+        <div class="tl-time">00:24:18</div>
+        <div class="tl-label">REWORK_COMPLETED → Implementer</div>
+        <div class="tl-detail">Artifact: code-v2 (CODE) | 4 files modified, +126 lines (error handling, reconnect, rate limit)</div>
+        <div class="tl-meta">
+          <span class="tokens">Tokens: 98,400</span>
+          <span class="cost">Cost: $7.38</span>
+          <span class="duration">Duration: 374s</span>
+        </div>
+      </div>
+
+      <div class="tl-event tl-role">
+        <div class="tl-time">00:24:19</div>
+        <div class="tl-label">ROLE_STARTED → Reviewer (re-review)</div>
+        <div class="tl-detail">Child spark: spark-review-008</div>
+      </div>
+      <div class="tl-event tl-artifact">
+        <div class="tl-time">00:26:01</div>
+        <div class="tl-label" style="color: #4ade80;">ROLE_COMPLETED → Reviewer ✓ ACCEPTED</div>
+        <div class="tl-detail">Artifact: review-v1 (REVIEW) | All issues resolved. Code quality: 8.5/10</div>
+        <div class="tl-meta">
+          <span class="tokens">Tokens: 38,100</span>
+          <span class="cost">Cost: $0.57</span>
+          <span class="duration">Duration: 102s</span>
+        </div>
+      </div>
+
+      <div class="tl-event tl-role">
+        <div class="tl-time">00:26:02</div>
+        <div class="tl-label">PARALLEL_ROLES_STARTED → Tester + Security</div>
+        <div class="tl-detail">Running concurrently (no dependency between them)</div>
+      </div>
+
+      <div class="tl-event tl-artifact">
+        <div class="tl-time">00:31:45</div>
+        <div class="tl-label">ROLE_COMPLETED → Tester ✓</div>
+        <div class="tl-detail">Artifact: tests-v1 (TEST_RESULTS) | 23 tests, 22 passed, 1 skipped, 87% coverage</div>
+        <div class="tl-meta"><span class="tokens">Tokens: 67,800</span> <span class="cost">Cost: $1.02</span></div>
+      </div>
+      <div class="tl-event tl-artifact">
+        <div class="tl-time">00:33:12</div>
+        <div class="tl-label">ROLE_COMPLETED → Security ✓</div>
+        <div class="tl-detail">Artifact: security-v1 (SECURITY_REPORT) | 0 critical, 1 medium (XSS in notification text rendering), 2 low</div>
+        <div class="tl-meta"><span class="tokens">Tokens: 41,200</span> <span class="cost">Cost: $3.09</span></div>
+      </div>
+
+      <div class="tl-event tl-checkpoint">
+        <div class="tl-time">00:33:13</div>
+        <div class="tl-label" style="color: #f59e0b;">CHECKPOINT_REQUESTED</div>
+        <div class="tl-detail">Security found medium-severity XSS issue. Options: [Fix before deploy] [Accept risk] [Abort pipeline]</div>
+      </div>
+      <div class="tl-event tl-checkpoint">
+        <div class="tl-time">00:35:00</div>
+        <div class="tl-label" style="color: #4ade80;">CHECKPOINT_RESOLVED → "Fix before deploy"</div>
+        <div class="tl-detail">User chose to fix. Rework triggered → Implementer for security fix.</div>
+      </div>
+
+      <div class="tl-event tl-artifact">
+        <div class="tl-time">00:39:20</div>
+        <div class="tl-label">ROLE_COMPLETED → DevOps ✓</div>
+        <div class="tl-detail">Artifact: deploy-v1 (DEPLOY) | Cloud Build config updated, monitoring alerts added</div>
+        <div class="tl-meta"><span class="tokens">Tokens: 28,400</span> <span class="cost">Cost: $0.43</span></div>
+      </div>
+
+      <div class="tl-event tl-complete">
+        <div class="tl-time">00:41:30</div>
+        <div class="tl-label" style="color: #4ade80;">ROLE_COMPLETED → Retro Analyst</div>
+        <div class="tl-detail">Pipeline analysis: 1 rework cycle (Reviewer→Implementer), 1 security fix.
+        First-pass rate: 80%. Implementer proficiency: needs error handling patterns in knowledge base.</div>
+      </div>
+
+      <div class="tl-event tl-complete">
+        <div class="tl-time">00:41:31</div>
+        <div class="tl-label" style="color: #4ade80; font-size: 14px;">PIPELINE_COMPLETED ✓</div>
+        <div class="tl-detail">12 role executions (10 roles + 2 rework). Total duration: 41m 31s</div>
+        <div class="tl-meta">
+          <span class="tokens">Total tokens: 625,850</span>
+          <span class="cost">Total cost: $32.28</span>
+          <span class="duration">Rework overhead: $8.06 (25%)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Section 4: Pipeline State Machine -->
+<div class="section">
+  <div class="section-header">4. Pipeline & Role State Machines</div>
+
+  <div class="sub">
+    <h4>Pipeline States</h4>
+    <div class="state-flow">
+      <span class="state state-pending">CREATED</span>
+      <span class="arrow-s">→</span>
+      <span class="state state-active">CLASSIFYING</span>
+      <span class="arrow-s">→</span>
+      <span class="state state-waiting">AWAITING_CONFIRMATION</span>
+      <span class="arrow-s">→</span>
+      <span class="state state-active">EXECUTING</span>
+      <span class="arrow-s">→</span>
+      <span class="state state-done">COMPLETED</span>
+    </div>
+    <div class="state-flow" style="margin-top: 4px;">
+      <span style="color: #666; font-size: 11px; margin-right: 8px;">Also:</span>
+      <span class="state state-active">EXECUTING</span>
+      <span class="arrow-s">→</span>
+      <span class="state state-waiting">CHECKPOINT</span>
+      <span class="arrow-s">→</span>
+      <span class="state state-active">EXECUTING</span>
+    </div>
+    <div class="state-flow" style="margin-top: 4px;">
+      <span style="color: #666; font-size: 11px; margin-right: 8px;">Failure:</span>
+      <span class="state state-active">EXECUTING</span>
+      <span class="arrow-s">→</span>
+      <span class="state state-rework">FAILED</span>
+      <span style="color: #666; font-size: 11px; margin: 0 8px;">|</span>
+      <span class="state state-rework">CANCELLED</span>
+    </div>
+  </div>
+
+  <div class="sub">
+    <h4>Per-Role States (within a pipeline run)</h4>
+    <div class="state-flow">
+      <span class="state state-pending">PENDING</span>
+      <span class="arrow-s">→</span>
+      <span class="state state-active">EXECUTING</span>
+      <span class="arrow-s">→</span>
+      <span class="state state-done">COMPLETED</span>
+    </div>
+    <div class="state-flow" style="margin-top: 4px;">
+      <span class="state state-active">EXECUTING</span>
+      <span class="arrow-s">→</span>
+      <span class="state state-rework">REJECTED</span>
+      <span class="arrow-s">→</span>
+      <span class="state state-active">REWORKING</span>
+      <span class="arrow-s">→</span>
+      <span class="state state-done">COMPLETED</span>
+    </div>
+    <div class="state-flow" style="margin-top: 4px;">
+      <span class="state state-active">EXECUTING</span>
+      <span class="arrow-s">→</span>
+      <span class="state state-rework">FAILED</span>
+      <span class="arrow-s">→</span>
+      <span class="state state-waiting">ESCALATED</span>
+      <span style="color: #666; font-size: 11px;">(user checkpoint)</span>
+    </div>
+    <div class="state-flow" style="margin-top: 4px;">
+      <span style="color: #666; font-size: 11px; margin-right: 8px;">Skipped:</span>
+      <span class="state state-pending">PENDING</span>
+      <span class="arrow-s">→</span>
+      <span class="state" style="background: #1a1a1a; color: #666; border: 1px solid #222;">SKIPPED</span>
+      <span style="color: #666; font-size: 11px;">(Designer for backend-only)</span>
+    </div>
+  </div>
+</div>
+
+<!-- Section 5: New Database Collections -->
+<div class="section">
+  <div class="section-header">5. Updated Database Layer — New Collection</div>
+
+  <div class="sub">
+    <h4>pipeline_events/ (NEW — the traceability backbone)</h4>
+    <p>Every pipeline state change is an immutable event. This is the single source of truth for
+    the timeline, the dashboard, and the audit trail. Append-only, never updated.</p>
+
+    <table class="db-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td class="fnew">id</td><td>String</td><td>Auto-generated event ID</td></tr>
+        <tr><td class="fnew">pipelineRunId</td><td>String</td><td>Parent pipeline run</td></tr>
+        <tr><td class="fnew">sparkId</td><td>String</td><td>Parent user spark (for cross-referencing)</td></tr>
+        <tr><td class="fnew">childSparkId</td><td>String</td><td>Role's child spark (if applicable)</td></tr>
+        <tr><td class="fnew">userId</td><td>String</td><td>User who owns the spark</td></tr>
+        <tr><td class="fnew">eventType</td><td>PipelineEventType</td><td>ROLE_STARTED, ROLE_COMPLETED, REWORK_TRIGGERED, etc.</td></tr>
+        <tr><td class="fnew">role</td><td>SdlcRole</td><td>Which role this event is about</td></tr>
+        <tr><td class="fnew">roleIteration</td><td>int</td><td>1 = first pass, 2+ = rework iterations</td></tr>
+        <tr><td class="fnew">metadata</td><td>Map</td><td>Flexible: tokens, cost, duration, artifactId, error, rejectionReason, model, engine</td></tr>
+        <tr><td class="fnew">timestamp</td><td>Timestamp</td><td>When this event occurred</td></tr>
+      </tbody>
+    </table>
+
+    <p style="margin-top: 12px;"><strong style="color: #f59e0b;">Why a separate events collection?</strong>
+    PipelineRun is a mutable summary (current state). Pipeline events are the immutable audit trail.
+    The dashboard queries events for time-series analytics. The mobile app reads PipelineRun for current status.
+    Both views serve different needs from the same underlying data.</p>
+  </div>
+</div>
+
+<!-- Section 6: Complete Collection Summary -->
+<div class="section">
+  <div class="section-header">6. Complete Firestore Collection Summary</div>
+
+  <div class="sub">
+    <table class="db-table">
+      <thead><tr><th>Collection</th><th>Status</th><th>Purpose</th><th>Written By</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="fname">sparks/</td>
+          <td><span class="component comp-existing" style="padding:2px 6px;font-size:10px;">existing</span></td>
+          <td>Parent spark + child sparks (one per role execution + rework)</td>
+          <td>SparkService</td>
+        </tr>
+        <tr>
+          <td class="fnew">pipeline_runs/</td>
+          <td><span class="component comp-new" style="padding:2px 6px;font-size:10px;">NEW</span></td>
+          <td>Mutable pipeline summary: current role, status, aggregated metrics, role results map</td>
+          <td>PipelineStateManager</td>
+        </tr>
+        <tr>
+          <td class="fnew">pipeline_events/</td>
+          <td><span class="component comp-new" style="padding:2px 6px;font-size:10px;">NEW</span></td>
+          <td>Immutable event log: every state change, artifact, rework, checkpoint (append-only)</td>
+          <td>PipelineEventEmitter</td>
+        </tr>
+        <tr>
+          <td class="fnew">pipeline_artifacts/</td>
+          <td><span class="component comp-new" style="padding:2px 6px;font-size:10px;">NEW</span></td>
+          <td>Role outputs: requirements, designs, code refs, test results, security reports</td>
+          <td>PipelineArtifactService</td>
+        </tr>
+        <tr>
+          <td class="fnew">pipeline_rework_events/</td>
+          <td><span class="component comp-new" style="padding:2px 6px;font-size:10px;">NEW</span></td>
+          <td>Rework detail: rejecting role, target role, reason, iteration count</td>
+          <td>ReworkTracker</td>
+        </tr>
+        <tr>
+          <td class="fnew">sdlc_role_knowledge/</td>
+          <td><span class="component comp-new" style="padding:2px 6px;font-size:10px;">NEW</span></td>
+          <td>Knowledge base per role: best practices, anti-patterns, examples, retro learnings</td>
+          <td>RetroRoleSkill, manual curation</td>
+        </tr>
+        <tr>
+          <td class="fname">execution_logs/</td>
+          <td><span class="component comp-existing" style="padding:2px 6px;font-size:10px;">existing</span></td>
+          <td>Individual tool calls within each role (unchanged)</td>
+          <td>AgenticApiAiEngine</td>
+        </tr>
+        <tr>
+          <td class="fname">agent_audit_log/</td>
+          <td><span class="component comp-modified" style="padding:2px 6px;font-size:10px;">modified</span></td>
+          <td>Command-level audit + pipelineRunId + sdlcRole fields</td>
+          <td>VoiceAgentService</td>
+        </tr>
+        <tr>
+          <td class="fname">checkpoints/</td>
+          <td><span class="component comp-existing" style="padding:2px 6px;font-size:10px;">existing</span></td>
+          <td>User approval checkpoints — reused for confidence gates + rework escalation</td>
+          <td>SdlcPipelineOrchestrator</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

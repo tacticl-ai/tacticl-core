@@ -1,0 +1,275 @@
+<h2>SDLC Pipeline Engine — Architectural Approaches</h2>
+<p class="subtitle">Three ways to orchestrate multi-role agent pipelines in Tacticl. Click the one that resonates most.</p>
+
+<style>
+  .approach {
+    background: #1a1a2e; border: 1px solid #333; border-radius: 12px;
+    padding: 24px; margin-bottom: 20px; cursor: pointer; transition: all 0.2s;
+  }
+  .approach:hover { border-color: #4ade80; }
+  .approach.selected { border-color: #4ade80; background: #1a2e1a; }
+  .approach-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .approach-letter {
+    background: #2d5a3d; color: #4ade80; border-radius: 50%; width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;
+  }
+  .approach-title { font-size: 18px; font-weight: 600; color: #e0e0e0; }
+  .approach-tag {
+    display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px;
+    margin-left: 8px;
+  }
+  .tag-rec { background: #2d5a3d; color: #4ade80; }
+  .tag-simple { background: #2a2a4a; color: #818cf8; }
+  .tag-flex { background: #3a2a1a; color: #f59e0b; }
+  .approach-desc { color: #999; font-size: 14px; line-height: 1.6; margin-bottom: 16px; }
+  .arch-diagram {
+    background: #0d0d1a; border: 1px solid #222; border-radius: 8px;
+    padding: 20px; margin: 16px 0; font-family: monospace; font-size: 13px;
+    color: #8b8; line-height: 1.8; overflow-x: auto;
+  }
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .pros, .cons { padding: 12px 16px; border-radius: 8px; font-size: 13px; }
+  .pros { background: #0d1a0d; border: 1px solid #1a3a1a; }
+  .cons { background: #1a0d0d; border: 1px solid #3a1a1a; }
+  .pros h4 { color: #4ade80; margin-bottom: 8px; }
+  .cons h4 { color: #f87171; margin-bottom: 8px; }
+  .pros li, .cons li { color: #999; margin-bottom: 4px; }
+  .data-model { margin-top: 16px; }
+  .data-model h4 { color: #60a5fa; margin-bottom: 8px; font-size: 14px; }
+  .entity-box {
+    background: #0d0d1a; border: 1px solid #333; border-radius: 6px;
+    padding: 12px 16px; font-family: monospace; font-size: 12px;
+    color: #9ca3af; margin-bottom: 8px;
+  }
+  .entity-name { color: #60a5fa; font-weight: bold; }
+  .field-new { color: #f59e0b; }
+</style>
+
+<!-- Approach A -->
+<div class="approach" data-choice="a" onclick="toggleSelect(this)">
+  <div class="approach-header">
+    <div class="approach-letter">A</div>
+    <div>
+      <span class="approach-title">Pipeline Orchestrator + Sub-Sparks</span>
+      <span class="approach-tag tag-rec">RECOMMENDED</span>
+    </div>
+  </div>
+  <div class="approach-desc">
+    A new <code>SdlcPipelineOrchestrator</code> manages the pipeline lifecycle. Each role execution
+    creates a <strong>child spark</strong> (using existing <code>parentSparkId</code>), so every role
+    automatically gets all existing tracking — tokens, cost, duration, status, execution logs.
+    The orchestrator controls sequencing, artifact handoff, and rework loops.
+  </div>
+  <div class="arch-diagram">
+User Spark (SDLC) ──→ SdlcClassifierSkill ──→ SdlcPipelineOrchestrator
+                                                      │
+                    ┌─────────────────────────────────┘
+                    │
+                    ▼
+            ┌──────────────┐     Creates child spark per role
+            │  PipelineRun  │     with parentSparkId = user spark
+            │  (Firestore)  │
+            └──────┬───────┘
+                   │
+      ┌────────────┼────────────┬──────────────┐
+      ▼            ▼            ▼              ▼
+  [PM Spark]  [Arch Spark]  [Impl Spark]   [Review Spark]  ──→ ...
+   (child)     (child)       (child)        (child)
+      │            │            │              │
+      ▼            ▼            ▼              ▼
+  Role-specific  Role-specific  Role-specific  Role-specific
+  system prompt  system prompt  system prompt  system prompt
+  + knowledge    + knowledge    + knowledge    + knowledge
+  + tools        + tools        + tools        + tools
+      │            │            │              │
+      ▼            ▼            ▼              ▼
+  Artifact ─────→ Artifact ──→ Artifact ────→ Artifact
+  (requirements)  (design doc)  (source code)  (review result)
+                                                    │
+                                              REJECT? ──→ Back to [Impl Spark] (new child)
+                                              ACCEPT? ──→ Continue to [Tester Spark]
+  </div>
+
+  <div class="data-model">
+    <h4>New Entities</h4>
+    <div class="entity-box">
+      <span class="entity-name">PipelineRun</span> (collection: <span class="field-new">pipeline_runs</span>)<br>
+      sparkId, userId, pipelineType (FULL_SDLC | FOCUSED | SIMPLE),<br>
+      <span class="field-new">activatedRoles[]</span>, <span class="field-new">currentRole</span>,
+      <span class="field-new">roleResults{}</span> (role → {sparkId, status, artifacts}),<br>
+      <span class="field-new">reworkCount</span>, <span class="field-new">reworkOrigins[]</span>,
+      status, totalTokens, estimatedCost, startedAt, completedAt
+    </div>
+    <div class="entity-box">
+      <span class="entity-name">SdlcRoleConfig</span> (embedded in each role skill)<br>
+      roleName, systemPrompt, <span class="field-new">knowledgeBase[]</span>,
+      <span class="field-new">fewShotExamples[]</span>, availableTools[],<br>
+      <span class="field-new">successCriteria</span>, <span class="field-new">acceptanceCheck</span>,
+      preferredEngine, preferredModel, maxRounds
+    </div>
+  </div>
+
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>Strengths</h4>
+      <ul>
+        <li>Leverages existing Spark tracking (tokens, cost, duration, logs) — no new metrics infra</li>
+        <li>Each role's work is a discrete, auditable unit</li>
+        <li>Dashboard gets per-role data for free via child spark queries</li>
+        <li>Rework loops create new child sparks — visible in the data</li>
+        <li>Pipeline state survives server restarts (Firestore-backed)</li>
+        <li>Parallel role execution possible (e.g., Tester + Security in parallel)</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>Considerations</h4>
+      <ul>
+        <li>More Firestore writes (1 spark per role + pipeline doc)</li>
+        <li>Orchestrator is new infrastructure to build and maintain</li>
+        <li>Artifact passing between roles needs a clean contract</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Approach B -->
+<div class="approach" data-choice="b" onclick="toggleSelect(this)">
+  <div class="approach-header">
+    <div class="approach-letter">B</div>
+    <div>
+      <span class="approach-title">Single Service with Role Phases</span>
+      <span class="approach-tag tag-simple">SIMPLER</span>
+    </div>
+  </div>
+  <div class="approach-desc">
+    Extend <code>VoiceAgentService</code> with a pipeline mode. When the classifier says SDLC,
+    the service iterates through roles within a single spark — no child sparks. Each role's work is logged
+    as <code>ExecutionLog</code> entries tagged with the role name. Lighter infrastructure, but less
+    granular tracking.
+  </div>
+  <div class="arch-diagram">
+User Spark (SDLC) ──→ VoiceAgentService (pipeline mode)
+                            │
+                    ┌───────┘
+                    │
+                    ▼
+            Single Spark (stays one spark)
+                    │
+      Phase 1: PM Role ──→ ExecutionLog(role=PM, ...)
+                    │
+      Phase 2: Architect ──→ ExecutionLog(role=ARCHITECT, ...)
+                    │
+      Phase 3: Implement ──→ ExecutionLog(role=IMPLEMENTER, ...)
+                    │
+      Phase 4: Review ──→ ExecutionLog(role=REVIEWER, ...)
+        │                       │
+        │ REJECT ──→ Back to Phase 3 (new log entry)
+        │ ACCEPT ──→ Continue
+                    │
+      Phase 5: Test ──→ ExecutionLog(role=TESTER, ...)
+                    │
+           ... until complete
+  </div>
+
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>Strengths</h4>
+      <ul>
+        <li>Minimal new infrastructure — extends existing service</li>
+        <li>Single spark entity per pipeline run (simpler queries)</li>
+        <li>Faster to build</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>Considerations</h4>
+      <ul>
+        <li>ExecutionLog wasn't designed for role-level tracking — would need schema changes</li>
+        <li>Harder to get per-role token/cost breakdowns</li>
+        <li>Rework tracking is implicit (log entries), not structural</li>
+        <li>Can't parallelize roles easily</li>
+        <li>Long-running single spark — if it fails mid-pipeline, harder to resume</li>
+        <li>VoiceAgentService gets bloated with pipeline logic</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Approach C -->
+<div class="approach" data-choice="c" onclick="toggleSelect(this)">
+  <div class="approach-header">
+    <div class="approach-letter">C</div>
+    <div>
+      <span class="approach-title">Meta-Agent (Agent-of-Agents)</span>
+      <span class="approach-tag tag-flex">FLEXIBLE</span>
+    </div>
+  </div>
+  <div class="approach-desc">
+    A meta-agent using <code>AgenticApiAiEngine</code> whose <strong>tools are the roles themselves</strong>.
+    The meta-agent receives the user's request and decides which role to invoke, in what order, and whether
+    to loop. Each role is exposed as a tool (<code>invoke_architect</code>, <code>invoke_implementer</code>, etc.).
+    Most flexible but least predictable.
+  </div>
+  <div class="arch-diagram">
+User Spark (SDLC) ──→ Meta-Agent (AgenticApiAiEngine)
+                            │
+                    Tools available:
+                    ├── invoke_pm(requirements)
+                    ├── invoke_researcher(context)
+                    ├── invoke_architect(design)
+                    ├── invoke_designer(ux)
+                    ├── invoke_planner(tasks)
+                    ├── invoke_implementer(code)
+                    ├── invoke_reviewer(review)
+                    ├── invoke_tester(test)
+                    ├── invoke_security(audit)
+                    ├── invoke_docs(document)
+                    ├── invoke_devops(deploy)
+                    └── invoke_retro(analyze)
+                            │
+                    Meta-agent decides:
+                    "This needs PM first, then Architect..."
+                    "Reviewer rejected, calling Implementer again..."
+                    "Backend only, skipping Designer..."
+  </div>
+
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>Strengths</h4>
+      <ul>
+        <li>Most adaptive — meta-agent reasons about which roles to invoke</li>
+        <li>Handles edge cases naturally (skip roles, reorder, invoke twice)</li>
+        <li>Minimal orchestration code — the LLM IS the orchestrator</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>Considerations</h4>
+      <ul>
+        <li>Least predictable — meta-agent might skip critical roles</li>
+        <li>Hardest to track pipeline progress (no fixed stages)</li>
+        <li>Meta-agent token overhead (needs context of entire pipeline)</li>
+        <li>Rework tracking is opaque — meta-agent's reasoning isn't structured data</li>
+        <li>Can't easily build a pipeline funnel dashboard if the pipeline isn't fixed</li>
+        <li>Expensive: meta-agent's context grows with each role's output</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 32px; padding: 20px; background: #1a2e1a; border: 1px solid #2d5a3d; border-radius: 8px;">
+  <h3 style="color: #4ade80; margin-bottom: 12px;">My Recommendation: A (Pipeline Orchestrator + Sub-Sparks)</h3>
+  <p style="color: #ccc; font-size: 14px; line-height: 1.6;">
+    <strong>Why A over B:</strong> You explicitly need per-role proficiency tracking, rework origin analysis,
+    and cost breakdowns. Child sparks give you all of this through the existing data model. B would require
+    retrofitting ExecutionLog to carry role-level data it wasn't designed for.
+  </p>
+  <p style="color: #ccc; font-size: 14px; line-height: 1.6; margin-top: 8px;">
+    <strong>Why A over C:</strong> The dashboard needs a predictable pipeline with measurable stages.
+    A meta-agent's flexible routing makes it nearly impossible to build pipeline funnel charts, compare
+    role proficiency across runs, or identify systematic rework patterns. You can't optimize what you can't measure.
+  </p>
+  <p style="color: #ccc; font-size: 14px; line-height: 1.6; margin-top: 8px;">
+    <strong>Hybrid possibility:</strong> Start with A's structured pipeline, but use C's meta-agent concept
+    for the <em>classifier only</em> — let the LLM reason about which roles to activate. The pipeline execution
+    itself stays structured and measurable.
+  </p>
+</div>

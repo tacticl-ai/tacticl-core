@@ -11,6 +11,7 @@ dependencies {
     implementation(project(":client:client-brave-search"))
     implementation(project(":client:client-jina"))
     implementation(project(":client:client-google"))
+    implementation(project(":client:client-github"))
 
     // Cidadel shared infrastructure (module-specific, beyond parent)
     implementation(libs.cidadel.service.framework.base)

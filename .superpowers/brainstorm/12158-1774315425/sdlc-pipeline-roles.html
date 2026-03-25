@@ -1,0 +1,226 @@
+<h2>SDLC Pipeline — Agent Roles & Phases</h2>
+<p class="subtitle">When a spark requires full feature/product development, it flows through these roles. Each role is a distinct agent with its own model, tools, and success criteria. Click to select roles that feel right, or note what's missing.</p>
+
+<style>
+  .pipeline { display: flex; flex-direction: column; gap: 0; margin: 24px 0; }
+  .phase-group { margin-bottom: 32px; }
+  .phase-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 2px;
+    color: #888; margin-bottom: 12px; padding-left: 4px;
+  }
+  .role-card {
+    background: #1a1a2e; border: 1px solid #333; border-radius: 8px;
+    padding: 16px 20px; margin-bottom: 8px; cursor: pointer;
+    display: flex; align-items: flex-start; gap: 16px;
+    transition: all 0.2s;
+  }
+  .role-card:hover { border-color: #4ade80; }
+  .role-card.selected { border-color: #4ade80; background: #1a2e1a; }
+  .role-num {
+    background: #2d5a3d; color: #4ade80; border-radius: 50%;
+    width: 32px; height: 32px; display: flex; align-items: center;
+    justify-content: center; font-weight: bold; font-size: 14px; flex-shrink: 0;
+  }
+  .role-info { flex: 1; }
+  .role-name { font-size: 16px; font-weight: 600; color: #e0e0e0; margin-bottom: 4px; }
+  .role-desc { font-size: 13px; color: #999; margin-bottom: 8px; }
+  .role-outputs { font-size: 12px; color: #6b9; }
+  .role-outputs span { background: #1a2e2a; padding: 2px 8px; border-radius: 4px; margin-right: 6px; }
+  .arrow { text-align: center; color: #444; font-size: 20px; margin: 2px 0; }
+  .vs-current {
+    margin-top: 40px; padding: 20px; background: #1a1a1a; border: 1px solid #333;
+    border-radius: 8px;
+  }
+  .vs-current h3 { color: #f59e0b; margin-bottom: 12px; }
+  .step-tag {
+    display: inline-block; padding: 4px 10px; border-radius: 4px;
+    font-size: 12px; margin: 3px;
+  }
+  .tag-exists { background: #1a2e1a; color: #4ade80; border: 1px solid #2d5a3d; }
+  .tag-missing { background: #2e1a1a; color: #f87171; border: 1px solid #5a2d2d; }
+  .tag-partial { background: #2e2a1a; color: #f59e0b; border: 1px solid #5a4d2d; }
+</style>
+
+<div class="phase-group">
+  <div class="phase-label">Phase 1 — Discovery & Definition</div>
+  <div class="role-card" data-choice="pm" onclick="toggleSelect(this)">
+    <div class="role-num">1</div>
+    <div class="role-info">
+      <div class="role-name">Product Manager</div>
+      <div class="role-desc">Translates the user's request into structured requirements. Defines scope, acceptance criteria, success metrics, and constraints. Identifies what "done" looks like.</div>
+      <div class="role-outputs">Outputs: <span>Requirements doc</span><span>Acceptance criteria</span><span>Scope boundary</span></div>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="role-card" data-choice="researcher" onclick="toggleSelect(this)">
+    <div class="role-num">2</div>
+    <div class="role-info">
+      <div class="role-name">Researcher</div>
+      <div class="role-desc">Investigates existing codebase, APIs, libraries, and prior art. Gathers context the downstream roles need. Web search, code analysis, dependency review.</div>
+      <div class="role-outputs">Outputs: <span>Research findings</span><span>Codebase context</span><span>API references</span><span>Risk flags</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="phase-group">
+  <div class="phase-label">Phase 2 — Design & Architecture</div>
+  <div class="role-card" data-choice="architect" onclick="toggleSelect(this)">
+    <div class="role-num">3</div>
+    <div class="role-info">
+      <div class="role-name">Architect</div>
+      <div class="role-desc">Designs the technical solution. Component breakdown, data models, API contracts, integration points, technology choices. Makes the hard structural decisions.</div>
+      <div class="role-outputs">Outputs: <span>Architecture design</span><span>Data models</span><span>API contracts</span><span>Component diagram</span></div>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="role-card" data-choice="designer" onclick="toggleSelect(this)">
+    <div class="role-num">4</div>
+    <div class="role-info">
+      <div class="role-name">Designer</div>
+      <div class="role-desc">UI/UX design when the feature has a user-facing component. Wireframes, user flows, component design. Skipped for backend-only work.</div>
+      <div class="role-outputs">Outputs: <span>Wireframes</span><span>User flows</span><span>Component specs</span></div>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="role-card" data-choice="planner" onclick="toggleSelect(this)">
+    <div class="role-num">5</div>
+    <div class="role-info">
+      <div class="role-name">Planner</div>
+      <div class="role-desc">Breaks the architecture into ordered implementation tasks. Identifies dependencies, parallelizable work, and critical path. Creates the execution plan.</div>
+      <div class="role-outputs">Outputs: <span>Task breakdown</span><span>Dependency graph</span><span>Execution order</span><span>Effort estimates</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="phase-group">
+  <div class="phase-label">Phase 3 — Implementation</div>
+  <div class="role-card" data-choice="implementer" onclick="toggleSelect(this)">
+    <div class="role-num">6</div>
+    <div class="role-info">
+      <div class="role-name">Implementer</div>
+      <div class="role-desc">Writes the code. New features, refactoring, bug fixes, integrations. Follows the plan from step 5 and the architecture from step 3. The workhorse of the pipeline.</div>
+      <div class="role-outputs">Outputs: <span>Source code</span><span>Database migrations</span><span>Config changes</span><span>Commit history</span></div>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="role-card" data-choice="reviewer" onclick="toggleSelect(this)">
+    <div class="role-num">7</div>
+    <div class="role-info">
+      <div class="role-name">Reviewer</div>
+      <div class="role-desc">Code review for quality, correctness, patterns, and adherence to architecture. Can request changes (triggers rework back to Implementer). Gatekeeps what gets merged.</div>
+      <div class="role-outputs">Outputs: <span>Review comments</span><span>Approval/rejection</span><span>Rework requests</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="phase-group">
+  <div class="phase-label">Phase 4 — Quality Assurance</div>
+  <div class="role-card" data-choice="tester" onclick="toggleSelect(this)">
+    <div class="role-num">8</div>
+    <div class="role-info">
+      <div class="role-name">Tester</div>
+      <div class="role-desc">Writes and runs tests — unit, integration, E2E. Validates against acceptance criteria from step 1. Can reject back to Implementer if tests fail.</div>
+      <div class="role-outputs">Outputs: <span>Test suites</span><span>Test results</span><span>Coverage reports</span><span>Bug reports</span></div>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="role-card" data-choice="security" onclick="toggleSelect(this)">
+    <div class="role-num">9</div>
+    <div class="role-info">
+      <div class="role-name">Security Analyst</div>
+      <div class="role-desc">Security review and penetration testing. OWASP checks, dependency vulnerability scanning, auth/authz validation, injection testing. Can block deployment.</div>
+      <div class="role-outputs">Outputs: <span>Security report</span><span>Vulnerability findings</span><span>Remediation items</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="phase-group">
+  <div class="phase-label">Phase 5 — Delivery</div>
+  <div class="role-card" data-choice="docs" onclick="toggleSelect(this)">
+    <div class="role-num">10</div>
+    <div class="role-info">
+      <div class="role-name">Technical Writer</div>
+      <div class="role-desc">API documentation, README updates, architecture docs, changelog entries, PR descriptions, commit messages. Makes the work understandable to others.</div>
+      <div class="role-outputs">Outputs: <span>API docs</span><span>README</span><span>Changelog</span><span>PR description</span></div>
+    </div>
+  </div>
+  <div class="arrow">↓</div>
+  <div class="role-card" data-choice="devops" onclick="toggleSelect(this)">
+    <div class="role-num">11</div>
+    <div class="role-info">
+      <div class="role-name">DevOps Engineer</div>
+      <div class="role-desc">CI/CD pipeline, deployment configs, infrastructure changes, monitoring setup. Gets the code from repo to production safely.</div>
+      <div class="role-outputs">Outputs: <span>CI/CD config</span><span>Deploy scripts</span><span>Infra changes</span><span>Monitoring alerts</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="phase-group">
+  <div class="phase-label">Phase 6 — Retrospective</div>
+  <div class="role-card" data-choice="retro" onclick="toggleSelect(this)">
+    <div class="role-num">12</div>
+    <div class="role-info">
+      <div class="role-name">Retrospective Analyst</div>
+      <div class="role-desc">Analyzes the full pipeline run. What went well, where rework happened, which roles caused downstream issues. Feeds learnings back into future pipeline runs.</div>
+      <div class="role-outputs">Outputs: <span>Retro report</span><span>Rework analysis</span><span>Improvement items</span><span>Role proficiency scores</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="vs-current">
+  <h3>Current AiSdlcStep Coverage vs Proposed Roles</h3>
+  <p style="font-size: 13px; color: #999; margin-bottom: 16px;">Green = already exists as a step. Yellow = partially covered. Red = completely missing today.</p>
+
+  <div style="margin-bottom: 8px; font-size: 13px; color: #bbb;"><strong>Product Manager:</strong></div>
+  <span class="step-tag tag-missing">Requirements gathering — MISSING</span>
+  <span class="step-tag tag-missing">Acceptance criteria — MISSING</span>
+  <span class="step-tag tag-partial">SPARK_CLASSIFICATION — partial</span>
+
+  <div style="margin-bottom: 8px; margin-top: 12px; font-size: 13px; color: #bbb;"><strong>Researcher:</strong></div>
+  <span class="step-tag tag-exists">WEB_RESEARCH ✓</span>
+  <span class="step-tag tag-exists">CODE_ANALYSIS ✓</span>
+
+  <div style="margin-bottom: 8px; margin-top: 12px; font-size: 13px; color: #bbb;"><strong>Architect:</strong></div>
+  <span class="step-tag tag-partial">TASK_DECOMPOSITION — partial</span>
+  <span class="step-tag tag-missing">System design — MISSING</span>
+  <span class="step-tag tag-missing">API contract design — MISSING</span>
+
+  <div style="margin-bottom: 8px; margin-top: 12px; font-size: 13px; color: #bbb;"><strong>Designer:</strong></div>
+  <span class="step-tag tag-exists">IMAGE_ANALYSIS ✓</span>
+  <span class="step-tag tag-missing">UI/UX wireframes — MISSING</span>
+
+  <div style="margin-bottom: 8px; margin-top: 12px; font-size: 13px; color: #bbb;"><strong>Planner:</strong></div>
+  <span class="step-tag tag-partial">TASK_DECOMPOSITION — partial</span>
+  <span class="step-tag tag-missing">Execution planning — MISSING</span>
+
+  <div style="margin-bottom: 8px; margin-top: 12px; font-size: 13px; color: #bbb;"><strong>Implementer:</strong></div>
+  <span class="step-tag tag-exists">CODE_GENERATION ✓</span>
+  <span class="step-tag tag-exists">CODE_REFACTORING ✓</span>
+  <span class="step-tag tag-exists">BUG_FIX ✓</span>
+
+  <div style="margin-bottom: 8px; margin-top: 12px; font-size: 13px; color: #bbb;"><strong>Reviewer:</strong></div>
+  <span class="step-tag tag-exists">CODE_REVIEW ✓</span>
+  <span class="step-tag tag-exists">PR_DESCRIPTION ✓</span>
+
+  <div style="margin-bottom: 8px; margin-top: 12px; font-size: 13px; color: #bbb;"><strong>Tester:</strong></div>
+  <span class="step-tag tag-exists">TEST_GENERATION ✓</span>
+  <span class="step-tag tag-exists">TEST_EXECUTION ✓</span>
+  <span class="step-tag tag-exists">BUG_DIAGNOSIS ✓</span>
+
+  <div style="margin-bottom: 8px; margin-top: 12px; font-size: 13px; color: #bbb;"><strong>Security Analyst:</strong></div>
+  <span class="step-tag tag-missing">Security review — MISSING</span>
+  <span class="step-tag tag-missing">Pentest — MISSING</span>
+  <span class="step-tag tag-missing">Vulnerability scanning — MISSING</span>
+
+  <div style="margin-bottom: 8px; margin-top: 12px; font-size: 13px; color: #bbb;"><strong>Technical Writer:</strong></div>
+  <span class="step-tag tag-exists">DOCUMENTATION ✓</span>
+  <span class="step-tag tag-exists">COMMIT_MESSAGE ✓</span>
+
+  <div style="margin-bottom: 8px; margin-top: 12px; font-size: 13px; color: #bbb;"><strong>DevOps:</strong></div>
+  <span class="step-tag tag-exists">DEPLOYMENT_SCRIPT ✓</span>
+  <span class="step-tag tag-exists">MONITORING_ANALYSIS ✓</span>
+
+  <div style="margin-bottom: 8px; margin-top: 12px; font-size: 13px; color: #bbb;"><strong>Retrospective Analyst:</strong></div>
+  <span class="step-tag tag-missing">Retro analysis — MISSING</span>
+  <span class="step-tag tag-missing">Rework tracking — MISSING</span>
+</div>
