@@ -4,6 +4,7 @@ import io.strategiz.social.data.entity.Checkpoint;
 import io.strategiz.social.data.entity.CheckpointDecision;
 import io.strategiz.social.data.entity.CheckpointPolicy;
 import io.strategiz.social.data.entity.DeviceRegistration;
+import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.ExecutionLog;
 import io.strategiz.social.data.entity.Spark;
 import io.strategiz.social.data.entity.SparkPriority;
@@ -70,6 +71,52 @@ public class SparkService {
 		this.userBroadcaster = userBroadcaster;
 		this.sparkClassifierService = sparkClassifierService;
 		this.sparkDispatchService = sparkDispatchService;
+	}
+
+	/**
+	 * Mark a spark as executing asynchronously. Sets {@code pipelineExecutionMode} to "ASYNC"
+	 * and persists the change. Called by the timeout-based hybrid routing path when a spark is
+	 * handed off to the async executor rather than awaited synchronously.
+	 *
+	 * @param sparkId the ID of the spark to mark as async
+	 */
+	public void markAsync(String sparkId) {
+		sparkRepository.findById(sparkId).ifPresent(spark -> {
+			spark.setPipelineExecutionMode("ASYNC");
+			sparkRepository.save(spark, spark.getUserId());
+			log.info("[SPARK] Marked spark={} as ASYNC execution", sparkId);
+		});
+	}
+
+	/**
+	 * Create a minimal child spark for pipeline role execution. Returns the new spark's ID.
+	 * The child spark is created with {@code pipelineExecutionMode="PIPELINE"} and links back
+	 * to the parent via {@code parentSparkId}.
+	 *
+	 * @param parentSparkId the ID of the parent pipeline spark
+	 * @param role          the PDLC role this child spark will execute
+	 * @param userId        the user who owns this spark
+	 * @return the newly created child spark ID
+	 */
+	public String createChildSpark(String parentSparkId, PdlcRole role, String userId) {
+		String sparkId = UUID.randomUUID().toString();
+
+		Spark spark = new Spark();
+		spark.setId(sparkId);
+		spark.setUserId(userId);
+		spark.setParentSparkId(parentSparkId);
+		spark.setPdlcRole(role);
+		spark.setPipelineExecutionMode("PIPELINE");
+		spark.setPriority(SparkPriority.NORMAL);
+		spark.setCheckpointPolicy(CheckpointPolicy.CHECKPOINT_MAJOR);
+		spark.setRepoAccess(List.of());
+		spark.setStatus(SparkState.PENDING);
+		spark.setCreatedDate(com.google.cloud.Timestamp.now());
+
+		sparkRepository.save(spark, userId);
+
+		log.info("[SPARK] Created child spark={} parent={} role={} user={}", sparkId, parentSparkId, role, userId);
+		return sparkId;
 	}
 
 	/** Create a new spark from user input. */
