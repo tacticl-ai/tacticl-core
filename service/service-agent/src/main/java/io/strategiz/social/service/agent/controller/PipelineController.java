@@ -3,8 +3,10 @@ package io.strategiz.social.service.agent.controller;
 import io.cidadel.framework.authorization.annotation.AuthUser;
 import io.cidadel.framework.authorization.annotation.RequireAuth;
 import io.cidadel.framework.authorization.context.AuthenticatedUser;
+import io.strategiz.social.business.agent.pipeline.CheckpointService;
 import io.strategiz.social.business.agent.pipeline.PipelineArtifactService;
 import io.strategiz.social.business.agent.pipeline.PlaybookRegistry;
+import io.strategiz.social.data.entity.Checkpoint;
 import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineArtifact;
 import io.strategiz.social.data.entity.PipelineEvent;
@@ -48,14 +50,18 @@ public class PipelineController {
 
 	private final PlaybookRegistry playbookRegistry;
 
+	private final CheckpointService checkpointService;
+
 	public PipelineController(PipelineRunRepository pipelineRunRepository,
 			PipelineEventRepository pipelineEventRepository,
 			PipelineArtifactService pipelineArtifactService,
-			PlaybookRegistry playbookRegistry) {
+			PlaybookRegistry playbookRegistry,
+			CheckpointService checkpointService) {
 		this.pipelineRunRepository = pipelineRunRepository;
 		this.pipelineEventRepository = pipelineEventRepository;
 		this.pipelineArtifactService = pipelineArtifactService;
 		this.playbookRegistry = playbookRegistry;
+		this.checkpointService = checkpointService;
 	}
 
 	@GetMapping("/sparks/{sparkId}/pipeline")
@@ -162,12 +168,38 @@ public class PipelineController {
 		log.info("Checkpoint resolution for spark={} checkpointId={} decision={} user={}", sparkId, checkpointId,
 				request.getDecision(), user.getUserId());
 
-		// TODO: Implement checkpoint resolution via CheckpointService once integrated.
-		// Steps:
-		//   1. Load checkpoint by checkpointId, verify it belongs to this sparkId and user.
-		//   2. Validate checkpoint is in PENDING state.
-		//   3. Apply decision (APPROVED/REJECTED/MODIFIED) with optional feedback.
-		//   4. Resume or halt the pipeline run accordingly.
+		// 1. Load checkpoint and verify it belongs to this spark
+		Optional<Checkpoint> checkpointOpt = checkpointService.getCheckpoint(checkpointId);
+		if (checkpointOpt.isEmpty()) {
+			return ResponseEntity.notFound().build();
+		}
+
+		Checkpoint checkpoint = checkpointOpt.get();
+		if (!sparkId.equals(checkpoint.getSparkId())) {
+			return ResponseEntity.status(403).build();
+		}
+
+		// 2. Verify the spark belongs to this user
+		Optional<PipelineRun> runOpt = checkpoint.getPipelineRunId() != null
+				? pipelineRunRepository.findById(checkpoint.getPipelineRunId())
+				: Optional.empty();
+		if (runOpt.isPresent() && !runOpt.get().getUserId().equals(user.getUserId())) {
+			return ResponseEntity.status(403).build();
+		}
+
+		// 3. Apply the decision — CheckpointService validates state and resumes the pipeline
+		try {
+			checkpointService.resolveCheckpoint(checkpointId, user.getUserId(),
+					request.getDecision(), request.getFeedback());
+		}
+		catch (IllegalStateException ex) {
+			log.warn("Checkpoint already resolved: checkpointId={} user={}", checkpointId, user.getUserId());
+			return ResponseEntity.status(409).build();
+		}
+		catch (IllegalArgumentException ex) {
+			log.warn("Invalid checkpoint resolution: checkpointId={} error={}", checkpointId, ex.getMessage());
+			return ResponseEntity.badRequest().build();
+		}
 
 		return ResponseEntity.accepted().build();
 	}

@@ -2,12 +2,17 @@ package io.strategiz.social.business.agent.pipeline;
 
 import io.strategiz.social.business.agent.pipeline.PdlcRoleExecutor.RoleExecutionResult;
 import io.strategiz.social.business.agent.service.SparkService;
+import io.strategiz.social.data.entity.Checkpoint;
+import io.strategiz.social.data.entity.CheckpointDecision;
+import io.strategiz.social.data.entity.CheckpointType;
 import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineEventType;
 import io.strategiz.social.data.entity.PipelineRun;
 import io.strategiz.social.data.entity.RoleResultSummary;
 import io.strategiz.social.data.entity.RoleStatus;
+import io.strategiz.social.data.entity.UserConfig;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -26,13 +31,21 @@ import org.springframework.stereotype.Service;
  * creates child sparks per role, iterates through playbook stages respecting dependency order,
  * handles parallel role groups, emits lifecycle events, and aggregates cost metrics.
  *
- * <p>Role execution is delegated to {@link PdlcRoleExecutor} (stubbed until Wave 4).
- * Checkpoint handling and rework loops are logged but deferred to future tasks.</p>
+ * <p>Role execution is delegated to {@link PdlcRoleExecutor}, with the production implementation
+ * in {@link RealPdlcRoleExecutor} that routes through {@link io.strategiz.social.business.agent.pipeline.role.PdlcRoleSkill}.
+ * Checkpoint gates pause the pipeline and poll for user resolution via {@link CheckpointService}.
+ * Rework loops are handled via {@link ReworkTracker}.</p>
  */
 @Service
 public class PdlcPipelineOrchestrator {
 
 	private static final Logger log = LoggerFactory.getLogger(PdlcPipelineOrchestrator.class);
+
+	/** How often to poll Firestore waiting for a checkpoint to be resolved. */
+	static final Duration CHECKPOINT_POLL_INTERVAL = Duration.ofSeconds(5);
+
+	/** Default maximum time to wait for a user to respond to a checkpoint (24 hours). */
+	static final Duration DEFAULT_CHECKPOINT_TIMEOUT = Duration.ofHours(24);
 
 	private final PipelineStateManager pipelineStateManager;
 
@@ -46,21 +59,32 @@ public class PdlcPipelineOrchestrator {
 
 	private final PdlcRoleExecutor roleExecutor;
 
+	private final CheckpointService checkpointService;
+
+	private final ReworkTracker reworkTracker;
+
 	public PdlcPipelineOrchestrator(PipelineStateManager pipelineStateManager,
 			PipelineEventEmitter pipelineEventEmitter, PipelineArtifactService pipelineArtifactService,
-			SparkService sparkService, PlaybookRegistry playbookRegistry, PdlcRoleExecutor roleExecutor) {
+			SparkService sparkService, PlaybookRegistry playbookRegistry, PdlcRoleExecutor roleExecutor,
+			CheckpointService checkpointService, ReworkTracker reworkTracker) {
 		this.pipelineStateManager = pipelineStateManager;
 		this.pipelineEventEmitter = pipelineEventEmitter;
 		this.pipelineArtifactService = pipelineArtifactService;
 		this.sparkService = sparkService;
 		this.playbookRegistry = playbookRegistry;
 		this.roleExecutor = roleExecutor;
+		this.checkpointService = checkpointService;
+		this.reworkTracker = reworkTracker;
 	}
 
 	/**
 	 * Execute the full pipeline lifecycle asynchronously. Iterates through all stages in the
 	 * playbook, executes roles (including parallel groups), emits events, stores artifacts,
 	 * and aggregates final metrics.
+	 *
+	 * <p>Checkpoint gates pause the executing thread (polling every
+	 * {@link #CHECKPOINT_POLL_INTERVAL}) until the user resolves the checkpoint via the REST
+	 * API, or until {@link #DEFAULT_CHECKPOINT_TIMEOUT} elapses and the pipeline is cancelled.</p>
 	 *
 	 * @param pipelineRunId the ID of the PipelineRun to execute
 	 */
@@ -93,6 +117,9 @@ public class PdlcPipelineOrchestrator {
 		// Mark the parent spark as running
 		sparkService.markRunning(run.getSparkId());
 
+		// Resolve the user config for checkpoint overrides (null-safe — CheckpointService handles null gracefully)
+		UserConfig userConfig = resolveUserConfig(run);
+
 		try {
 			// 3. Iterate through stages
 			Set<PdlcRole> completedRoles = new HashSet<>();
@@ -113,11 +140,27 @@ public class PdlcPipelineOrchestrator {
 					continue;
 				}
 
-				// b. Check for human checkpoint before this role
-				if (isCheckpointBeforeRequired(role, playbook)) {
-					log.info("[PIPELINE] Checkpoint required before role={} for run={} (skipping for now)",
-							role, pipelineRunId);
-					// Future: pause pipeline, create checkpoint, wait for resolution
+				// b. Checkpoint BEFORE this role (playbook default OR user override)
+				if (isCheckpointBeforeRequired(role, playbook)
+						|| checkpointService.shouldCheckpoint(run, role, true, userConfig)) {
+					log.info("[PIPELINE] Checkpoint required before role={} for run={}", role, pipelineRunId);
+					CheckpointDecision decision = pauseForCheckpoint(run, role,
+							CheckpointType.PIPELINE_STAGE,
+							"Approve before: " + role.name(),
+							"Review required before the " + role.name() + " stage begins.",
+							List.of("APPROVED", "REJECTED"),
+							userConfig);
+
+					if (decision == CheckpointDecision.REJECTED) {
+						log.info("[PIPELINE] User rejected before-role checkpoint for role={} run={} — cancelling",
+								role, pipelineRunId);
+						pipelineStateManager.markFailed(pipelineRunId,
+								"Cancelled by user at checkpoint before " + role);
+						sparkService.markCloudFailed(run.getSparkId(), "Pipeline cancelled at checkpoint", 0, null);
+						return;
+					}
+					// APPROVED or MODIFIED: reload run after state transition back to EXECUTING
+					run = pipelineStateManager.getRun(pipelineRunId).orElse(run);
 				}
 
 				// c. Handle parallel groups
@@ -152,11 +195,27 @@ public class PdlcPipelineOrchestrator {
 				executeRole(run, role);
 				completedRoles.add(role);
 
-				// i. Check for human checkpoint after this role
-				if (isCheckpointAfterRequired(role, playbook)) {
-					log.info("[PIPELINE] Checkpoint required after role={} for run={} (skipping for now)",
-							role, pipelineRunId);
-					// Future: pause pipeline, create checkpoint, wait for resolution
+				// i. Checkpoint AFTER this role (playbook default OR user override)
+				if (isCheckpointAfterRequired(role, playbook)
+						|| checkpointService.shouldCheckpoint(run, role, false, userConfig)) {
+					log.info("[PIPELINE] Checkpoint required after role={} for run={}", role, pipelineRunId);
+					CheckpointDecision decision = pauseForCheckpoint(run, role,
+							CheckpointType.PIPELINE_STAGE,
+							"Approve after: " + role.name(),
+							"Review the output produced by the " + role.name() + " stage before continuing.",
+							List.of("APPROVED", "REJECTED", "MODIFIED"),
+							userConfig);
+
+					if (decision == CheckpointDecision.REJECTED) {
+						log.info("[PIPELINE] User rejected after-role checkpoint for role={} run={} — cancelling",
+								role, pipelineRunId);
+						pipelineStateManager.markFailed(pipelineRunId,
+								"Cancelled by user at checkpoint after " + role);
+						sparkService.markCloudFailed(run.getSparkId(), "Pipeline cancelled at checkpoint", 0, null);
+						return;
+					}
+					// APPROVED or MODIFIED: reload run, continue to next stage
+					run = pipelineStateManager.getRun(pipelineRunId).orElse(run);
 				}
 
 				stageIndex++;
@@ -174,6 +233,11 @@ public class PdlcPipelineOrchestrator {
 					pipelineRunId, run.getTotalTokens(), run.getTotalCost());
 
 		}
+		catch (CheckpointTimeoutException ex) {
+			log.warn("[PIPELINE] Checkpoint timed out for run={}: {}", pipelineRunId, ex.getMessage());
+			pipelineStateManager.markFailed(pipelineRunId, "Checkpoint timed out: " + ex.getMessage());
+			sparkService.markCloudFailed(run.getSparkId(), "Pipeline timed out waiting for checkpoint", 0, null);
+		}
 		catch (Exception ex) {
 			log.error("[PIPELINE] Execution failed for run={}", pipelineRunId, ex);
 			pipelineStateManager.markFailed(pipelineRunId, ex.getMessage());
@@ -182,22 +246,103 @@ public class PdlcPipelineOrchestrator {
 	}
 
 	/**
+	 * Pause the executing thread until the user resolves the checkpoint, then return the decision.
+	 * Polls {@link CheckpointService#getPendingCheckpoint} every {@link #CHECKPOINT_POLL_INTERVAL}.
+	 * Throws {@link CheckpointTimeoutException} if the timeout elapses without a resolution.
+	 *
+	 * @param run         the pipeline run being paused
+	 * @param role        the PDLC role associated with this gate
+	 * @param type        the checkpoint gate type
+	 * @param title       short label for the checkpoint prompt
+	 * @param description detailed review instructions
+	 * @param options     available decisions to present to the user
+	 * @param userConfig  user config (currently unused; reserved for future per-user timeout)
+	 * @return the user's resolved {@link CheckpointDecision}
+	 */
+	CheckpointDecision pauseForCheckpoint(PipelineRun run, PdlcRole role, CheckpointType type,
+			String title, String description, List<String> options, UserConfig userConfig) {
+
+		Checkpoint checkpoint = checkpointService.createPipelineCheckpoint(
+				run, role, type, title, description, options);
+
+		long deadlineEpochMs = System.currentTimeMillis() + DEFAULT_CHECKPOINT_TIMEOUT.toMillis();
+
+		log.info("[CHECKPOINT] Waiting for resolution of checkpoint={} run={} timeout={}",
+				checkpoint.getId(), run.getId(), DEFAULT_CHECKPOINT_TIMEOUT);
+
+		while (System.currentTimeMillis() < deadlineEpochMs) {
+			try {
+				Thread.sleep(CHECKPOINT_POLL_INTERVAL.toMillis());
+			}
+			catch (InterruptedException ie) {
+				Thread.currentThread().interrupt();
+				throw new CheckpointTimeoutException(
+						"Interrupted while waiting for checkpoint " + checkpoint.getId());
+			}
+
+			Optional<Checkpoint> pending = checkpointService.getPendingCheckpoint(run.getId());
+			if (pending.isEmpty()) {
+				// No pending checkpoint means it was resolved — fetch the decision
+				Optional<Checkpoint> resolved = checkpointService.getCheckpoint(checkpoint.getId());
+				CheckpointDecision decision = resolved
+						.map(Checkpoint::getUserDecision)
+						.orElse(CheckpointDecision.APPROVED);
+				log.info("[CHECKPOINT] Resolved: checkpoint={} decision={} run={}",
+						checkpoint.getId(), decision, run.getId());
+				return decision;
+			}
+		}
+
+		throw new CheckpointTimeoutException(
+				"Checkpoint " + checkpoint.getId() + " timed out after " + DEFAULT_CHECKPOINT_TIMEOUT);
+	}
+
+	/**
+	 * Resolve the user config for the given run. Returns defaults until UserConfigService
+	 * integration is wired (future task).
+	 */
+	private UserConfig resolveUserConfig(PipelineRun run) {
+		return UserConfig.defaults();
+	}
+
+	/**
 	 * Execute a single role: create child spark, emit events, run role executor, store results.
+	 * Delegates to the overloaded method with no rework context.
 	 */
 	void executeRole(PipelineRun run, PdlcRole role) {
+		executeRole(run, role, null, 0);
+	}
+
+	/**
+	 * Execute a single role with optional rework context. Creates a child spark, emits lifecycle
+	 * events, delegates to the role executor (which routes through real PdlcRoleSkill implementations),
+	 * stores result summaries, and handles rejection by delegating to the ReworkTracker.
+	 *
+	 * @param run              the pipeline run context
+	 * @param role             the role to execute
+	 * @param reworkFeedback   feedback from a rejecting role (null on first execution)
+	 * @param reworkIteration  rework iteration count (0 on first execution)
+	 */
+	void executeRole(PipelineRun run, PdlcRole role, String reworkFeedback, int reworkIteration) {
 		String childSparkId = sparkService.createChildSpark(run.getSparkId(), role, run.getUserId());
 
 		// Emit ROLE_STARTED
 		pipelineEventEmitter.emitRoleStarted(run, role, childSparkId);
 		pipelineStateManager.updateRoleStatus(run.getId(), role, RoleStatus.EXECUTING);
 
-		// Execute via the role executor (stubbed until Wave 4)
-		RoleExecutionResult result = roleExecutor.execute(run, role, childSparkId);
+		// Execute via the role executor — if it supports rework context, pass it through
+		RoleExecutionResult result;
+		if (roleExecutor instanceof RealPdlcRoleExecutor realExecutor) {
+			result = realExecutor.execute(run, role, childSparkId, reworkFeedback, reworkIteration);
+		}
+		else {
+			result = roleExecutor.execute(run, role, childSparkId);
+		}
 
 		// Build role result summary directly from execution result
 		RoleResultSummary summary = run.getRoleResults()
 				.computeIfAbsent(role.name(), k -> new RoleResultSummary());
-		summary.setStatus(RoleStatus.COMPLETED);
+		summary.setStatus(result.rejected() ? RoleStatus.REJECTED : RoleStatus.COMPLETED);
 		summary.setChildSparkId(childSparkId);
 		summary.setTokens(result.tokens());
 		summary.setCost(result.cost());
@@ -214,12 +359,22 @@ public class PdlcPipelineOrchestrator {
 		// Mark child spark completed
 		sparkService.markCloudCompleted(childSparkId, result.tokens(), result.model());
 
-		// Handle rejection (rework delegation — logged for now, full rework is Task 12)
+		// Handle rejection via ReworkTracker
 		if (result.rejected()) {
 			log.info("[PIPELINE] Role {} rejected output, target={} reason={} for run={}",
 					role, result.rejectionTarget(), result.rejectionReason(), run.getId());
-			pipelineEventEmitter.emitReworkTriggered(run, role, result.rejectionTarget(), result.rejectionReason());
-			// Future: delegate to ReworkTracker (Task 12)
+
+			boolean shouldRework = reworkTracker.handleRework(
+					run, role, result.rejectionTarget(), result.rejectionReason());
+
+			if (shouldRework && result.rejectionTarget() != null) {
+				log.info("[PIPELINE] Re-executing target role={} after rejection for run={}",
+						result.rejectionTarget(), run.getId());
+				executeRole(run, result.rejectionTarget(), result.rejectionReason(), run.getReworkCount());
+			}
+			else if (!shouldRework) {
+				log.warn("[PIPELINE] Max rework exceeded for run={}, proceeding without rework", run.getId());
+			}
 		}
 
 		log.info("[PIPELINE] Role {} completed for run={} tokens={} cost={}",

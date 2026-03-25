@@ -25,6 +25,11 @@ public class CheckpointRepository extends BaseRepository<Checkpoint> {
 		return findByField("sparkId", sparkId);
 	}
 
+	/** Find all checkpoints for a pipeline run. */
+	public List<Checkpoint> findByPipelineRunId(String pipelineRunId) {
+		return findByField("pipelineRunId", pipelineRunId);
+	}
+
 	/** Find pending checkpoints for a user (across all their sparks). */
 	public List<Checkpoint> findPendingByUserId(String userId) {
 		// We don't have userId directly on checkpoint; query via sparks would be needed.
