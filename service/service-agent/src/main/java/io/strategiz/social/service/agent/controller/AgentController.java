@@ -4,7 +4,14 @@ import io.cidadel.framework.authorization.annotation.AuthUser;
 import io.cidadel.framework.authorization.annotation.RequireAuth;
 import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.cidadel.framework.llmrouter.LlmRouter;
+import io.strategiz.social.business.agent.pipeline.PdlcClassification;
+import io.strategiz.social.business.agent.pipeline.PdlcClassifierService;
+import io.strategiz.social.business.agent.pipeline.PdlcPipelineOrchestrator;
+import io.strategiz.social.business.agent.pipeline.PipelineStateManager;
+import io.strategiz.social.business.agent.pipeline.PlaybookConfig;
+import io.strategiz.social.business.agent.pipeline.PlaybookRegistry;
 import io.strategiz.social.business.agent.service.DeviceRoutingService;
+import io.strategiz.social.business.agent.service.SparkClassifierService;
 import io.strategiz.social.business.agent.service.SparkService;
 import io.strategiz.social.business.agent.service.TranscriptionService;
 import io.strategiz.social.business.agent.service.UserProvisioningService;
@@ -14,9 +21,11 @@ import io.strategiz.social.data.entity.ActionConfirmation;
 import io.strategiz.social.data.entity.AgentAuditLog;
 import io.strategiz.social.data.entity.DeviceRegistration;
 import io.strategiz.social.data.entity.ExecutionPreference;
+import io.strategiz.social.data.entity.PipelineTier;
 import io.strategiz.social.data.entity.SocialIntegration;
 import io.strategiz.social.data.entity.Spark;
 import io.strategiz.social.data.entity.UserConfig;
+import io.strategiz.social.data.entity.PipelineRun;
 import io.strategiz.social.data.repository.ActionConfirmationRepository;
 import io.strategiz.social.data.repository.AgentAuditLogRepository;
 import io.strategiz.social.data.repository.SocialIntegrationRepository;
@@ -76,12 +85,24 @@ public class AgentController {
 
 	private final UserConfigService userConfigService;
 
+	private final SparkClassifierService sparkClassifierService;
+
+	private final PdlcClassifierService pdlcClassifierService;
+
+	private final PdlcPipelineOrchestrator pdlcPipelineOrchestrator;
+
+	private final PipelineStateManager pipelineStateManager;
+
+	private final PlaybookRegistry playbookRegistry;
+
 	public AgentController(VoiceAgentService voiceAgentService, LlmRouter llmRouter,
 			AgentAuditLogRepository auditLogRepository, ActionConfirmationRepository confirmationRepository,
 			SocialIntegrationRepository integrationRepository, UserProvisioningService userProvisioningService,
 			TranscriptionService transcriptionService, SparkService sparkService,
 			DeviceRoutingService deviceRoutingService, SetupActionDetector setupActionDetector,
-			UserConfigService userConfigService) {
+			UserConfigService userConfigService, SparkClassifierService sparkClassifierService,
+			PdlcClassifierService pdlcClassifierService, PdlcPipelineOrchestrator pdlcPipelineOrchestrator,
+			PipelineStateManager pipelineStateManager, PlaybookRegistry playbookRegistry) {
 		this.voiceAgentService = voiceAgentService;
 		this.llmRouter = llmRouter;
 		this.auditLogRepository = auditLogRepository;
@@ -93,6 +114,11 @@ public class AgentController {
 		this.deviceRoutingService = deviceRoutingService;
 		this.setupActionDetector = setupActionDetector;
 		this.userConfigService = userConfigService;
+		this.sparkClassifierService = sparkClassifierService;
+		this.pdlcClassifierService = pdlcClassifierService;
+		this.pdlcPipelineOrchestrator = pdlcPipelineOrchestrator;
+		this.pipelineStateManager = pipelineStateManager;
+		this.playbookRegistry = playbookRegistry;
 	}
 
 	@PostMapping("/command")
@@ -111,7 +137,15 @@ public class AgentController {
 		// Always create a Spark first
 		String commandText = request.getText();
 		String title = commandText.length() > 80 ? commandText.substring(0, 80) + "..." : commandText;
-		Spark spark = sparkService.createSpark(user.getUserId(), title, commandText, request.getSparkType(), null,
+
+		// Stage 1: Resolve spark type — use request hint if provided, otherwise classify
+		String sparkType = request.getSparkType();
+		if (sparkType == null || sparkType.isBlank()) {
+			sparkType = sparkClassifierService.classifySparkType(title, commandText);
+			log.debug("Classified spark type='{}' for title='{}'", sparkType, title);
+		}
+
+		Spark spark = sparkService.createSpark(user.getUserId(), title, commandText, sparkType, null,
 				null, null, null);
 
 		// Route based on user's execution preference (smart defaults)
@@ -130,12 +164,12 @@ public class AgentController {
 			case CLOUD_ONLY:
 				// Never try device, go straight to cloud (with browser skills if enabled)
 				log.info("Routing spark={} to cloud (CLOUD_ONLY preference)", spark.getId());
-				return ResponseEntity.ok(executeInCloud(request, user.getUserId(), spark));
+				return ResponseEntity.ok(executeInCloudOrPipeline(request, user.getUserId(), spark, title, commandText, sparkType));
 
 			case CLOUD_FIRST:
 				// Try cloud first — agent has browser skills and cloud tools
 				log.info("Routing spark={} to cloud first (CLOUD_FIRST preference)", spark.getId());
-				return ResponseEntity.ok(executeInCloud(request, user.getUserId(), spark));
+				return ResponseEntity.ok(executeInCloudOrPipeline(request, user.getUserId(), spark, title, commandText, sparkType));
 
 			case DEVICE_FIRST:
 			default:
@@ -148,7 +182,7 @@ public class AgentController {
 					// If routing failed (no device matched after preferences), fall through
 				}
 				// Fall back to cloud (now with browser skills available)
-				return ResponseEntity.ok(executeInCloud(request, user.getUserId(), spark));
+				return ResponseEntity.ok(executeInCloudOrPipeline(request, user.getUserId(), spark, title, commandText, sparkType));
 		}
 	}
 
@@ -163,6 +197,93 @@ public class AgentController {
 
 		log.info("Device routing returned empty for spark={}, falling back to cloud", spark.getId());
 		return Optional.empty();
+	}
+
+	/**
+	 * Runs Stage 2 PDLC depth classification and routes to either the pipeline
+	 * (PLAYBOOK / FULL_PDLC) or the synchronous VoiceAgentService (SIMPLE).
+	 *
+	 * <p>Pipeline routing:
+	 * <ol>
+	 *   <li>Classify depth via {@link PdlcClassifierService} (only runs for code/devops types).</li>
+	 *   <li>If the request carries a user-specified {@code playbook} override, re-resolve the
+	 *       {@link PlaybookConfig} from the registry and use the overridden classification.</li>
+	 *   <li>SIMPLE → existing {@link VoiceAgentService} synchronous path.</li>
+	 *   <li>PLAYBOOK / FULL_PDLC → create a {@link PipelineRun} and dispatch asynchronously
+	 *       to {@link PdlcPipelineOrchestrator}; return an async PIPELINE response immediately.</li>
+	 * </ol>
+	 * </p>
+	 */
+	private AgentCommandResponse executeInCloudOrPipeline(AgentCommandRequest request, String userId,
+			Spark spark, String title, String commandText, String sparkType) {
+
+		// Stage 2: PDLC depth classification
+		PdlcClassification classification = pdlcClassifierService.classifyDepth(title, commandText, sparkType);
+
+		// User playbook override takes precedence over classifier result
+		String playbookOverride = request.getPlaybook();
+		if (playbookOverride != null && !playbookOverride.isBlank()) {
+			Optional<PlaybookConfig> overrideConfig = playbookRegistry.getPlaybook(playbookOverride.toUpperCase());
+			if (overrideConfig.isPresent()) {
+				PlaybookConfig pb = overrideConfig.get();
+				log.info("User override: playbook='{}' tier={} for spark={}", pb.name(), pb.tier(), spark.getId());
+				// Re-build classification using the override playbook's tier and roles
+				classification = new PdlcClassification(
+						pb.tier(),
+						pb.name(),
+						1.0, // user-specified → maximum confidence
+						classification.activatedRoles().isEmpty()
+								? pb.stages().stream().map(s -> s.role()).toList()
+								: classification.activatedRoles(),
+						classification.skippedRoles(),
+						classification.dimensionScores(),
+						"User-specified playbook override: " + pb.name());
+			}
+			else {
+				log.warn("Unknown playbook override '{}' for spark={}, ignoring", playbookOverride, spark.getId());
+			}
+		}
+
+		// Route based on classification tier
+		if (classification.tier() == PipelineTier.SIMPLE) {
+			// Existing synchronous VoiceAgentService path
+			AgentCommandResponse response = executeInCloud(request, userId, spark);
+			response.setPipelineTier(PipelineTier.SIMPLE.name());
+			response.setExecutionMode("SYNC");
+			return response;
+		}
+
+		// PLAYBOOK or FULL_PDLC — look up the PlaybookConfig and dispatch async
+		Optional<PlaybookConfig> playbookConfigOpt = playbookRegistry.getPlaybook(classification.playbook());
+		if (playbookConfigOpt.isEmpty()) {
+			log.warn("[PIPELINE] Playbook '{}' not found in registry for spark={}, falling back to SIMPLE",
+					classification.playbook(), spark.getId());
+			AgentCommandResponse response = executeInCloud(request, userId, spark);
+			response.setPipelineTier(PipelineTier.SIMPLE.name());
+			response.setExecutionMode("SYNC");
+			return response;
+		}
+
+		PlaybookConfig playbookConfig = playbookConfigOpt.get();
+		log.info("[PIPELINE] Dispatching spark={} to pipeline tier={} playbook={} confidence={}",
+				spark.getId(), classification.tier(), classification.playbook(), classification.confidence());
+
+		PipelineRun pipelineRun = pipelineStateManager.createRun(
+				spark.getId(), userId, playbookConfig, classification);
+
+		// Dispatch async — returns immediately; orchestrator runs on pdlcPipelineExecutor thread pool
+		pdlcPipelineOrchestrator.executePipeline(pipelineRun.getId());
+
+		List<String> activatedRoleNames = pipelineRun.getActivatedRoles() != null
+				? pipelineRun.getActivatedRoles().stream().map(Enum::name).toList()
+				: List.of();
+
+		return AgentCommandResponse.pipeline(
+				spark.getId(),
+				pipelineRun.getId(),
+				classification.tier().name(),
+				classification.playbook(),
+				activatedRoleNames);
 	}
 
 	/** Execute command in the cloud via VoiceAgentService, tracking with the given spark. */

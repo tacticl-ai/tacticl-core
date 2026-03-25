@@ -23,6 +23,33 @@ public class AgentCommandResponse {
 
 	private List<AgentAction> actions;
 
+	// --- Pipeline fields (null for non-pipeline SIMPLE responses) ---
+
+	/** The PDLC pipeline run ID, present only when executionMode is PIPELINE. */
+	private String pipelineRunId;
+
+	/**
+	 * The pipeline tier that was selected: SIMPLE, PLAYBOOK, or FULL_PDLC.
+	 * Always present after classification; null only for device-delegated responses.
+	 */
+	private String pipelineTier;
+
+	/** The playbook name executed (e.g. "BUG_FIX", "FULL_PDLC"); null for SIMPLE. */
+	private String playbook;
+
+	/** Ordered list of role names activated in this pipeline run; null for SIMPLE. */
+	private List<String> activatedRoles;
+
+	/**
+	 * How the command was executed:
+	 * <ul>
+	 *   <li>SYNC — synchronous cloud execution via VoiceAgentService</li>
+	 *   <li>PIPELINE — async PDLC pipeline (PLAYBOOK or FULL_PDLC tier)</li>
+	 *   <li>DEVICE — delegated to a connected device</li>
+	 * </ul>
+	 */
+	private String executionMode;
+
 	public AgentCommandResponse() {
 	}
 
@@ -43,6 +70,23 @@ public class AgentCommandResponse {
 		resp.sparkId = sparkId;
 		resp.sparkStatus = sparkStatus;
 		resp.deviceName = deviceName;
+		resp.executionMode = "DEVICE";
+		return resp;
+	}
+
+	/** Create a pipeline response (async PDLC execution dispatched). */
+	public static AgentCommandResponse pipeline(String sparkId, String pipelineRunId, String pipelineTier,
+			String playbook, List<String> activatedRoles) {
+		AgentCommandResponse resp = new AgentCommandResponse();
+		resp.responseText = "Pipeline started (" + pipelineTier + "). Tracking spark " + sparkId + ".";
+		resp.toolsInvoked = List.of();
+		resp.success = true;
+		resp.sparkId = sparkId;
+		resp.pipelineRunId = pipelineRunId;
+		resp.pipelineTier = pipelineTier;
+		resp.playbook = playbook;
+		resp.activatedRoles = activatedRoles;
+		resp.executionMode = "PIPELINE";
 		return resp;
 	}
 
@@ -116,6 +160,46 @@ public class AgentCommandResponse {
 
 	public void setActions(List<AgentAction> actions) {
 		this.actions = actions;
+	}
+
+	public String getPipelineRunId() {
+		return pipelineRunId;
+	}
+
+	public void setPipelineRunId(String pipelineRunId) {
+		this.pipelineRunId = pipelineRunId;
+	}
+
+	public String getPipelineTier() {
+		return pipelineTier;
+	}
+
+	public void setPipelineTier(String pipelineTier) {
+		this.pipelineTier = pipelineTier;
+	}
+
+	public String getPlaybook() {
+		return playbook;
+	}
+
+	public void setPlaybook(String playbook) {
+		this.playbook = playbook;
+	}
+
+	public List<String> getActivatedRoles() {
+		return activatedRoles;
+	}
+
+	public void setActivatedRoles(List<String> activatedRoles) {
+		this.activatedRoles = activatedRoles;
+	}
+
+	public String getExecutionMode() {
+		return executionMode;
+	}
+
+	public void setExecutionMode(String executionMode) {
+		this.executionMode = executionMode;
 	}
 
 }

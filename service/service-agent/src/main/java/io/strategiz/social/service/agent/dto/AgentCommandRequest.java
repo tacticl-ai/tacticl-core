@@ -16,6 +16,9 @@ public class AgentCommandRequest {
 
 	private String sparkType;
 
+	/** Optional user-specified playbook override (e.g. "BUG_FIX", "FULL_PDLC"). Null = use classifier. */
+	private String playbook;
+
 	public String getText() {
 		return text;
 	}
@@ -54,6 +57,14 @@ public class AgentCommandRequest {
 
 	public void setSparkType(String sparkType) {
 		this.sparkType = sparkType;
+	}
+
+	public String getPlaybook() {
+		return playbook;
+	}
+
+	public void setPlaybook(String playbook) {
+		this.playbook = playbook;
 	}
 
 }
