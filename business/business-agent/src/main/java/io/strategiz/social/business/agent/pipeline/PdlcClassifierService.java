@@ -66,8 +66,8 @@ public class PdlcClassifierService {
 		PLAYBOOK_ROLES.put("FULL_PDLC", List.of(
 				PdlcRole.PM, PdlcRole.RESEARCHER, PdlcRole.ARCHITECT, PdlcRole.DESIGNER,
 				PdlcRole.PLANNER, PdlcRole.IMPLEMENTER, PdlcRole.REVIEWER,
-				PdlcRole.TESTER, PdlcRole.SECURITY, PdlcRole.TECHNICAL_WRITER,
-				PdlcRole.DEVOPS, PdlcRole.RETRO));
+				PdlcRole.TESTER, PdlcRole.SECURITY_ANALYST, PdlcRole.TECHNICAL_WRITER,
+				PdlcRole.DEVOPS, PdlcRole.RETRO_ANALYST));
 		PLAYBOOK_ROLES.put("BUG_FIX", List.of(
 				PdlcRole.RESEARCHER, PdlcRole.IMPLEMENTER, PdlcRole.REVIEWER, PdlcRole.TESTER));
 		PLAYBOOK_ROLES.put("SMALL_FEATURE", List.of(
@@ -76,13 +76,13 @@ public class PdlcClassifierService {
 				PdlcRole.RESEARCHER, PdlcRole.ARCHITECT, PdlcRole.IMPLEMENTER,
 				PdlcRole.REVIEWER, PdlcRole.TESTER));
 		PLAYBOOK_ROLES.put("INFRA_CHANGE", List.of(
-				PdlcRole.ARCHITECT, PdlcRole.DEVOPS, PdlcRole.SECURITY));
+				PdlcRole.ARCHITECT, PdlcRole.DEVOPS, PdlcRole.SECURITY_ANALYST));
 		PLAYBOOK_ROLES.put("DOCS_ONLY", List.of(
 				PdlcRole.RESEARCHER, PdlcRole.TECHNICAL_WRITER));
 		PLAYBOOK_ROLES.put("UI_CHANGE", List.of(
 				PdlcRole.DESIGNER, PdlcRole.IMPLEMENTER, PdlcRole.REVIEWER, PdlcRole.TESTER));
 		PLAYBOOK_ROLES.put("SECURITY_PATCH", List.of(
-				PdlcRole.SECURITY, PdlcRole.RESEARCHER, PdlcRole.IMPLEMENTER,
+				PdlcRole.SECURITY_ANALYST, PdlcRole.RESEARCHER, PdlcRole.IMPLEMENTER,
 				PdlcRole.TESTER, PdlcRole.DEVOPS));
 	}
 

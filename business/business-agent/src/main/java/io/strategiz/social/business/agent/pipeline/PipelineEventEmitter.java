@@ -4,12 +4,13 @@ import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineEvent;
 import io.strategiz.social.data.entity.PipelineEventType;
 import io.strategiz.social.data.entity.PipelineRun;
-import io.strategiz.social.data.entity.PipelineRunStatus;
+import io.strategiz.social.data.entity.PipelineStatus;
+import io.strategiz.social.data.entity.RoleResultSummary;
+import io.strategiz.social.data.entity.RoleStatus;
 import io.strategiz.social.data.repository.PipelineEventRepository;
 import io.strategiz.social.data.repository.PipelineRunRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -66,37 +67,27 @@ public class PipelineEventEmitter {
 		switch (type) {
 			case ROLE_STARTED -> {
 				run.setCurrentRole(role);
-				run.setStatus(PipelineRunStatus.EXECUTING);
+				run.setStatus(PipelineStatus.EXECUTING);
 			}
 			case ROLE_COMPLETED -> {
 				if (role != null && metadata != null) {
-					Map<String, Object> roleResults = run.getRoleResults();
-					if (roleResults == null) {
-						roleResults = new HashMap<>();
-						run.setRoleResults(roleResults);
-					}
-					roleResults.put(role.name(), metadata);
+					RoleResultSummary summary = buildRoleResultSummary(metadata);
+					run.getRoleResults().put(role.name(), summary);
 				}
 			}
 			case PIPELINE_COMPLETED -> {
-				run.setStatus(PipelineRunStatus.COMPLETED);
+				run.setStatus(PipelineStatus.COMPLETED);
 				run.setCompletedAt(Instant.now());
 			}
 			case PIPELINE_FAILED -> {
-				run.setStatus(PipelineRunStatus.FAILED);
+				run.setStatus(PipelineStatus.FAILED);
 			}
 			case REWORK_TRIGGERED -> {
 				run.setReworkCount(run.getReworkCount() + 1);
 			}
 			case COST_THRESHOLD_WARNING, COST_CEILING_REACHED -> {
-				Map<String, Object> runMetadata = run.getMetadata();
-				if (runMetadata == null) {
-					runMetadata = new HashMap<>();
-					run.setMetadata(runMetadata);
-				}
-				String key = type == PipelineEventType.COST_THRESHOLD_WARNING
-						? "costThresholdWarning" : "costCeilingReached";
-				runMetadata.put(key, metadata);
+				// Cost warning metadata is captured in the event document only;
+				// PipelineRun has no metadata map — consumers read the event stream.
 			}
 			default -> {
 				// PIPELINE_STARTED and other informational events require no run summary update
@@ -120,7 +111,7 @@ public class PipelineEventEmitter {
 	 * @param run the pipeline run that has just started
 	 */
 	public void emitPipelineStarted(PipelineRun run) {
-		run.setStatus(PipelineRunStatus.EXECUTING);
+		run.setStatus(PipelineStatus.EXECUTING);
 		emitEvent(run, PipelineEventType.PIPELINE_STARTED, null, Map.of());
 	}
 
@@ -132,8 +123,7 @@ public class PipelineEventEmitter {
 	 * @param childSparkId the ID of the child spark driving this role's execution
 	 */
 	public void emitRoleStarted(PipelineRun run, PdlcRole role, String childSparkId) {
-		Map<String, Object> metadata = new HashMap<>();
-		metadata.put("childSparkId", childSparkId);
+		Map<String, Object> metadata = Map.of("childSparkId", childSparkId);
 		emitEvent(run, PipelineEventType.ROLE_STARTED, role, metadata);
 	}
 
@@ -149,11 +139,11 @@ public class PipelineEventEmitter {
 	 */
 	public void emitRoleCompleted(PipelineRun run, PdlcRole role, long tokens, BigDecimal cost,
 			long durationMs, String model) {
-		Map<String, Object> metadata = new HashMap<>();
-		metadata.put("tokens", tokens);
-		metadata.put("cost", cost);
-		metadata.put("durationMs", durationMs);
-		metadata.put("model", model);
+		Map<String, Object> metadata = Map.of(
+				"tokens", tokens,
+				"cost", cost,
+				"durationMs", durationMs,
+				"model", model);
 		emitEvent(run, PipelineEventType.ROLE_COMPLETED, role, metadata);
 	}
 
@@ -168,11 +158,49 @@ public class PipelineEventEmitter {
 	 */
 	public void emitReworkTriggered(PipelineRun run, PdlcRole rejectingRole, PdlcRole targetRole,
 			String reason) {
-		Map<String, Object> metadata = new HashMap<>();
-		metadata.put("rejectingRole", rejectingRole != null ? rejectingRole.name() : null);
-		metadata.put("targetRole", targetRole != null ? targetRole.name() : null);
-		metadata.put("reason", reason);
+		Map<String, Object> metadata = Map.of(
+				"rejectingRole", rejectingRole != null ? rejectingRole.name() : "",
+				"targetRole", targetRole != null ? targetRole.name() : "",
+				"reason", reason != null ? reason : "");
 		emitEvent(run, PipelineEventType.REWORK_TRIGGERED, rejectingRole, metadata);
+	}
+
+	// --- Helpers ---
+
+	/**
+	 * Build a {@link RoleResultSummary} from the raw metadata map produced by
+	 * {@link #emitRoleCompleted}. Fields not present in the metadata are left at defaults.
+	 */
+	private RoleResultSummary buildRoleResultSummary(Map<String, Object> metadata) {
+		RoleResultSummary summary = new RoleResultSummary();
+		summary.setStatus(RoleStatus.COMPLETED);
+
+		Object tokens = metadata.get("tokens");
+		if (tokens instanceof Number num) {
+			summary.setTokens(num.longValue());
+		}
+
+		Object cost = metadata.get("cost");
+		if (cost instanceof BigDecimal bd) {
+			summary.setCost(bd);
+		}
+
+		Object durationMs = metadata.get("durationMs");
+		if (durationMs instanceof Number num) {
+			summary.setDurationMs(num.longValue());
+		}
+
+		Object model = metadata.get("model");
+		if (model instanceof String s) {
+			summary.setModel(s);
+		}
+
+		Object childSparkId = metadata.get("childSparkId");
+		if (childSparkId instanceof String s) {
+			summary.setChildSparkId(s);
+		}
+
+		return summary;
 	}
 
 }

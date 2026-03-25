@@ -129,7 +129,7 @@ public class PipelineArtifactService {
 			PdlcRole role = entry.getKey();
 			PipelineArtifact artifact = entry.getValue();
 
-			sb.append("\n### ").append(role.getDisplayName());
+			sb.append("\n### ").append(role.name());
 			if (artifact.getArtifactType() != null && !artifact.getArtifactType().isBlank()) {
 				sb.append(" (").append(capitalize(artifact.getArtifactType())).append(")");
 			}
