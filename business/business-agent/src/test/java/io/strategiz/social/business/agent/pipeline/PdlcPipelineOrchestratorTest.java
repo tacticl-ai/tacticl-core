@@ -15,6 +15,8 @@ import static org.mockito.Mockito.when;
 
 import io.strategiz.social.business.agent.pipeline.PdlcRoleExecutor.RoleExecutionResult;
 import io.strategiz.social.business.agent.service.SparkService;
+import io.strategiz.social.data.entity.Checkpoint;
+import io.strategiz.social.data.entity.CheckpointDecision;
 import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineEventType;
 import io.strategiz.social.data.entity.PipelineRun;
@@ -33,8 +35,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class PdlcPipelineOrchestratorTest {
 
 	private static final String RUN_ID = "run-123";
@@ -63,12 +68,29 @@ class PdlcPipelineOrchestratorTest {
 	@Mock
 	private PdlcRoleExecutor roleExecutor;
 
+	@Mock
+	private CheckpointService checkpointService;
+
+	@Mock
+	private ReworkTracker reworkTracker;
+
 	private PdlcPipelineOrchestrator orchestrator;
 
 	@BeforeEach
 	void setUp() {
 		orchestrator = new PdlcPipelineOrchestrator(pipelineStateManager, pipelineEventEmitter,
-				pipelineArtifactService, sparkService, playbookRegistry, roleExecutor);
+				pipelineArtifactService, sparkService, playbookRegistry, roleExecutor,
+				checkpointService, reworkTracker);
+
+		// Default: checkpoint gates auto-approve so tests can focus on pipeline flow
+		Checkpoint autoApproved = new Checkpoint();
+		autoApproved.setId("auto-checkpoint");
+		autoApproved.setUserDecision(CheckpointDecision.APPROVED);
+		when(checkpointService.createPipelineCheckpoint(any(), any(), any(), anyString(), anyString(), any()))
+				.thenReturn(autoApproved);
+		// Empty means "no pending checkpoint" = resolved immediately
+		when(checkpointService.getPendingCheckpoint(anyString())).thenReturn(Optional.empty());
+		when(checkpointService.getCheckpoint("auto-checkpoint")).thenReturn(Optional.of(autoApproved));
 	}
 
 	@Test
