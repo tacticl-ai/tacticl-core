@@ -40,7 +40,7 @@ public class AnalyticsController {
 
 	// --- Admin endpoints (global view) ---
 
-	@GetMapping("/api/admin/analytics/dashboard")
+	@GetMapping("/v1/console/analytics/dashboard")
 	@RequireAuth
 	@RequireScope("admin")
 	@Operation(summary = "Get full analytics dashboard",
@@ -52,7 +52,7 @@ public class AnalyticsController {
 		return ResponseEntity.ok(buildDashboard(null, days));
 	}
 
-	@GetMapping("/api/admin/analytics/key-metrics")
+	@GetMapping("/v1/console/analytics/key-metrics")
 	@RequireAuth
 	@RequireScope("admin")
 	@Operation(summary = "Get key metrics", description = "Top-level pipeline key metrics across all users.")
@@ -61,7 +61,7 @@ public class AnalyticsController {
 		return ResponseEntity.ok(KeyMetricsResponse.from(analyticsService.getKeyMetrics(null)));
 	}
 
-	@GetMapping("/api/admin/analytics/roles")
+	@GetMapping("/v1/console/analytics/roles")
 	@RequireAuth
 	@RequireScope("admin")
 	@Operation(summary = "Get role analytics", description = "Per-role proficiency analytics across all users.")
@@ -73,7 +73,7 @@ public class AnalyticsController {
 		return ResponseEntity.ok(response);
 	}
 
-	@GetMapping("/api/admin/analytics/rework")
+	@GetMapping("/v1/console/analytics/rework")
 	@RequireAuth
 	@RequireScope("admin")
 	@Operation(summary = "Get rework analytics", description = "Rework tracking metrics across all users.")
@@ -82,7 +82,7 @@ public class AnalyticsController {
 		return ResponseEntity.ok(ReworkAnalyticsResponse.from(analyticsService.getReworkAnalytics(null)));
 	}
 
-	@GetMapping("/api/admin/analytics/funnel")
+	@GetMapping("/v1/console/analytics/funnel")
 	@RequireAuth
 	@RequireScope("admin")
 	@Operation(summary = "Get pipeline funnel", description = "Pipeline funnel showing drop-off per PDLC role stage.")
@@ -94,7 +94,7 @@ public class AnalyticsController {
 		return ResponseEntity.ok(response);
 	}
 
-	@GetMapping("/api/admin/analytics/cost")
+	@GetMapping("/v1/console/analytics/cost")
 	@RequireAuth
 	@RequireScope("admin")
 	@Operation(summary = "Get cost analytics", description = "Cost breakdown by role, playbook, and averages.")
@@ -103,7 +103,7 @@ public class AnalyticsController {
 		return ResponseEntity.ok(CostAnalyticsResponse.from(analyticsService.getCostAnalytics(null)));
 	}
 
-	@GetMapping("/api/admin/analytics/models")
+	@GetMapping("/v1/console/analytics/models")
 	@RequireAuth
 	@RequireScope("admin")
 	@Operation(summary = "Get model distribution", description = "Count of role executions by AI model.")
@@ -112,7 +112,7 @@ public class AnalyticsController {
 		return ResponseEntity.ok(analyticsService.getModelDistribution(null));
 	}
 
-	@GetMapping("/api/admin/analytics/playbooks")
+	@GetMapping("/v1/console/analytics/playbooks")
 	@RequireAuth
 	@RequireScope("admin")
 	@Operation(summary = "Get playbook usage", description = "Count of pipeline runs by playbook name.")
@@ -121,7 +121,7 @@ public class AnalyticsController {
 		return ResponseEntity.ok(analyticsService.getPlaybookUsage(null));
 	}
 
-	@GetMapping("/api/admin/analytics/daily")
+	@GetMapping("/v1/console/analytics/daily")
 	@RequireAuth
 	@RequireScope("admin")
 	@Operation(summary = "Get daily metrics", description = "Daily aggregated metrics for time series charts.")
@@ -137,7 +137,7 @@ public class AnalyticsController {
 
 	// --- User-scoped endpoint ---
 
-	@GetMapping("/api/sparks/analytics")
+	@GetMapping("/v1/sparks/analytics")
 	@RequireAuth
 	@Operation(summary = "Get user analytics dashboard",
 			description = "Returns analytics dashboard scoped to the authenticated user's own pipeline data.")

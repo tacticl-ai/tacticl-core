@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** REST controller for managing social media integrations (connected accounts). */
 @RestController
-@RequestMapping("/api/social/integrations")
+@RequestMapping("/v1/social/integrations")
 @Tag(name = "Social Integrations", description = "Manage connected social media accounts")
 public class SocialIntegrationController {
 

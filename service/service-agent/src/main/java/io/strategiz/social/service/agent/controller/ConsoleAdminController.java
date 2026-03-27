@@ -18,17 +18,17 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** Admin-only controller for data operations (migration, purge). */
 @RestController
-@RequestMapping("/api/admin")
-@Tag(name = "Admin", description = "Admin-only data operations")
-public class AdminController {
+@RequestMapping("/v1/console")
+@Tag(name = "Console", description = "Admin-only data operations")
+public class ConsoleAdminController {
 
-	private static final Logger log = LoggerFactory.getLogger(AdminController.class);
+	private static final Logger log = LoggerFactory.getLogger(ConsoleAdminController.class);
 
 	private final DataMigrationService dataMigrationService;
 
 	private final UserDataPurgeService userDataPurgeService;
 
-	public AdminController(DataMigrationService dataMigrationService, UserDataPurgeService userDataPurgeService) {
+	public ConsoleAdminController(DataMigrationService dataMigrationService, UserDataPurgeService userDataPurgeService) {
 		this.dataMigrationService = dataMigrationService;
 		this.userDataPurgeService = userDataPurgeService;
 	}

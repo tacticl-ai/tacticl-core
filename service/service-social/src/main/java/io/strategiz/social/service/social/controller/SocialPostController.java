@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** REST controller for social media posts CRUD. */
 @RestController
-@RequestMapping("/api/social/posts")
+@RequestMapping("/v1/social/posts")
 @Tag(name = "Social Posts", description = "Create, schedule, and manage social media posts")
 public class SocialPostController {
 

@@ -98,7 +98,7 @@ class PipelineControllerTest {
 		return spark;
 	}
 
-	// --- GET /api/sparks/{sparkId}/pipeline ---
+	// --- GET /v1/sparks/{sparkId}/pipeline ---
 
 	@Test
 	void getPipeline_found_returnsRunResponse() {
@@ -135,7 +135,7 @@ class PipelineControllerTest {
 		assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
 	}
 
-	// --- GET /api/sparks/{sparkId}/pipeline/events ---
+	// --- GET /v1/sparks/{sparkId}/pipeline/events ---
 
 	@Test
 	void getPipelineEvents_found_returnsEvents() {
@@ -205,7 +205,7 @@ class PipelineControllerTest {
 		assertEquals("event-3", response.getBody().get(1).getId());
 	}
 
-	// --- GET /api/sparks/{sparkId}/pipeline/artifacts/{role} ---
+	// --- GET /v1/sparks/{sparkId}/pipeline/artifacts/{role} ---
 
 	@Test
 	void getArtifact_found_returnsContent() {
@@ -266,7 +266,7 @@ class PipelineControllerTest {
 		assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
 	}
 
-	// --- POST /api/sparks/{sparkId}/pipeline/checkpoint/{checkpointId} ---
+	// --- POST /v1/sparks/{sparkId}/pipeline/checkpoint/{checkpointId} ---
 
 	@Test
 	void resolveCheckpoint_accepted_returns202() {
@@ -376,7 +376,7 @@ class PipelineControllerTest {
 		assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
 	}
 
-	// --- GET /api/playbooks ---
+	// --- GET /v1/playbooks ---
 
 	@Test
 	void getPlaybooks_returnsAllPlaybooks() {

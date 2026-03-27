@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** REST controller for spark read, execution, and lifecycle operations. */
 @RestController
-@RequestMapping("/api/sparks")
+@RequestMapping("/v1/sparks")
 @Tag(name = "Sparks", description = "Manage and execute sparks")
 public class SparkController {
 

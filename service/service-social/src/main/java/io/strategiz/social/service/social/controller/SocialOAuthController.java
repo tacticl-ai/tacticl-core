@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** REST controller for OAuth 2.0 authorization flows with social media platforms. */
 @RestController
-@RequestMapping("/api/social/oauth")
+@RequestMapping("/v1/social/oauth")
 @Tag(name = "Social OAuth", description = "OAuth 2.0 authorization flows for social media platforms")
 public class SocialOAuthController {
 

@@ -37,7 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** REST controller for user and device configuration (settings page backend). */
 @RestController
-@RequestMapping("/api/settings")
+@RequestMapping("/v1/settings")
 @Tag(name = "Settings", description = "User and device configuration")
 public class SettingsController {
 

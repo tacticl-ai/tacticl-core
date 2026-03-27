@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** REST endpoints for credential and account management. */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/v1")
 public class CredentialController {
 
 	private final CredentialService credentialService;

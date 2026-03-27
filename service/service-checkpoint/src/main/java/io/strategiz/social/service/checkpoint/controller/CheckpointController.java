@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** REST controller for checkpoint approval workflow. */
 @RestController
-@RequestMapping("/api/checkpoints")
+@RequestMapping("/v1/checkpoints")
 @Tag(name = "Checkpoints", description = "Review and approve/reject execution checkpoints")
 public class CheckpointController {
 

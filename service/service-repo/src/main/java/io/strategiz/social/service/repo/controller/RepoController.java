@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** REST controller for managing repository access grants. */
 @RestController
-@RequestMapping("/api/repos")
+@RequestMapping("/v1/repos")
 @Tag(name = "Repositories", description = "Grant and manage repository access for agent execution")
 public class RepoController {
 

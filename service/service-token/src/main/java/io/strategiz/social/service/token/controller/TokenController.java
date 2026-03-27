@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** REST controller for managing agent API tokens. */
 @RestController
-@RequestMapping("/api/tokens")
+@RequestMapping("/v1/tokens")
 @Tag(name = "Tokens", description = "Manage API tokens for agent execution")
 public class TokenController {
 

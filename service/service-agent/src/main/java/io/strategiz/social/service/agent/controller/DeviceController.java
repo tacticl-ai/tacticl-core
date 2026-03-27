@@ -42,7 +42,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** REST controller for device registration and management. */
 @RestController
-@RequestMapping("/api/devices")
+@RequestMapping("/v1/devices")
 @Tag(name = "Device Management", description = "Register, verify, and manage user devices for remote control")
 public class DeviceController {
 

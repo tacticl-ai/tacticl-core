@@ -38,7 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /** REST controller exposing pipeline status, events, artifacts, checkpoint resolution, and playbook listing. */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/v1")
 @Tag(name = "Pipeline", description = "PDLC pipeline status, events, artifacts, and playbook management")
 public class PipelineController {
 
