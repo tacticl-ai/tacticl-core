@@ -1,6 +1,7 @@
 package io.strategiz.social.business.agent.pipeline.role;
 
 import io.cidadel.business.ai.engine.AiEngineRouterService;
+import io.cidadel.framework.ai.engine.AiEngineRegistry;
 import io.strategiz.social.data.entity.AiSdlcStep;
 import io.strategiz.social.data.entity.PdlcRole;
 import java.util.List;
@@ -45,8 +46,9 @@ public class PmRoleSkill extends AbstractPdlcRoleSkill {
 			- Prefer concrete numbers over vague qualifiers (e.g., "< 200ms" not "fast")
 			""";
 
-	public PmRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
-		super(engineRouterService, roleToolFilter);
+	public PmRoleSkill(AiEngineRouterService engineRouterService, AiEngineRegistry engineRegistry,
+			RoleToolFilter roleToolFilter) {
+		super(engineRouterService, engineRegistry, roleToolFilter);
 	}
 
 	@Override

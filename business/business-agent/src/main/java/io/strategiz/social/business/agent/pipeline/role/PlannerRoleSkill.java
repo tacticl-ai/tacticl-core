@@ -1,6 +1,7 @@
 package io.strategiz.social.business.agent.pipeline.role;
 
 import io.cidadel.business.ai.engine.AiEngineRouterService;
+import io.cidadel.framework.ai.engine.AiEngineRegistry;
 import io.strategiz.social.data.entity.AiSdlcStep;
 import io.strategiz.social.data.entity.PdlcRole;
 import java.util.List;
@@ -43,8 +44,9 @@ public class PlannerRoleSkill extends AbstractPdlcRoleSkill {
 			- Include test tasks paired with their implementation tasks
 			""";
 
-	public PlannerRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
-		super(engineRouterService, roleToolFilter);
+	public PlannerRoleSkill(AiEngineRouterService engineRouterService, AiEngineRegistry engineRegistry,
+			RoleToolFilter roleToolFilter) {
+		super(engineRouterService, engineRegistry, roleToolFilter);
 	}
 
 	@Override

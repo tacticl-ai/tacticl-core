@@ -1,5 +1,6 @@
 package io.strategiz.social.business.agent.pipeline;
 
+import io.strategiz.social.business.agent.ai.AiRoleOverrideService;
 import io.strategiz.social.business.agent.pipeline.role.GitContext;
 import io.strategiz.social.business.agent.pipeline.role.PdlcRoleRegistry;
 import io.strategiz.social.business.agent.pipeline.role.PdlcRoleSkill;
@@ -7,6 +8,7 @@ import io.strategiz.social.business.agent.pipeline.role.RoleContext;
 import io.strategiz.social.business.agent.pipeline.role.RoleOutcome;
 import io.strategiz.social.business.agent.pipeline.role.RoleResult;
 import io.strategiz.social.business.agent.service.SparkService;
+import io.strategiz.social.data.entity.AiRoleOverride;
 import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineArtifact;
 import io.strategiz.social.data.entity.PipelineRun;
@@ -45,14 +47,17 @@ public class RealPdlcRoleExecutor implements PdlcRoleExecutor {
 
 	private final PlaybookRegistry playbookRegistry;
 
+	private final AiRoleOverrideService roleOverrideService;
+
 	public RealPdlcRoleExecutor(PdlcRoleRegistry roleRegistry, PipelineArtifactService artifactService,
 			KnowledgeBaseService knowledgeBaseService, SparkService sparkService,
-			PlaybookRegistry playbookRegistry) {
+			PlaybookRegistry playbookRegistry, AiRoleOverrideService roleOverrideService) {
 		this.roleRegistry = roleRegistry;
 		this.artifactService = artifactService;
 		this.knowledgeBaseService = knowledgeBaseService;
 		this.sparkService = sparkService;
 		this.playbookRegistry = playbookRegistry;
+		this.roleOverrideService = roleOverrideService;
 	}
 
 	@Override
@@ -104,7 +109,17 @@ public class RealPdlcRoleExecutor implements PdlcRoleExecutor {
 				? run.getClassificationResult()
 				: Collections.emptyMap();
 
-		// 8. Build RoleContext
+		// 8. Check for admin-configured role-level engine/model override.
+		//    Resolution chain: role override → step override → product defaults.
+		Optional<AiRoleOverride> roleOverride = roleOverrideService.getOverride(role.name());
+		String engineIdOverride = roleOverride.map(AiRoleOverride::getEngineId).orElse(null);
+		String modelOverride = roleOverride.map(AiRoleOverride::getModel).orElse(null);
+		if (roleOverride.isPresent()) {
+			log.info("[PIPELINE-REAL] Role override found for role={}: engine={} model={}",
+					role, engineIdOverride, modelOverride);
+		}
+
+		// 9. Build RoleContext
 		RoleContext ctx = new RoleContext(
 				run.getId(),
 				run.getSparkId(),
@@ -116,13 +131,15 @@ public class RealPdlcRoleExecutor implements PdlcRoleExecutor {
 				upstreamArtifacts,
 				gitContext,
 				reworkFeedback,
-				reworkIteration
+				reworkIteration,
+				engineIdOverride,
+				modelOverride
 		);
 
-		// 9. Execute role skill
+		// 10. Execute role skill
 		RoleResult result = skill.execute(ctx);
 
-		// 10. Store artifact if completed with content
+		// 11. Store artifact if completed with content
 		String artifactId = null;
 		if (result.outcome() == RoleOutcome.COMPLETED
 				&& result.artifacts() != null
@@ -138,7 +155,7 @@ public class RealPdlcRoleExecutor implements PdlcRoleExecutor {
 			log.info("[PIPELINE-REAL] Stored artifact {} for role={} run={}", artifactId, role, run.getId());
 		}
 
-		// 11. Convert RoleResult to RoleExecutionResult
+		// 12. Convert RoleResult to RoleExecutionResult
 		if (result.outcome() == RoleOutcome.REJECTED) {
 			log.info("[PIPELINE-REAL] Role {} rejected with reason='{}' target={} for run={}",
 					role, result.rejectionReason(), result.reworkTarget(), run.getId());

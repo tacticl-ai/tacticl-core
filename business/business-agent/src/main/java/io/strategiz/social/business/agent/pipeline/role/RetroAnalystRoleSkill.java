@@ -1,6 +1,7 @@
 package io.strategiz.social.business.agent.pipeline.role;
 
 import io.cidadel.business.ai.engine.AiEngineRouterService;
+import io.cidadel.framework.ai.engine.AiEngineRegistry;
 import io.strategiz.social.data.entity.AiSdlcStep;
 import io.strategiz.social.data.entity.PdlcRole;
 import java.util.List;
@@ -46,8 +47,9 @@ public class RetroAnalystRoleSkill extends AbstractPdlcRoleSkill {
 			- Include comparison ratios (actual vs. expected) where possible
 			""";
 
-	public RetroAnalystRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
-		super(engineRouterService, roleToolFilter);
+	public RetroAnalystRoleSkill(AiEngineRouterService engineRouterService, AiEngineRegistry engineRegistry,
+			RoleToolFilter roleToolFilter) {
+		super(engineRouterService, engineRegistry, roleToolFilter);
 	}
 
 	@Override

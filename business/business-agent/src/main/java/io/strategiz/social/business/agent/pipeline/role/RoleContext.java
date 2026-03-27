@@ -20,6 +20,8 @@ import java.util.Map;
  * @param gitContext        git repository context for code-related pipelines (may be null)
  * @param reworkFeedback    feedback from a rejecting role (null on first execution)
  * @param reworkIteration   rework iteration count (0 on first execution)
+ * @param engineIdOverride  admin-configured engine override for this role (null = use step default)
+ * @param modelOverride     admin-configured model override for this role (null = use engine default)
  */
 public record RoleContext(
 		String pipelineRunId,
@@ -32,8 +34,23 @@ public record RoleContext(
 		Map<PdlcRole, PipelineArtifact> upstreamArtifacts,
 		GitContext gitContext,
 		String reworkFeedback,
-		int reworkIteration
+		int reworkIteration,
+		String engineIdOverride,
+		String modelOverride
 ) {
+
+	/**
+	 * Convenience constructor without engine/model overrides (defaults both to null).
+	 * Preserves backward compatibility for call sites that do not supply overrides.
+	 */
+	public RoleContext(String pipelineRunId, String parentSparkId, String childSparkId,
+			String userId, String originalRequest, Map<String, Object> classification,
+			PlaybookConfig playbook, Map<PdlcRole, PipelineArtifact> upstreamArtifacts,
+			GitContext gitContext, String reworkFeedback, int reworkIteration) {
+		this(pipelineRunId, parentSparkId, childSparkId, userId, originalRequest,
+				classification, playbook, upstreamArtifacts, gitContext,
+				reworkFeedback, reworkIteration, null, null);
+	}
 
 	/** Returns {@code true} if this execution is a rework pass (iteration > 0). */
 	public boolean isRework() {

@@ -2,6 +2,8 @@ package io.strategiz.social.business.agent.pipeline.role;
 
 import io.cidadel.business.ai.engine.AiEngineRouterService;
 import io.cidadel.client.base.llm.model.ToolDefinition;
+import io.cidadel.framework.ai.engine.AiEngine;
+import io.cidadel.framework.ai.engine.AiEngineRegistry;
 import io.cidadel.framework.ai.engine.model.AiEngineRequest;
 import io.cidadel.framework.ai.engine.model.AiEngineResult;
 import io.cidadel.framework.ai.engine.model.AiEngineToolDefinition;
@@ -11,6 +13,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,10 +41,14 @@ public abstract class AbstractPdlcRoleSkill implements PdlcRoleSkill {
 
 	protected final AiEngineRouterService engineRouterService;
 
+	protected final AiEngineRegistry engineRegistry;
+
 	protected final RoleToolFilter roleToolFilter;
 
-	protected AbstractPdlcRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
+	protected AbstractPdlcRoleSkill(AiEngineRouterService engineRouterService,
+			AiEngineRegistry engineRegistry, RoleToolFilter roleToolFilter) {
 		this.engineRouterService = engineRouterService;
+		this.engineRegistry = engineRegistry;
 		this.roleToolFilter = roleToolFilter;
 	}
 
@@ -53,6 +60,16 @@ public abstract class AbstractPdlcRoleSkill implements PdlcRoleSkill {
 	/**
 	 * Execute this role via the AI engine router. Builds the prompt from context,
 	 * sends it through the engine for this role's SDLC step, and wraps the result.
+	 *
+	 * <p>If {@code ctx} carries a role-level override (set by admin via
+	 * {@link io.strategiz.social.business.agent.ai.AiRoleOverrideService}), those values
+	 * take precedence over step-level defaults:
+	 * <ul>
+	 *   <li>{@code modelOverride} — applied directly on the {@link AiEngineRequest}; the
+	 *       engine router skips its own model assignment when the field is already set.</li>
+	 *   <li>{@code engineIdOverride} — bypasses the normal step-routing and calls the named
+	 *       engine directly from {@link AiEngineRegistry}.</li>
+	 * </ul>
 	 *
 	 * @param ctx the role execution context
 	 * @return the role result with metrics
@@ -69,6 +86,13 @@ public abstract class AbstractPdlcRoleSkill implements PdlcRoleSkill {
 				"pipelineRunId", ctx.pipelineRunId(),
 				"pdlcRole", getRole().name()));
 
+		// Apply model override before calling the router — the router will not overwrite
+		// a model that is already set on the request (see AiEngineRouterService.executeStep).
+		if (ctx.modelOverride() != null) {
+			log.debug("[PDLC-ROLE] Applying model override '{}' for role={}", ctx.modelOverride(), getRole());
+			request.setModel(ctx.modelOverride());
+		}
+
 		List<ToolDefinition> roleTools = roleToolFilter.getToolDefinitionsForRole(this);
 		if (!roleTools.isEmpty()) {
 			List<AiEngineToolDefinition> engineTools = roleTools.stream()
@@ -78,7 +102,18 @@ public abstract class AbstractPdlcRoleSkill implements PdlcRoleSkill {
 		}
 
 		try {
-			AiEngineResult result = engineRouterService.executeStep(getAiSdlcStepName(), request);
+			AiEngineResult result;
+			if (ctx.engineIdOverride() != null) {
+				// Engine override: bypass step routing and call the named engine directly.
+				log.info("[PDLC-ROLE] Applying engine override '{}' for role={}", ctx.engineIdOverride(), getRole());
+				Optional<AiEngine> engineOpt = engineRegistry.getEngine(ctx.engineIdOverride());
+				AiEngine engine = engineOpt.orElseThrow(() -> new IllegalStateException(
+						"Role override engine not found: " + ctx.engineIdOverride()));
+				result = engine.execute(request);
+			}
+			else {
+				result = engineRouterService.executeStep(getAiSdlcStepName(), request);
+			}
 			long duration = System.currentTimeMillis() - start;
 
 			RoleMetrics metrics = new RoleMetrics(

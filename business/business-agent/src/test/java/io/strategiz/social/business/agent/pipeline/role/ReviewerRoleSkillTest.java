@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import io.cidadel.business.ai.engine.AiEngineRouterService;
+import io.cidadel.framework.ai.engine.AiEngineRegistry;
 import io.cidadel.framework.ai.engine.model.AiEngineRequest;
 import io.cidadel.framework.ai.engine.model.AiEngineResult;
 import io.strategiz.social.data.entity.AiSdlcStep;
@@ -26,27 +27,30 @@ class ReviewerRoleSkillTest {
 	private AiEngineRouterService engineRouterService;
 
 	@Mock
+	private AiEngineRegistry engineRegistry;
+
+	@Mock
 	private RoleToolFilter roleToolFilter;
 
 	// --- role config tests ---
 
 	@Test
 	void getRole_returnsReviewer() {
-		ReviewerRoleSkill skill = new ReviewerRoleSkill(engineRouterService, roleToolFilter);
+		ReviewerRoleSkill skill = new ReviewerRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 
 		assertEquals(PdlcRole.REVIEWER, skill.getRole());
 	}
 
 	@Test
 	void getAiSdlcStepName_returnsCodeReview() {
-		ReviewerRoleSkill skill = new ReviewerRoleSkill(engineRouterService, roleToolFilter);
+		ReviewerRoleSkill skill = new ReviewerRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 
 		assertEquals(AiSdlcStep.CODE_REVIEW.name(), skill.getAiSdlcStepName());
 	}
 
 	@Test
 	void getAvailableTools_containsReviewTools() {
-		ReviewerRoleSkill skill = new ReviewerRoleSkill(engineRouterService, roleToolFilter);
+		ReviewerRoleSkill skill = new ReviewerRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 
 		assertTrue(skill.getAvailableTools().contains("github_read_file"));
 		assertTrue(skill.getAvailableTools().contains("github_create_pr"));
@@ -57,7 +61,7 @@ class ReviewerRoleSkillTest {
 
 	@Test
 	void execute_approvedReview_returnsCompleted() {
-		ReviewerRoleSkill skill = new ReviewerRoleSkill(engineRouterService, roleToolFilter);
+		ReviewerRoleSkill skill = new ReviewerRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 
 		String reviewContent = """
 				## Review Summary
@@ -83,7 +87,7 @@ class ReviewerRoleSkillTest {
 
 	@Test
 	void execute_rejectedReview_returnsRejectedWithImplementerTarget() {
-		ReviewerRoleSkill skill = new ReviewerRoleSkill(engineRouterService, roleToolFilter);
+		ReviewerRoleSkill skill = new ReviewerRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 
 		String reviewContent = """
 				## Review Summary
@@ -113,7 +117,7 @@ class ReviewerRoleSkillTest {
 
 	@Test
 	void execute_engineError_returnsFailed() {
-		ReviewerRoleSkill skill = new ReviewerRoleSkill(engineRouterService, roleToolFilter);
+		ReviewerRoleSkill skill = new ReviewerRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 
 		AiEngineResult engineResult = AiEngineResult.error("model overloaded", "api-anthropic");
 		when(engineRouterService.executeStep(eq(AiSdlcStep.CODE_REVIEW.name()), any(AiEngineRequest.class)))
@@ -127,7 +131,7 @@ class ReviewerRoleSkillTest {
 
 	@Test
 	void execute_engineThrows_returnsFailed() {
-		ReviewerRoleSkill skill = new ReviewerRoleSkill(engineRouterService, roleToolFilter);
+		ReviewerRoleSkill skill = new ReviewerRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 
 		when(engineRouterService.executeStep(eq(AiSdlcStep.CODE_REVIEW.name()), any(AiEngineRequest.class)))
 				.thenThrow(new RuntimeException("connection reset"));
@@ -140,7 +144,7 @@ class ReviewerRoleSkillTest {
 
 	@Test
 	void execute_metricsPopulated() {
-		ReviewerRoleSkill skill = new ReviewerRoleSkill(engineRouterService, roleToolFilter);
+		ReviewerRoleSkill skill = new ReviewerRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 
 		AiEngineResult engineResult = AiEngineResult.success("APPROVED", "api-anthropic", "claude-sonnet-4");
 		engineResult.setTotalTokens(1000);

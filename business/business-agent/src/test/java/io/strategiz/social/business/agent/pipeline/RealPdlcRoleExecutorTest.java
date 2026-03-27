@@ -13,6 +13,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.strategiz.social.business.agent.ai.AiRoleOverrideService;
 import io.strategiz.social.business.agent.pipeline.PdlcRoleExecutor.RoleExecutionResult;
 import io.strategiz.social.business.agent.pipeline.role.PdlcRoleRegistry;
 import io.strategiz.social.business.agent.pipeline.role.PdlcRoleSkill;
@@ -22,6 +23,7 @@ import io.strategiz.social.business.agent.pipeline.role.RoleOutcome;
 import io.strategiz.social.business.agent.pipeline.role.RoleResult;
 import io.strategiz.social.business.agent.pipeline.role.SuccessCriteria;
 import io.strategiz.social.business.agent.service.SparkService;
+import io.strategiz.social.data.entity.AiRoleOverride;
 import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineArtifact;
 import io.strategiz.social.data.entity.PipelineRun;
@@ -71,6 +73,9 @@ class RealPdlcRoleExecutorTest {
 	private PlaybookRegistry playbookRegistry;
 
 	@Mock
+	private AiRoleOverrideService roleOverrideService;
+
+	@Mock
 	private PdlcRoleSkill roleSkill;
 
 	private RealPdlcRoleExecutor executor;
@@ -78,7 +83,9 @@ class RealPdlcRoleExecutorTest {
 	@BeforeEach
 	void setUp() {
 		executor = new RealPdlcRoleExecutor(roleRegistry, artifactService, knowledgeBaseService,
-				sparkService, playbookRegistry);
+				sparkService, playbookRegistry, roleOverrideService);
+		// Default: no role override present
+		when(roleOverrideService.getOverride(anyString())).thenReturn(Optional.empty());
 	}
 
 	@Test
@@ -317,6 +324,62 @@ class RealPdlcRoleExecutorTest {
 		assertEquals(100L, result.tokens());
 		assertNull(result.artifactId());
 		verify(artifactService, never()).store(anyString(), any(), anyString(), anyString(), any());
+	}
+
+	@Test
+	void execute_passesRoleOverrideEngineAndModelToContext() {
+		PipelineRun run = createTestRun();
+		setupCommonMocks(PdlcRole.IMPLEMENTER);
+
+		AiRoleOverride override = new AiRoleOverride();
+		override.setId("IMPLEMENTER");
+		override.setRole("IMPLEMENTER");
+		override.setEngineId("openai-agentic");
+		override.setModel("gpt-4o");
+		when(roleOverrideService.getOverride("IMPLEMENTER")).thenReturn(Optional.of(override));
+
+		RoleMetrics metrics = new RoleMetrics(1500L, new BigDecimal("0.12"), 3000L, "gpt-4o", "openai-agentic");
+		RoleResult roleResult = RoleResult.completed(
+				List.of(Map.of("content", "Implementation with overridden engine")),
+				"Implemented using overridden engine",
+				metrics);
+		when(roleSkill.execute(any(RoleContext.class))).thenReturn(roleResult);
+		when(roleSkill.getSuccessCriteria()).thenReturn(new SuccessCriteria("Produces code", "implementation"));
+		when(artifactService.store(anyString(), any(PdlcRole.class), anyString(), anyString(), any()))
+				.thenReturn("artifact-override-001");
+
+		executor.execute(run, PdlcRole.IMPLEMENTER, CHILD_SPARK_ID);
+
+		ArgumentCaptor<RoleContext> ctxCaptor = ArgumentCaptor.forClass(RoleContext.class);
+		verify(roleSkill).execute(ctxCaptor.capture());
+
+		RoleContext capturedCtx = ctxCaptor.getValue();
+		assertEquals("openai-agentic", capturedCtx.engineIdOverride(),
+				"Engine override should be passed through to RoleContext");
+		assertEquals("gpt-4o", capturedCtx.modelOverride(),
+				"Model override should be passed through to RoleContext");
+	}
+
+	@Test
+	void execute_passesNullOverrideFieldsWhenNoOverrideConfigured() {
+		PipelineRun run = createTestRun();
+		setupCommonMocks(PdlcRole.PM);
+
+		// roleOverrideService already returns empty by default from setUp()
+
+		RoleMetrics metrics = new RoleMetrics(500L, new BigDecimal("0.04"), 1000L, "claude-haiku-4", "anthropic");
+		RoleResult roleResult = RoleResult.completed(List.of(), "Done", metrics);
+		when(roleSkill.execute(any(RoleContext.class))).thenReturn(roleResult);
+		when(roleSkill.getSuccessCriteria()).thenReturn(new SuccessCriteria("Requirements doc", "REQUIREMENTS"));
+
+		executor.execute(run, PdlcRole.PM, CHILD_SPARK_ID);
+
+		ArgumentCaptor<RoleContext> ctxCaptor = ArgumentCaptor.forClass(RoleContext.class);
+		verify(roleSkill).execute(ctxCaptor.capture());
+
+		RoleContext capturedCtx = ctxCaptor.getValue();
+		assertNull(capturedCtx.engineIdOverride(), "No override should result in null engineIdOverride");
+		assertNull(capturedCtx.modelOverride(), "No override should result in null modelOverride");
 	}
 
 	// --- Helpers ---

@@ -1,6 +1,7 @@
 package io.strategiz.social.business.agent.pipeline.role;
 
 import io.cidadel.business.ai.engine.AiEngineRouterService;
+import io.cidadel.framework.ai.engine.AiEngineRegistry;
 import io.strategiz.social.data.entity.AiSdlcStep;
 import io.strategiz.social.data.entity.PdlcRole;
 import java.util.List;
@@ -42,8 +43,9 @@ public class ResearcherRoleSkill extends AbstractPdlcRoleSkill {
 			- Provide at least two alternative approaches when risks are high
 			""";
 
-	public ResearcherRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
-		super(engineRouterService, roleToolFilter);
+	public ResearcherRoleSkill(AiEngineRouterService engineRouterService, AiEngineRegistry engineRegistry,
+			RoleToolFilter roleToolFilter) {
+		super(engineRouterService, engineRegistry, roleToolFilter);
 	}
 
 	@Override

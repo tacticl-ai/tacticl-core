@@ -2,6 +2,8 @@ package io.strategiz.social.business.agent.pipeline.role;
 
 import io.cidadel.business.ai.engine.AiEngineRouterService;
 import io.cidadel.client.base.llm.model.ToolDefinition;
+import io.cidadel.framework.ai.engine.AiEngine;
+import io.cidadel.framework.ai.engine.AiEngineRegistry;
 import io.cidadel.framework.ai.engine.model.AiEngineRequest;
 import io.cidadel.framework.ai.engine.model.AiEngineResult;
 import io.cidadel.framework.ai.engine.model.AiEngineToolDefinition;
@@ -10,6 +12,7 @@ import io.strategiz.social.data.entity.PdlcRole;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -62,8 +65,9 @@ public class SecurityAnalystRoleSkill extends AbstractPdlcRoleSkill {
 			- Suggest secure alternatives for every vulnerable pattern found
 			""";
 
-	public SecurityAnalystRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
-		super(engineRouterService, roleToolFilter);
+	public SecurityAnalystRoleSkill(AiEngineRouterService engineRouterService, AiEngineRegistry engineRegistry,
+			RoleToolFilter roleToolFilter) {
+		super(engineRouterService, engineRegistry, roleToolFilter);
 	}
 
 	@Override
@@ -106,6 +110,11 @@ public class SecurityAnalystRoleSkill extends AbstractPdlcRoleSkill {
 				"pipelineRunId", ctx.pipelineRunId(),
 				"pdlcRole", getRole().name()));
 
+		// Apply model override before calling the router (router skips if already set).
+		if (ctx.modelOverride() != null) {
+			request.setModel(ctx.modelOverride());
+		}
+
 		List<ToolDefinition> roleTools = roleToolFilter.getToolDefinitionsForRole(this);
 		if (!roleTools.isEmpty()) {
 			List<AiEngineToolDefinition> engineTools = roleTools.stream()
@@ -115,7 +124,16 @@ public class SecurityAnalystRoleSkill extends AbstractPdlcRoleSkill {
 		}
 
 		try {
-			AiEngineResult result = engineRouterService.executeStep(getAiSdlcStepName(), request);
+			AiEngineResult result;
+			if (ctx.engineIdOverride() != null) {
+				Optional<AiEngine> engineOpt = engineRegistry.getEngine(ctx.engineIdOverride());
+				AiEngine engine = engineOpt.orElseThrow(() -> new IllegalStateException(
+						"Role override engine not found: " + ctx.engineIdOverride()));
+				result = engine.execute(request);
+			}
+			else {
+				result = engineRouterService.executeStep(getAiSdlcStepName(), request);
+			}
 			long duration = System.currentTimeMillis() - start;
 
 			RoleMetrics metrics = new RoleMetrics(

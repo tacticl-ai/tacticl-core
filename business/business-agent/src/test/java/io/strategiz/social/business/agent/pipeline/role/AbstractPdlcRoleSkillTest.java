@@ -3,10 +3,15 @@ package io.strategiz.social.business.agent.pipeline.role;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.cidadel.business.ai.engine.AiEngineRouterService;
+import io.cidadel.framework.ai.engine.AiEngine;
+import io.cidadel.framework.ai.engine.AiEngineRegistry;
 import io.cidadel.framework.ai.engine.model.AiEngineResult;
 import io.strategiz.social.business.agent.pipeline.PlaybookConfig;
 import io.strategiz.social.data.entity.PdlcRole;
@@ -15,6 +20,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -27,13 +33,19 @@ class AbstractPdlcRoleSkillTest {
 	private AiEngineRouterService engineRouterService;
 
 	@Mock
+	private AiEngineRegistry engineRegistry;
+
+	@Mock
+	private AiEngine overrideEngine;
+
+	@Mock
 	private RoleToolFilter roleToolFilter;
 
 	// --- buildPrompt tests ---
 
 	@Test
 	void buildPrompt_includesOriginalRequest() {
-		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, roleToolFilter);
+		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 		RoleContext ctx = createContext("Build a notification system", null, 0, Map.of());
 
 		String prompt = skill.exposeBuildPrompt(ctx);
@@ -44,7 +56,7 @@ class AbstractPdlcRoleSkillTest {
 
 	@Test
 	void buildPrompt_includesReworkFeedback() {
-		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, roleToolFilter);
+		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 		RoleContext ctx = createContext("Build feature", "Missing error handling in UserService", 2, Map.of());
 
 		String prompt = skill.exposeBuildPrompt(ctx);
@@ -55,7 +67,7 @@ class AbstractPdlcRoleSkillTest {
 
 	@Test
 	void buildPrompt_excludesReworkSectionWhenNull() {
-		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, roleToolFilter);
+		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 		RoleContext ctx = createContext("Build feature", null, 0, Map.of());
 
 		String prompt = skill.exposeBuildPrompt(ctx);
@@ -65,7 +77,7 @@ class AbstractPdlcRoleSkillTest {
 
 	@Test
 	void buildPrompt_includesUpstreamArtifacts() {
-		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, roleToolFilter);
+		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 
 		PipelineArtifact pmArtifact = new PipelineArtifact();
 		pmArtifact.setRole(PdlcRole.PM);
@@ -92,7 +104,7 @@ class AbstractPdlcRoleSkillTest {
 
 	@Test
 	void buildPrompt_excludesUpstreamSectionWhenEmpty() {
-		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, roleToolFilter);
+		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 		RoleContext ctx = createContext("Simple request", null, 0, Map.of());
 
 		String prompt = skill.exposeBuildPrompt(ctx);
@@ -102,7 +114,7 @@ class AbstractPdlcRoleSkillTest {
 
 	@Test
 	void buildPrompt_includesGitContext() {
-		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, roleToolFilter);
+		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 		GitContext git = new GitContext("acme/my-service", "main", "feat/auth", "abc123");
 		RoleContext ctx = new RoleContext("run-1", "parent-1", "child-1", "user-1",
 				"Build feature", Map.of(), null, Map.of(), git, null, 0);
@@ -117,7 +129,7 @@ class AbstractPdlcRoleSkillTest {
 
 	@Test
 	void buildPrompt_excludesGitContextWhenNull() {
-		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, roleToolFilter);
+		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 		RoleContext ctx = createContext("Build feature", null, 0, Map.of());
 
 		String prompt = skill.exposeBuildPrompt(ctx);
@@ -129,7 +141,7 @@ class AbstractPdlcRoleSkillTest {
 
 	@Test
 	void execute_successfulEngineResult_returnsCompleted() {
-		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, roleToolFilter);
+		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 
 		AiEngineResult engineResult = AiEngineResult.success("Generated requirements", "api-anthropic", "claude-sonnet-4");
 		engineResult.setTotalTokens(1500);
@@ -145,7 +157,7 @@ class AbstractPdlcRoleSkillTest {
 
 	@Test
 	void execute_failedEngineResult_returnsFailed() {
-		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, roleToolFilter);
+		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 
 		AiEngineResult engineResult = AiEngineResult.error("rate limit exceeded", "api-anthropic");
 		when(engineRouterService.executeStep(eq("TEST_STEP"), any())).thenReturn(engineResult);
@@ -159,7 +171,7 @@ class AbstractPdlcRoleSkillTest {
 
 	@Test
 	void execute_engineThrows_returnsFailed() {
-		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, roleToolFilter);
+		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
 
 		when(engineRouterService.executeStep(eq("TEST_STEP"), any()))
 				.thenThrow(new RuntimeException("connection timeout"));
@@ -169,6 +181,45 @@ class AbstractPdlcRoleSkillTest {
 
 		assertTrue(result.outcome() == RoleOutcome.FAILED);
 		assertTrue(result.rejectionReason().contains("connection timeout"));
+	}
+
+	@Test
+	void execute_modelOverride_setsModelOnRequest() {
+		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
+
+		AiEngineResult engineResult = AiEngineResult.success("Output with overridden model", "api-anthropic",
+				"claude-opus-4-6");
+		engineResult.setTotalTokens(2000);
+		// The router is still called (no engineIdOverride), model is pre-set on the request
+		when(engineRouterService.executeStep(eq("TEST_STEP"), any())).thenReturn(engineResult);
+
+		RoleContext ctx = new RoleContext("run-1", "parent-1", "child-1", "user-1",
+				"Build feature", Map.of(), null, Map.of(), null, null, 0, null, "claude-opus-4-6");
+		RoleResult result = skill.execute(ctx);
+
+		assertTrue(result.outcome() == RoleOutcome.COMPLETED);
+		// The router was called (no engine override), model was set on request by executeWithEngine
+		verify(engineRouterService).executeStep(eq("TEST_STEP"), any());
+	}
+
+	@Test
+	void execute_engineIdOverride_callsEngineDirectly() {
+		TestableRoleSkill skill = new TestableRoleSkill(engineRouterService, engineRegistry, roleToolFilter);
+
+		AiEngineResult overrideResult = AiEngineResult.success("Output from override engine", "openai-agentic",
+				"gpt-4o");
+		overrideResult.setTotalTokens(1800);
+		when(engineRegistry.getEngine("openai-agentic")).thenReturn(Optional.of(overrideEngine));
+		when(overrideEngine.execute(any())).thenReturn(overrideResult);
+
+		RoleContext ctx = new RoleContext("run-1", "parent-1", "child-1", "user-1",
+				"Build feature", Map.of(), null, Map.of(), null, null, 0, "openai-agentic", null);
+		RoleResult result = skill.execute(ctx);
+
+		assertTrue(result.outcome() == RoleOutcome.COMPLETED);
+		// Router must NOT be called when engine override is active
+		verify(engineRouterService, never()).executeStep(anyString(), any());
+		verify(overrideEngine).execute(any());
 	}
 
 	// --- helpers ---
@@ -184,8 +235,9 @@ class AbstractPdlcRoleSkillTest {
 	 */
 	private static class TestableRoleSkill extends AbstractPdlcRoleSkill {
 
-		TestableRoleSkill(AiEngineRouterService engineRouterService, RoleToolFilter roleToolFilter) {
-			super(engineRouterService, roleToolFilter);
+		TestableRoleSkill(AiEngineRouterService engineRouterService, AiEngineRegistry engineRegistry,
+				RoleToolFilter roleToolFilter) {
+			super(engineRouterService, engineRegistry, roleToolFilter);
 		}
 
 		@Override
