@@ -1,6 +1,7 @@
 package io.strategiz.social.service.agent.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -29,7 +30,7 @@ import io.strategiz.social.business.agent.service.SparkService;
 import io.strategiz.social.business.agent.service.TranscriptionService;
 import io.strategiz.social.business.agent.service.UserConfigService;
 import io.strategiz.social.business.agent.service.UserProvisioningService;
-import io.strategiz.social.business.agent.service.VoiceAgentService;
+import io.strategiz.social.business.agent.service.CloudOrchestratorService;
 import io.strategiz.social.data.entity.ExecutionPreference;
 import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineRun;
@@ -65,7 +66,7 @@ class AgentControllerPipelineTest {
 	// --- Mocks ---
 
 	@Mock
-	private VoiceAgentService voiceAgentService;
+	private CloudOrchestratorService voiceAgentService;
 
 	@Mock
 	private LlmRouter llmRouter;
@@ -139,10 +140,10 @@ class AgentControllerPipelineTest {
 		when(sparkService.createSpark(anyString(), anyString(), anyString(), anyString(),
 				isNull(), isNull(), isNull(), isNull())).thenReturn(spark);
 
-		// Default: no connected integrations (lenient — only called when cloud path runs VoiceAgentService)
+		// Default: no connected integrations (lenient — only called when cloud path runs CloudOrchestratorService)
 		lenient().when(integrationRepository.findAllByUserId(USER_ID)).thenReturn(List.of());
 
-		// Default: no setup actions (lenient — only called when cloud path runs VoiceAgentService)
+		// Default: no setup actions (lenient — only called when cloud path runs CloudOrchestratorService)
 		lenient().when(setupActionDetector.detect(anyString(), anyString())).thenReturn(List.of());
 	}
 
@@ -199,7 +200,7 @@ class AgentControllerPipelineTest {
 
 		// Orchestrator dispatched
 		verify(pdlcPipelineOrchestrator).executePipeline(PIPELINE_RUN_ID);
-		// VoiceAgentService NOT called
+		// CloudOrchestratorService NOT called
 		verify(voiceAgentService, never()).execute(anyString(), anyString(), anyString(),
 				anyString(), any(), anyString(), nullable(String.class));
 
@@ -244,10 +245,10 @@ class AgentControllerPipelineTest {
 		assertEquals("BUG_FIX", body.getPlaybook());
 	}
 
-	// --- Test: SIMPLE routes to VoiceAgentService ---
+	// --- Test: SIMPLE routes to CloudOrchestratorService ---
 
 	@Test
-	void simpleTierRoutesToVoiceAgentService() {
+	void simpleTierRoutesToCloudOrchestratorService() {
 		AgentCommandRequest request = buildRequest("what time is it in Tokyo?", "code", null);
 		when(pdlcClassifierService.classifyDepth(anyString(), anyString(), eq("code")))
 				.thenReturn(PdlcClassification.simple());
@@ -402,6 +403,106 @@ class AgentControllerPipelineTest {
 		verify(sparkClassifierService, never()).classifySparkType(anyString(), anyString());
 	}
 
+	// --- Test: role skipping from natural language ---
+
+	@Test
+	void skipRolesFromNaturalLanguage_removedFromActivatedRoles() {
+		// "skip review" NL phrase → REVIEWER should be removed from BUG_FIX activated roles
+		AgentCommandRequest request = buildRequest("fix the bug, skip review", "code", null);
+		PdlcClassification classification = bugFixClassification();
+		when(pdlcClassifierService.classifyDepth(anyString(), anyString(), eq("code")))
+				.thenReturn(classification);
+
+		PlaybookConfig bugFix = buildPlaybook("BUG_FIX", PipelineTier.PLAYBOOK,
+				List.of(PdlcRole.RESEARCHER, PdlcRole.IMPLEMENTER, PdlcRole.REVIEWER, PdlcRole.TESTER));
+		when(playbookRegistry.getPlaybook("BUG_FIX")).thenReturn(Optional.of(bugFix));
+
+		PipelineRun pipelineRun = buildPipelineRun(PIPELINE_RUN_ID, SPARK_ID,
+				List.of(PdlcRole.RESEARCHER, PdlcRole.IMPLEMENTER, PdlcRole.TESTER));
+		when(pipelineStateManager.createRun(eq(SPARK_ID), eq(USER_ID), eq(bugFix), any(PdlcClassification.class)))
+				.thenAnswer(inv -> {
+					PdlcClassification cls = inv.getArgument(3);
+					assertFalse(cls.activatedRoles().contains(PdlcRole.REVIEWER),
+							"REVIEWER should be removed by NL skip");
+					return pipelineRun;
+				});
+
+		ResponseEntity<AgentCommandResponse> resp = controller.executeCommand(request, authenticatedUser);
+
+		verify(pdlcPipelineOrchestrator).executePipeline(PIPELINE_RUN_ID);
+		AgentCommandResponse body = resp.getBody();
+		assertNotNull(body);
+		assertEquals("PIPELINE", body.getExecutionMode());
+	}
+
+	@Test
+	void skipRolesFromApiField_removedFromActivatedRoles() {
+		// API skipRoles=["TESTER"] → TESTER should be removed from BUG_FIX activated roles
+		AgentCommandRequest request = buildRequest("fix the null pointer bug", "code", null);
+		request.setSkipRoles(List.of("TESTER"));
+		PdlcClassification classification = bugFixClassification();
+		when(pdlcClassifierService.classifyDepth(anyString(), anyString(), eq("code")))
+				.thenReturn(classification);
+
+		PlaybookConfig bugFix = buildPlaybook("BUG_FIX", PipelineTier.PLAYBOOK,
+				List.of(PdlcRole.RESEARCHER, PdlcRole.IMPLEMENTER, PdlcRole.REVIEWER, PdlcRole.TESTER));
+		when(playbookRegistry.getPlaybook("BUG_FIX")).thenReturn(Optional.of(bugFix));
+
+		PipelineRun pipelineRun = buildPipelineRun(PIPELINE_RUN_ID, SPARK_ID,
+				List.of(PdlcRole.RESEARCHER, PdlcRole.IMPLEMENTER, PdlcRole.REVIEWER));
+		when(pipelineStateManager.createRun(eq(SPARK_ID), eq(USER_ID), eq(bugFix), any(PdlcClassification.class)))
+				.thenAnswer(inv -> {
+					PdlcClassification cls = inv.getArgument(3);
+					assertFalse(cls.activatedRoles().contains(PdlcRole.TESTER),
+							"TESTER should be removed by API skip");
+					return pipelineRun;
+				});
+
+		ResponseEntity<AgentCommandResponse> resp = controller.executeCommand(request, authenticatedUser);
+
+		verify(pdlcPipelineOrchestrator).executePipeline(PIPELINE_RUN_ID);
+		AgentCommandResponse body = resp.getBody();
+		assertNotNull(body);
+		assertEquals("PIPELINE", body.getExecutionMode());
+	}
+
+	@Test
+	void skipRolesUnion_nlAndApiBothApplied() {
+		// NL "skip review" + API ["TESTER"] → both REVIEWER and TESTER removed
+		AgentCommandRequest request = buildRequest("fix the auth bug, skip review", "code", null);
+		request.setSkipRoles(List.of("TESTER"));
+		PdlcClassification classification = bugFixClassification();
+		when(pdlcClassifierService.classifyDepth(anyString(), anyString(), eq("code")))
+				.thenReturn(classification);
+
+		PlaybookConfig bugFix = buildPlaybook("BUG_FIX", PipelineTier.PLAYBOOK,
+				List.of(PdlcRole.RESEARCHER, PdlcRole.IMPLEMENTER, PdlcRole.REVIEWER, PdlcRole.TESTER));
+		when(playbookRegistry.getPlaybook("BUG_FIX")).thenReturn(Optional.of(bugFix));
+
+		PipelineRun pipelineRun = buildPipelineRun(PIPELINE_RUN_ID, SPARK_ID,
+				List.of(PdlcRole.RESEARCHER, PdlcRole.IMPLEMENTER));
+		when(pipelineStateManager.createRun(eq(SPARK_ID), eq(USER_ID), eq(bugFix), any(PdlcClassification.class)))
+				.thenAnswer(inv -> {
+					PdlcClassification cls = inv.getArgument(3);
+					assertFalse(cls.activatedRoles().contains(PdlcRole.REVIEWER),
+							"REVIEWER should be removed by NL skip");
+					assertFalse(cls.activatedRoles().contains(PdlcRole.TESTER),
+							"TESTER should be removed by API skip");
+					assertTrue(cls.activatedRoles().contains(PdlcRole.RESEARCHER),
+							"RESEARCHER should remain");
+					assertTrue(cls.activatedRoles().contains(PdlcRole.IMPLEMENTER),
+							"IMPLEMENTER should remain");
+					return pipelineRun;
+				});
+
+		ResponseEntity<AgentCommandResponse> resp = controller.executeCommand(request, authenticatedUser);
+
+		verify(pdlcPipelineOrchestrator).executePipeline(PIPELINE_RUN_ID);
+		AgentCommandResponse body = resp.getBody();
+		assertNotNull(body);
+		assertEquals("PIPELINE", body.getExecutionMode());
+	}
+
 	// --- Helpers ---
 
 	private AgentCommandRequest buildRequest(String text, String sparkType, String playbook) {
@@ -416,7 +517,7 @@ class AgentControllerPipelineTest {
 	private void stubVoiceAgentSuccess() {
 		when(voiceAgentService.execute(anyString(), anyString(), anyString(),
 				anyString(), any(), anyString(), nullable(String.class)))
-				.thenReturn(VoiceAgentService.AgentResult.success("Done.", List.of(), "claude-haiku-4-5"));
+				.thenReturn(CloudOrchestratorService.AgentResult.success("Done.", List.of(), "claude-haiku-4-5"));
 	}
 
 	private PdlcClassification fullPdlcClassification() {

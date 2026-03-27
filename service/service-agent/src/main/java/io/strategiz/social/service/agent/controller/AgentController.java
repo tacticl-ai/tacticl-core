@@ -10,17 +10,19 @@ import io.strategiz.social.business.agent.pipeline.PdlcPipelineOrchestrator;
 import io.strategiz.social.business.agent.pipeline.PipelineStateManager;
 import io.strategiz.social.business.agent.pipeline.PlaybookConfig;
 import io.strategiz.social.business.agent.pipeline.PlaybookRegistry;
+import io.strategiz.social.business.agent.pipeline.RoleSkipParser;
 import io.strategiz.social.business.agent.service.DeviceRoutingService;
 import io.strategiz.social.business.agent.service.SparkClassifierService;
 import io.strategiz.social.business.agent.service.SparkService;
 import io.strategiz.social.business.agent.service.TranscriptionService;
 import io.strategiz.social.business.agent.service.UserProvisioningService;
-import io.strategiz.social.business.agent.service.VoiceAgentService;
+import io.strategiz.social.business.agent.service.CloudOrchestratorService;
 import io.strategiz.social.business.agent.service.UserConfigService;
 import io.strategiz.social.data.entity.ActionConfirmation;
 import io.strategiz.social.data.entity.AgentAuditLog;
 import io.strategiz.social.data.entity.DeviceRegistration;
 import io.strategiz.social.data.entity.ExecutionPreference;
+import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineTier;
 import io.strategiz.social.data.entity.SocialIntegration;
 import io.strategiz.social.data.entity.Spark;
@@ -39,8 +41,12 @@ import io.strategiz.social.service.agent.service.SetupActionDetector;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,13 +63,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 /** REST controller for the voice agent. */
 @RestController
-@RequestMapping("/api/agent")
+@RequestMapping("/v1/agent")
 @Tag(name = "Voice Agent", description = "Personal AI agent that remotes into your devices as workers")
 public class AgentController {
 
 	private static final Logger log = LoggerFactory.getLogger(AgentController.class);
 
-	private final VoiceAgentService voiceAgentService;
+	private final CloudOrchestratorService voiceAgentService;
 
 	private final LlmRouter llmRouter;
 
@@ -95,7 +101,7 @@ public class AgentController {
 
 	private final PlaybookRegistry playbookRegistry;
 
-	public AgentController(VoiceAgentService voiceAgentService, LlmRouter llmRouter,
+	public AgentController(CloudOrchestratorService voiceAgentService, LlmRouter llmRouter,
 			AgentAuditLogRepository auditLogRepository, ActionConfirmationRepository confirmationRepository,
 			SocialIntegrationRepository integrationRepository, UserProvisioningService userProvisioningService,
 			TranscriptionService transcriptionService, SparkService sparkService,
@@ -201,14 +207,14 @@ public class AgentController {
 
 	/**
 	 * Runs Stage 2 PDLC depth classification and routes to either the pipeline
-	 * (PLAYBOOK / FULL_PDLC) or the synchronous VoiceAgentService (SIMPLE).
+	 * (PLAYBOOK / FULL_PDLC) or the synchronous CloudOrchestratorService (SIMPLE).
 	 *
 	 * <p>Pipeline routing:
 	 * <ol>
 	 *   <li>Classify depth via {@link PdlcClassifierService} (only runs for code/devops types).</li>
 	 *   <li>If the request carries a user-specified {@code playbook} override, re-resolve the
 	 *       {@link PlaybookConfig} from the registry and use the overridden classification.</li>
-	 *   <li>SIMPLE → existing {@link VoiceAgentService} synchronous path.</li>
+	 *   <li>SIMPLE → existing {@link CloudOrchestratorService} synchronous path.</li>
 	 *   <li>PLAYBOOK / FULL_PDLC → create a {@link PipelineRun} and dispatch asynchronously
 	 *       to {@link PdlcPipelineOrchestrator}; return an async PIPELINE response immediately.</li>
 	 * </ol>
@@ -244,9 +250,32 @@ public class AgentController {
 			}
 		}
 
+		// Merge role skip sources: NL keywords + API field
+		Set<PdlcRole> nlSkipRoles = RoleSkipParser.parse(commandText);
+		Set<PdlcRole> apiSkipRoles = parseApiSkipRoles(request.getSkipRoles());
+		Set<PdlcRole> effectiveSkipRoles = new HashSet<>(nlSkipRoles);
+		effectiveSkipRoles.addAll(apiSkipRoles);
+
+		if (!effectiveSkipRoles.isEmpty() && classification.tier() != PipelineTier.SIMPLE) {
+			List<PdlcRole> filteredRoles = new ArrayList<>(classification.activatedRoles());
+			filteredRoles.removeAll(effectiveSkipRoles);
+			List<PdlcRole> allRoles = new ArrayList<>(java.util.Arrays.asList(PdlcRole.values()));
+			allRoles.removeAll(filteredRoles);
+
+			classification = new PdlcClassification(
+					classification.tier(),
+					classification.playbook(),
+					classification.confidence(),
+					filteredRoles,
+					allRoles,
+					classification.dimensionScores(),
+					classification.reasoning() + " [User skipped: " + effectiveSkipRoles + "]");
+			log.info("[PIPELINE] User skipped roles {} for spark={}", effectiveSkipRoles, spark.getId());
+		}
+
 		// Route based on classification tier
 		if (classification.tier() == PipelineTier.SIMPLE) {
-			// Existing synchronous VoiceAgentService path
+			// Existing synchronous CloudOrchestratorService path
 			AgentCommandResponse response = executeInCloud(request, userId, spark);
 			response.setPipelineTier(PipelineTier.SIMPLE.name());
 			response.setExecutionMode("SYNC");
@@ -286,7 +315,7 @@ public class AgentController {
 				activatedRoleNames);
 	}
 
-	/** Execute command in the cloud via VoiceAgentService, tracking with the given spark. */
+	/** Execute command in the cloud via CloudOrchestratorService, tracking with the given spark. */
 	private AgentCommandResponse executeInCloud(AgentCommandRequest request, String userId, Spark spark) {
 		String sessionId = request.getSessionId() != null ? request.getSessionId() : UUID.randomUUID().toString();
 		String timezone = request.getTimezone() != null ? request.getTimezone() : "UTC";
@@ -298,8 +327,8 @@ public class AgentController {
 			.map(i -> i.getPlatform().getDisplayName())
 			.toList();
 
-		// VoiceAgentService handles markRunning/markCompleted/markFailed internally
-		VoiceAgentService.AgentResult result = voiceAgentService.execute(spark.getId(), request.getText(), userId,
+		// CloudOrchestratorService handles markRunning/markCompleted/markFailed internally
+		CloudOrchestratorService.AgentResult result = voiceAgentService.execute(spark.getId(), request.getText(), userId,
 				sessionId, connectedPlatforms, timezone, request.getModel());
 
 		AgentCommandResponse response = new AgentCommandResponse(result.getResponseText(), result.getToolsInvoked(),
@@ -391,6 +420,21 @@ public class AgentController {
 			return ResponseEntity.internalServerError()
 				.body(new TranscribeResponse("Transcription failed: " + ex.getMessage()));
 		}
+	}
+
+	/** Parses role names from the API {@code skipRoles} field into a {@link Set} of {@link PdlcRole}s. */
+	private Set<PdlcRole> parseApiSkipRoles(List<String> skipRoles) {
+		if (skipRoles == null || skipRoles.isEmpty()) return Set.of();
+		EnumSet<PdlcRole> roles = EnumSet.noneOf(PdlcRole.class);
+		for (String name : skipRoles) {
+			try {
+				roles.add(PdlcRole.valueOf(name.toUpperCase().trim()));
+			}
+			catch (IllegalArgumentException ignored) {
+				log.warn("Unknown skip role: {}", name);
+			}
+		}
+		return roles;
 	}
 
 }
