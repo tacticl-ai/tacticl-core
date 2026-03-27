@@ -1,6 +1,7 @@
 package io.strategiz.social.service.agent.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 
 /** Request DTO for voice agent command. */
 public class AgentCommandRequest {
@@ -18,6 +19,9 @@ public class AgentCommandRequest {
 
 	/** Optional user-specified playbook override (e.g. "BUG_FIX", "FULL_PDLC"). Null = use classifier. */
 	private String playbook;
+
+	/** Optional list of PDLC role names to skip (e.g. ["REVIEWER", "TESTER"]). */
+	private List<String> skipRoles;
 
 	public String getText() {
 		return text;
@@ -65,6 +69,14 @@ public class AgentCommandRequest {
 
 	public void setPlaybook(String playbook) {
 		this.playbook = playbook;
+	}
+
+	public List<String> getSkipRoles() {
+		return skipRoles;
+	}
+
+	public void setSkipRoles(List<String> skipRoles) {
+		this.skipRoles = skipRoles;
 	}
 
 }
