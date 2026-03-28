@@ -126,6 +126,30 @@ public class PdlcPipelineOrchestrator {
 		UserConfig userConfig = resolveUserConfig(run);
 
 		try {
+			// 2b. Soft guardrail: if required roles were skipped, pause for user confirmation
+			List<String> skippedRequired = run.getSkippedRequiredRoles();
+			if (skippedRequired != null && !skippedRequired.isEmpty()) {
+				String roleList = String.join(", ", skippedRequired);
+				log.warn("[PIPELINE] Required roles skipped for run={}: {}", pipelineRunId, roleList);
+				CheckpointDecision decision = pauseForCheckpoint(run, null,
+						CheckpointType.PIPELINE_STAGE,
+						"Confirm skipping required roles: [" + roleList + "]",
+						"The following roles are marked required in the playbook but have been skipped: "
+								+ roleList + ". Approve to proceed anyway, or reject to cancel.",
+						List.of("APPROVED", "REJECTED"),
+						userConfig);
+				if (decision == CheckpointDecision.REJECTED) {
+					log.info("[PIPELINE] User rejected required-role skip — cancelling run={}", pipelineRunId);
+					pipelineStateManager.markFailed(pipelineRunId,
+							"Cancelled by user: required roles skipped without approval");
+					sparkService.markCloudFailed(run.getSparkId(),
+							"Pipeline cancelled: required roles not approved for skipping", 0, null);
+					return;
+				}
+				// APPROVED: reload run after checkpoint transition back to EXECUTING
+				run = pipelineStateManager.getRun(pipelineRunId).orElse(run);
+			}
+
 			// 3. Iterate through stages
 			Set<PdlcRole> completedRoles = new HashSet<>();
 			List<PlaybookStage> stages = playbook.stages();

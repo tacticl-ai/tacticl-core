@@ -273,6 +273,23 @@ public class AgentController {
 			log.info("[PIPELINE] User skipped roles {} for spark={}", effectiveSkipRoles, spark.getId());
 		}
 
+		// Soft guardrail: warn if skipping required roles (Task 9)
+		List<String> requiredSkipped = List.of();
+		if (!effectiveSkipRoles.isEmpty()) {
+			Optional<PlaybookConfig> pbCheck = playbookRegistry.getPlaybook(
+					classification.playbook() != null ? classification.playbook() : "");
+			if (pbCheck.isPresent()) {
+				requiredSkipped = pbCheck.get().stages().stream()
+						.filter(stage -> stage.required() && effectiveSkipRoles.contains(stage.role()))
+						.map(stage -> stage.role().name())
+						.toList();
+				if (!requiredSkipped.isEmpty()) {
+					log.warn("[PIPELINE] User is skipping required roles {} for spark={}",
+							requiredSkipped, spark.getId());
+				}
+			}
+		}
+
 		// Route based on classification tier
 		if (classification.tier() == PipelineTier.SIMPLE) {
 			// Existing synchronous CloudOrchestratorService path
@@ -299,6 +316,12 @@ public class AgentController {
 
 		PipelineRun pipelineRun = pipelineStateManager.createRun(
 				spark.getId(), userId, playbookConfig, classification);
+
+		// Attach required-skip info so the orchestrator can create a guardrail checkpoint (Task 9)
+		if (!requiredSkipped.isEmpty()) {
+			pipelineRun.setSkippedRequiredRoles(requiredSkipped);
+			pipelineStateManager.updateSkippedRequiredRoles(pipelineRun.getId(), requiredSkipped);
+		}
 
 		// Dispatch async — returns immediately; orchestrator runs on pdlcPipelineExecutor thread pool
 		pdlcPipelineOrchestrator.executePipeline(pipelineRun.getId());

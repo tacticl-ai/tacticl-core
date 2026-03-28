@@ -48,6 +48,12 @@ public class PipelineRun extends BaseEntity {
 
 	private Map<String, Object> gitContext;
 
+	/**
+	 * Role names that the user explicitly skipped but are marked {@code required} in the playbook.
+	 * Non-empty triggers a soft-guardrail confirmation checkpoint at pipeline start.
+	 */
+	private List<String> skippedRequiredRoles;
+
 	private String claimedBy;
 
 	private Instant claimedAt;
@@ -177,6 +183,14 @@ public class PipelineRun extends BaseEntity {
 
 	public void setGitContext(Map<String, Object> gitContext) {
 		this.gitContext = gitContext;
+	}
+
+	public List<String> getSkippedRequiredRoles() {
+		return skippedRequiredRoles;
+	}
+
+	public void setSkippedRequiredRoles(List<String> skippedRequiredRoles) {
+		this.skippedRequiredRoles = skippedRequiredRoles;
 	}
 
 	public String getClaimedBy() {

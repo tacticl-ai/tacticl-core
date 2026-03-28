@@ -17,6 +17,7 @@ import io.strategiz.social.business.agent.pipeline.PdlcRoleExecutor.RoleExecutio
 import io.strategiz.social.business.agent.service.SparkService;
 import io.strategiz.social.data.entity.Checkpoint;
 import io.strategiz.social.data.entity.CheckpointDecision;
+import io.strategiz.social.data.entity.CheckpointType;
 import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineEventType;
 import io.strategiz.social.data.entity.PipelineRun;
@@ -75,8 +76,8 @@ class PdlcPipelineOrchestratorTest {
 	@Mock
 	private ReworkTracker reworkTracker;
 
-	@Mock
-	private Executor pdlcPipelineExecutor;
+	/** Synchronous executor — runs submitted tasks immediately on the calling thread. */
+	private final Executor syncExecutor = Runnable::run;
 
 	private PdlcPipelineOrchestrator orchestrator;
 
@@ -84,7 +85,7 @@ class PdlcPipelineOrchestratorTest {
 	void setUp() {
 		orchestrator = new PdlcPipelineOrchestrator(pipelineStateManager, pipelineEventEmitter,
 				pipelineArtifactService, sparkService, playbookRegistry, roleExecutor,
-				checkpointService, reworkTracker, pdlcPipelineExecutor);
+				checkpointService, reworkTracker, syncExecutor);
 
 		// Default: checkpoint gates auto-approve so tests can focus on pipeline flow
 		Checkpoint autoApproved = new Checkpoint();
@@ -366,6 +367,107 @@ class PdlcPipelineOrchestratorTest {
 
 		assertEquals(1000L, run.getTotalTokens());
 		assertEquals(BigDecimal.ZERO, run.getTotalCost());
+	}
+
+	// --- Task 9: Soft guardrail checkpoint tests ---
+
+	@Test
+	void executePipeline_createsGuardrailCheckpointWhenRequiredRolesSkipped() {
+		// REVIEWER is required in BUG_FIX but was skipped — run has skippedRequiredRoles set
+		PipelineRun run = createTestRun(List.of(PdlcRole.RESEARCHER, PdlcRole.IMPLEMENTER));
+		run.setSkippedRequiredRoles(List.of("REVIEWER"));
+		PlaybookConfig playbook = createBugFixPlaybook();
+
+		when(pipelineStateManager.getRun(RUN_ID)).thenReturn(Optional.of(run));
+		when(playbookRegistry.getPlaybook("BUG_FIX")).thenReturn(Optional.of(playbook));
+		when(sparkService.createChildSpark(anyString(), any(PdlcRole.class), anyString()))
+				.thenReturn(CHILD_SPARK_ID);
+		when(roleExecutor.execute(any(), any(), anyString()))
+				.thenReturn(RoleExecutionResult.success(500L, new BigDecimal("0.01"), 100L, "stub-model", null));
+
+		orchestrator.executePipeline(RUN_ID);
+
+		// Guardrail checkpoint should be created with null role (pipeline-level, not role-level)
+		verify(checkpointService).createPipelineCheckpoint(
+				eq(run), eq(null), eq(CheckpointType.PIPELINE_STAGE),
+				anyString(), anyString(), eq(List.of("APPROVED", "REJECTED")));
+		// Pipeline should complete after user approves
+		verify(pipelineStateManager).markCompleted(eq(RUN_ID), anyLong(), any(BigDecimal.class));
+	}
+
+	@Test
+	void executePipeline_cancelsPipelineWhenUserRejectsRequiredRoleSkip() {
+		PipelineRun run = createTestRun(List.of(PdlcRole.RESEARCHER, PdlcRole.IMPLEMENTER));
+		run.setSkippedRequiredRoles(List.of("REVIEWER", "TESTER"));
+		PlaybookConfig playbook = createBugFixPlaybook();
+
+		// Override default auto-approve: user REJECTS the guardrail checkpoint
+		Checkpoint rejectedCheckpoint = new Checkpoint();
+		rejectedCheckpoint.setId("rejected-checkpoint");
+		rejectedCheckpoint.setUserDecision(CheckpointDecision.REJECTED);
+		when(checkpointService.createPipelineCheckpoint(any(), eq(null), any(), anyString(), anyString(), any()))
+				.thenReturn(rejectedCheckpoint);
+		when(checkpointService.getPendingCheckpoint(anyString())).thenReturn(Optional.empty());
+		when(checkpointService.getCheckpoint("rejected-checkpoint")).thenReturn(Optional.of(rejectedCheckpoint));
+
+		when(pipelineStateManager.getRun(RUN_ID)).thenReturn(Optional.of(run));
+		when(playbookRegistry.getPlaybook("BUG_FIX")).thenReturn(Optional.of(playbook));
+
+		orchestrator.executePipeline(RUN_ID);
+
+		// Pipeline should fail (cancelled)
+		verify(pipelineStateManager).markFailed(eq(RUN_ID), anyString());
+		verify(sparkService).markCloudFailed(eq(SPARK_ID), anyString(), eq(0L), eq(null));
+		// No roles should have been executed
+		verify(sparkService, never()).createChildSpark(anyString(), any(PdlcRole.class), anyString());
+	}
+
+	@Test
+	void executePipeline_noGuardrailCheckpointWhenNoRequiredRolesSkipped() {
+		// Standard run with no skippedRequiredRoles
+		PipelineRun run = createTestRun(List.of(PdlcRole.RESEARCHER, PdlcRole.IMPLEMENTER,
+				PdlcRole.REVIEWER, PdlcRole.TESTER));
+		PlaybookConfig playbook = createBugFixPlaybook();
+
+		when(pipelineStateManager.getRun(RUN_ID)).thenReturn(Optional.of(run));
+		when(playbookRegistry.getPlaybook("BUG_FIX")).thenReturn(Optional.of(playbook));
+		when(sparkService.createChildSpark(anyString(), any(PdlcRole.class), anyString()))
+				.thenReturn(CHILD_SPARK_ID);
+		when(roleExecutor.execute(any(), any(), anyString()))
+				.thenReturn(RoleExecutionResult.success(500L, new BigDecimal("0.01"), 100L, "stub-model", null));
+
+		orchestrator.executePipeline(RUN_ID);
+
+		// Guardrail checkpoint should NOT be created (no null-role checkpoint expected)
+		verify(checkpointService, never()).createPipelineCheckpoint(
+				any(), eq(null), any(), anyString(), anyString(), any());
+		verify(pipelineStateManager).markCompleted(eq(RUN_ID), anyLong(), any(BigDecimal.class));
+	}
+
+	@Test
+	void executePipeline_guardrailCheckpointTitleContainsRoleNames() {
+		PipelineRun run = createTestRun(List.of(PdlcRole.RESEARCHER, PdlcRole.IMPLEMENTER));
+		run.setSkippedRequiredRoles(List.of("REVIEWER", "TESTER"));
+		PlaybookConfig playbook = createBugFixPlaybook();
+
+		ArgumentCaptor<String> titleCaptor = ArgumentCaptor.forClass(String.class);
+
+		when(pipelineStateManager.getRun(RUN_ID)).thenReturn(Optional.of(run));
+		when(playbookRegistry.getPlaybook("BUG_FIX")).thenReturn(Optional.of(playbook));
+		when(sparkService.createChildSpark(anyString(), any(PdlcRole.class), anyString()))
+				.thenReturn(CHILD_SPARK_ID);
+		when(roleExecutor.execute(any(), any(), anyString()))
+				.thenReturn(RoleExecutionResult.success(500L, new BigDecimal("0.01"), 100L, "stub-model", null));
+
+		orchestrator.executePipeline(RUN_ID);
+
+		verify(checkpointService).createPipelineCheckpoint(
+				eq(run), eq(null), eq(CheckpointType.PIPELINE_STAGE),
+				titleCaptor.capture(), anyString(), any());
+
+		String title = titleCaptor.getValue();
+		assertTrue(title.contains("REVIEWER"), "Checkpoint title should mention REVIEWER");
+		assertTrue(title.contains("TESTER"), "Checkpoint title should mention TESTER");
 	}
 
 	// --- Helpers ---

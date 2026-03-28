@@ -10,6 +10,7 @@ import io.strategiz.social.data.repository.PipelineRunRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -200,6 +201,22 @@ public class PipelineStateManager {
 			run.setReworkCount(run.getReworkCount() + 1);
 			pipelineRunRepository.save(run);
 			log.debug("[PIPELINE] Incremented rework count: run={} count={}", runId, run.getReworkCount());
+		});
+	}
+
+	/**
+	 * Persist the list of required roles that the user has elected to skip for a pipeline run.
+	 * Called by the controller after {@link #createRun} when required-role skips are detected.
+	 * The orchestrator checks this field at pipeline start to create a soft-guardrail checkpoint.
+	 *
+	 * @param runId               the pipeline run ID
+	 * @param skippedRequiredRoles role names (e.g., "REVIEWER", "TESTER") that were required but skipped
+	 */
+	public void updateSkippedRequiredRoles(String runId, List<String> skippedRequiredRoles) {
+		pipelineRunRepository.findById(runId).ifPresent(run -> {
+			run.setSkippedRequiredRoles(skippedRequiredRoles);
+			pipelineRunRepository.save(run);
+			log.warn("[PIPELINE] Set skippedRequiredRoles={} for run={}", skippedRequiredRoles, runId);
 		});
 	}
 
