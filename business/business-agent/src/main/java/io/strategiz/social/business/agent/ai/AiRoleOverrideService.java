@@ -1,6 +1,7 @@
 package io.strategiz.social.business.agent.ai;
 
 import io.strategiz.social.data.entity.AiRoleOverride;
+import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.repository.AiRoleOverrideRepository;
 import java.util.List;
 import java.util.Optional;
@@ -25,7 +26,8 @@ public class AiRoleOverrideService {
 	 * @return the override if it exists
 	 */
 	public Optional<AiRoleOverride> getOverride(String roleName) {
-		return repository.findById(roleName);
+		return repository.findById(roleName)
+				.filter(r -> Boolean.TRUE.equals(r.getIsActive()));
 	}
 
 	/**
@@ -47,6 +49,7 @@ public class AiRoleOverrideService {
 	 * @return the saved override
 	 */
 	public AiRoleOverride setOverride(String roleName, String engineId, String model, String updatedBy) {
+		validateRoleName(roleName);
 		AiRoleOverride override = new AiRoleOverride();
 		override.setId(roleName);
 		override.setRole(roleName);
@@ -59,10 +62,20 @@ public class AiRoleOverrideService {
 	/**
 	 * Delete a role override (soft delete via BaseRepository).
 	 *
-	 * @param roleName PDLC role name (document ID)
+	 * @param roleName  PDLC role name (document ID)
+	 * @param deletedBy admin user ID performing the deletion
 	 */
-	public void deleteOverride(String roleName) {
-		repository.delete(roleName, SYSTEM);
+	public void deleteOverride(String roleName, String deletedBy) {
+		repository.delete(roleName, deletedBy);
+	}
+
+	private void validateRoleName(String roleName) {
+		try {
+			PdlcRole.valueOf(roleName);
+		}
+		catch (IllegalArgumentException e) {
+			throw new IllegalArgumentException("Invalid PDLC role: " + roleName);
+		}
 	}
 
 }

@@ -61,15 +61,15 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-/** REST controller for the voice agent. */
+/** REST controller for the cloud agent orchestrator. */
 @RestController
 @RequestMapping("/v1/agent")
-@Tag(name = "Voice Agent", description = "Personal AI agent that remotes into your devices as workers")
+@Tag(name = "Agent", description = "Personal AI agent that remotes into your devices as workers")
 public class AgentController {
 
 	private static final Logger log = LoggerFactory.getLogger(AgentController.class);
 
-	private final CloudOrchestratorService voiceAgentService;
+	private final CloudOrchestratorService cloudOrchestrator;
 
 	private final LlmRouter llmRouter;
 
@@ -101,7 +101,7 @@ public class AgentController {
 
 	private final PlaybookRegistry playbookRegistry;
 
-	public AgentController(CloudOrchestratorService voiceAgentService, LlmRouter llmRouter,
+	public AgentController(CloudOrchestratorService cloudOrchestrator, LlmRouter llmRouter,
 			AgentAuditLogRepository auditLogRepository, ActionConfirmationRepository confirmationRepository,
 			SocialIntegrationRepository integrationRepository, UserProvisioningService userProvisioningService,
 			TranscriptionService transcriptionService, SparkService sparkService,
@@ -109,7 +109,7 @@ public class AgentController {
 			UserConfigService userConfigService, SparkClassifierService sparkClassifierService,
 			PdlcClassifierService pdlcClassifierService, PdlcPipelineOrchestrator pdlcPipelineOrchestrator,
 			PipelineStateManager pipelineStateManager, PlaybookRegistry playbookRegistry) {
-		this.voiceAgentService = voiceAgentService;
+		this.cloudOrchestrator = cloudOrchestrator;
 		this.llmRouter = llmRouter;
 		this.auditLogRepository = auditLogRepository;
 		this.confirmationRepository = confirmationRepository;
@@ -259,15 +259,22 @@ public class AgentController {
 		if (!effectiveSkipRoles.isEmpty() && classification.tier() != PipelineTier.SIMPLE) {
 			List<PdlcRole> filteredRoles = new ArrayList<>(classification.activatedRoles());
 			filteredRoles.removeAll(effectiveSkipRoles);
-			List<PdlcRole> allRoles = new ArrayList<>(java.util.Arrays.asList(PdlcRole.values()));
-			allRoles.removeAll(filteredRoles);
+
+			// Union original skippedRoles with user-skipped roles (preserve classifier context)
+			List<PdlcRole> newSkippedRoles = new ArrayList<>(
+					classification.skippedRoles() != null ? classification.skippedRoles() : List.of());
+			for (PdlcRole skip : effectiveSkipRoles) {
+				if (!newSkippedRoles.contains(skip)) {
+					newSkippedRoles.add(skip);
+				}
+			}
 
 			classification = new PdlcClassification(
 					classification.tier(),
 					classification.playbook(),
 					classification.confidence(),
 					filteredRoles,
-					allRoles,
+					newSkippedRoles,
 					classification.dimensionScores(),
 					classification.reasoning() + " [User skipped: " + effectiveSkipRoles + "]");
 			log.info("[PIPELINE] User skipped roles {} for spark={}", effectiveSkipRoles, spark.getId());
@@ -317,9 +324,8 @@ public class AgentController {
 		PipelineRun pipelineRun = pipelineStateManager.createRun(
 				spark.getId(), userId, playbookConfig, classification);
 
-		// Attach required-skip info so the orchestrator can create a guardrail checkpoint (Task 9)
+		// Set required-skip info BEFORE async dispatch to avoid race condition (Task 9)
 		if (!requiredSkipped.isEmpty()) {
-			pipelineRun.setSkippedRequiredRoles(requiredSkipped);
 			pipelineStateManager.updateSkippedRequiredRoles(pipelineRun.getId(), requiredSkipped);
 		}
 
@@ -351,7 +357,7 @@ public class AgentController {
 			.toList();
 
 		// CloudOrchestratorService handles markRunning/markCompleted/markFailed internally
-		CloudOrchestratorService.AgentResult result = voiceAgentService.execute(spark.getId(), request.getText(), userId,
+		CloudOrchestratorService.AgentResult result = cloudOrchestrator.execute(spark.getId(), request.getText(), userId,
 				sessionId, connectedPlatforms, timezone, request.getModel());
 
 		AgentCommandResponse response = new AgentCommandResponse(result.getResponseText(), result.getToolsInvoked(),

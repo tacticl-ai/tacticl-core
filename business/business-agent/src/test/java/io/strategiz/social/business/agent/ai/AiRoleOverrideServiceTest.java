@@ -116,14 +116,14 @@ class AiRoleOverrideServiceTest {
 
 	@Test
 	void deleteOverride_delegatesToRepositoryDelete() {
-		service.deleteOverride("IMPLEMENTER");
+		service.deleteOverride("IMPLEMENTER", "admin-1");
 
-		verify(repository).delete(eq("IMPLEMENTER"), any());
+		verify(repository).delete(eq("IMPLEMENTER"), eq("admin-1"));
 	}
 
 	@Test
 	void deleteOverride_passesRoleNameAsId() {
-		service.deleteOverride("PM");
+		service.deleteOverride("PM", "admin-2");
 
 		ArgumentCaptor<String> idCaptor = ArgumentCaptor.forClass(String.class);
 		ArgumentCaptor<String> byCaptor = ArgumentCaptor.forClass(String.class);

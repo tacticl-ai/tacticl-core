@@ -66,7 +66,7 @@ class AgentControllerPipelineTest {
 	// --- Mocks ---
 
 	@Mock
-	private CloudOrchestratorService voiceAgentService;
+	private CloudOrchestratorService cloudOrchestrator;
 
 	@Mock
 	private LlmRouter llmRouter;
@@ -121,7 +121,7 @@ class AgentControllerPipelineTest {
 	@BeforeEach
 	void setUp() {
 		controller = new AgentController(
-				voiceAgentService, llmRouter, auditLogRepository, confirmationRepository,
+				cloudOrchestrator, llmRouter, auditLogRepository, confirmationRepository,
 				integrationRepository, userProvisioningService, transcriptionService,
 				sparkService, deviceRoutingService, setupActionDetector, userConfigService,
 				sparkClassifierService, pdlcClassifierService, pdlcPipelineOrchestrator,
@@ -155,7 +155,7 @@ class AgentControllerPipelineTest {
 		when(sparkClassifierService.classifySparkType(anyString(), anyString())).thenReturn("code");
 		when(pdlcClassifierService.classifyDepth(anyString(), anyString(), eq("code")))
 				.thenReturn(PdlcClassification.simple());
-		stubVoiceAgentSuccess();
+		stubCloudOrchestratorSuccess();
 
 		controller.executeCommand(request, authenticatedUser);
 
@@ -168,7 +168,7 @@ class AgentControllerPipelineTest {
 		// sparkType provided in request — classifier should NOT be called for spark type
 		when(pdlcClassifierService.classifyDepth(anyString(), anyString(), eq("social")))
 				.thenReturn(PdlcClassification.simple());
-		stubVoiceAgentSuccess();
+		stubCloudOrchestratorSuccess();
 
 		controller.executeCommand(request, authenticatedUser);
 
@@ -201,7 +201,7 @@ class AgentControllerPipelineTest {
 		// Orchestrator dispatched
 		verify(pdlcPipelineOrchestrator).executePipeline(PIPELINE_RUN_ID);
 		// CloudOrchestratorService NOT called
-		verify(voiceAgentService, never()).execute(anyString(), anyString(), anyString(),
+		verify(cloudOrchestrator, never()).execute(anyString(), anyString(), anyString(),
 				anyString(), any(), anyString(), nullable(String.class));
 
 		AgentCommandResponse body = resp.getBody();
@@ -235,7 +235,7 @@ class AgentControllerPipelineTest {
 		ResponseEntity<AgentCommandResponse> resp = controller.executeCommand(request, authenticatedUser);
 
 		verify(pdlcPipelineOrchestrator).executePipeline(PIPELINE_RUN_ID);
-		verify(voiceAgentService, never()).execute(anyString(), anyString(), anyString(),
+		verify(cloudOrchestrator, never()).execute(anyString(), anyString(), anyString(),
 				anyString(), any(), anyString(), nullable(String.class));
 
 		AgentCommandResponse body = resp.getBody();
@@ -252,11 +252,11 @@ class AgentControllerPipelineTest {
 		AgentCommandRequest request = buildRequest("what time is it in Tokyo?", "code", null);
 		when(pdlcClassifierService.classifyDepth(anyString(), anyString(), eq("code")))
 				.thenReturn(PdlcClassification.simple());
-		stubVoiceAgentSuccess();
+		stubCloudOrchestratorSuccess();
 
 		ResponseEntity<AgentCommandResponse> resp = controller.executeCommand(request, authenticatedUser);
 
-		verify(voiceAgentService).execute(eq(SPARK_ID), anyString(), eq(USER_ID),
+		verify(cloudOrchestrator).execute(eq(SPARK_ID), anyString(), eq(USER_ID),
 				anyString(), any(), anyString(), nullable(String.class));
 		verify(pdlcPipelineOrchestrator, never()).executePipeline(anyString());
 
@@ -291,7 +291,7 @@ class AgentControllerPipelineTest {
 
 		// Pipeline should be used because of the override
 		verify(pdlcPipelineOrchestrator).executePipeline(PIPELINE_RUN_ID);
-		verify(voiceAgentService, never()).execute(anyString(), anyString(), anyString(),
+		verify(cloudOrchestrator, never()).execute(anyString(), anyString(), anyString(),
 				anyString(), any(), anyString(), nullable(String.class));
 
 		AgentCommandResponse body = resp.getBody();
@@ -306,12 +306,12 @@ class AgentControllerPipelineTest {
 		when(pdlcClassifierService.classifyDepth(anyString(), anyString(), eq("code")))
 				.thenReturn(PdlcClassification.simple());
 		when(playbookRegistry.getPlaybook("UNKNOWN_PLAYBOOK")).thenReturn(Optional.empty());
-		stubVoiceAgentSuccess();
+		stubCloudOrchestratorSuccess();
 
 		ResponseEntity<AgentCommandResponse> resp = controller.executeCommand(request, authenticatedUser);
 
 		// Unknown override is ignored — falls back to classifier result (SIMPLE → SYNC)
-		verify(voiceAgentService).execute(anyString(), anyString(), anyString(),
+		verify(cloudOrchestrator).execute(anyString(), anyString(), anyString(),
 				anyString(), any(), anyString(), nullable(String.class));
 		verify(pdlcPipelineOrchestrator, never()).executePipeline(anyString());
 
@@ -362,7 +362,7 @@ class AgentControllerPipelineTest {
 		AgentCommandRequest request = buildRequest("what is the weather?", "social", null);
 		when(pdlcClassifierService.classifyDepth(anyString(), anyString(), eq("social")))
 				.thenReturn(PdlcClassification.simple());
-		stubVoiceAgentSuccess();
+		stubCloudOrchestratorSuccess();
 
 		ResponseEntity<AgentCommandResponse> resp = controller.executeCommand(request, authenticatedUser);
 		AgentCommandResponse body = resp.getBody();
@@ -384,7 +384,7 @@ class AgentControllerPipelineTest {
 		when(sparkClassifierService.classifySparkType(anyString(), anyString())).thenReturn("code");
 		when(pdlcClassifierService.classifyDepth(anyString(), anyString(), eq("code")))
 				.thenReturn(PdlcClassification.simple());
-		stubVoiceAgentSuccess();
+		stubCloudOrchestratorSuccess();
 
 		controller.executeCommand(request, authenticatedUser);
 
@@ -396,7 +396,7 @@ class AgentControllerPipelineTest {
 		AgentCommandRequest request = buildRequest("post to Twitter", "social", null);
 		when(pdlcClassifierService.classifyDepth(anyString(), anyString(), eq("social")))
 				.thenReturn(PdlcClassification.simple());
-		stubVoiceAgentSuccess();
+		stubCloudOrchestratorSuccess();
 
 		controller.executeCommand(request, authenticatedUser);
 
@@ -514,8 +514,8 @@ class AgentControllerPipelineTest {
 		return req;
 	}
 
-	private void stubVoiceAgentSuccess() {
-		when(voiceAgentService.execute(anyString(), anyString(), anyString(),
+	private void stubCloudOrchestratorSuccess() {
+		when(cloudOrchestrator.execute(anyString(), anyString(), anyString(),
 				anyString(), any(), anyString(), nullable(String.class)))
 				.thenReturn(CloudOrchestratorService.AgentResult.success("Done.", List.of(), "claude-haiku-4-5"));
 	}

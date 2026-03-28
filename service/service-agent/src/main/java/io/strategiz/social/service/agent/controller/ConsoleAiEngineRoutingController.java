@@ -114,7 +114,7 @@ public class ConsoleAiEngineRoutingController {
 	public ResponseEntity<Void> deleteRoleOverride(@PathVariable String roleName,
 			@AuthUser AuthenticatedUser user) {
 		log.info("Delete role override roleName={} by user={}", roleName, user.getUserId());
-		aiRoleOverrideService.deleteOverride(roleName);
+		aiRoleOverrideService.deleteOverride(roleName, user.getUserId());
 		return ResponseEntity.noContent().build();
 	}
 

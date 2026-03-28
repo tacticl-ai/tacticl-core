@@ -2,6 +2,8 @@ package io.strategiz.social.service.agent.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -214,14 +216,14 @@ class ConsoleAiEngineRoutingControllerTest {
 		ResponseEntity<Void> response = controller.deleteRoleOverride(ROLE_NAME, auth());
 
 		assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
-		verify(aiRoleOverrideService).deleteOverride(ROLE_NAME);
+		verify(aiRoleOverrideService).deleteOverride(eq(ROLE_NAME), anyString());
 	}
 
 	@Test
 	void deleteRoleOverride_callsServiceWithCorrectRoleName() {
 		controller.deleteRoleOverride("TESTER", auth());
 
-		verify(aiRoleOverrideService).deleteOverride("TESTER");
+		verify(aiRoleOverrideService).deleteOverride(eq("TESTER"), anyString());
 	}
 
 }
