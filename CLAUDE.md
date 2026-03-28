@@ -39,14 +39,14 @@ Nested multi-module layout matching Cidadel pattern. Each layer has a parent `bu
 ```
 application/                     → Spring Boot entry point (@EnableScheduling)
 service/                         → Parent: shared service deps (auth, web, validation, openapi)
-  service-agent/                 → Voice agent controller (POST /api/agent/command)
-  service-spark/                 → Spark CRUD, activity, tactics, logs (GET /api/sparks/*)
+  service-agent/                 → Cloud agent controller (POST /v1/agent/command), Console admin
+  service-spark/                 → Spark CRUD, activity, tactics, logs (GET /v1/sparks/*)
   service-checkpoint/            → Checkpoint approval endpoints
   service-social/                → Social media REST controllers, DTOs
   service-repo/                  → Repository access endpoints
   service-token/                 → API token management endpoints
 business/                        → Parent: shared business deps (exception, logging, jackson)
-  business-agent/                → Agent orchestration (VoiceAgentService, SparkService, ToolRegistry, skills)
+  business-agent/                → Agent orchestration (CloudOrchestratorService, SparkService, ToolRegistry, skills)
   business-browser/              → Playwright browser automation for agents
   business-social/               → Social logic (compose, schedule, publish, analytics, oauth)
 data/                            → Parent: shared data deps (firestore, jackson)
@@ -128,7 +128,7 @@ Tier 2 (2FA)      — Financial: purchases, subscriptions, spending > $X
 Both cloud and device are **full-power SDLC agent pipelines**. Routing is a user preference, not a capability limitation.
 
 **Cloud Agent** (this repo — tacticl-core):
-- VoiceAgentService + LlmRouter + 20+ AgentSkills
+- CloudOrchestratorService + LlmRouter + 20+ AgentSkills
 - Multi-LLM: Anthropic, OpenAI, Grok (26+ models)
 - Playwright browser, Brave Search, Jina Reader
 - Social APIs (Twitter, LinkedIn, Instagram), video gen
@@ -152,10 +152,10 @@ Both cloud and device are **full-power SDLC agent pipelines**. Routing is a user
 
 ## PDLC Pipeline Engine
 
-Multi-role pipeline for complex development sparks. Where `VoiceAgentService` runs a single agent loop, the PDLC engine routes `code`/`devops` sparks through up to 12 specialized roles with quality gates, rework loops, and human checkpoints.
+Multi-role pipeline for complex development sparks. Where `CloudOrchestratorService` runs a single agent loop, the PDLC engine routes `code`/`devops` sparks through up to 12 specialized roles with quality gates, rework loops, and human checkpoints.
 
 **Pipeline Tiers** (set by `PdlcClassifierService`, Stage 2 classifier):
-- `SIMPLE` — single agent loop (VoiceAgentService, existing path)
+- `SIMPLE` — single agent loop (CloudOrchestratorService, existing path)
 - `PLAYBOOK` — named workflow (subset of roles, e.g., BUG_FIX, SMALL_FEATURE)
 - `FULL_PDLC` — complete 12-role pipeline
 
@@ -178,11 +178,13 @@ Multi-role pipeline for complex development sparks. Where `VoiceAgentService` ru
 **New Firestore Collections**: `pipeline_runs/`, `pipeline_events/`, `pipeline_artifacts/`, `pdlc_role_knowledge/`
 
 **Key REST Endpoints**:
-- `GET /api/sparks/{sparkId}/pipeline` — pipeline run status
-- `GET /api/sparks/{sparkId}/pipeline/events` — event timeline (paginated)
-- `GET /api/sparks/{sparkId}/pipeline/artifacts/{role}` — role artifact
-- `POST /api/sparks/{sparkId}/pipeline/checkpoint/{checkpointId}` — resolve checkpoint
-- `GET /api/playbooks` — list available playbooks
+- `GET /v1/sparks/{sparkId}/pipeline` — pipeline run status
+- `GET /v1/sparks/{sparkId}/pipeline/events` — event timeline (paginated)
+- `GET /v1/sparks/{sparkId}/pipeline/artifacts/{role}` — role artifact
+- `POST /v1/sparks/{sparkId}/pipeline/checkpoint/{checkpointId}` — resolve checkpoint
+- `GET /v1/playbooks` — list available playbooks
+- `GET/PUT/DELETE /v1/console/ai-engine-routing/roles/{role}` — role-level LLM override
+- `GET /v1/console/ai-engine-routing/steps` — list SDLC step engine configs
 
 **Deployment note**: Claude Code CLI must be in the Cloud Run image (required by IMPLEMENTER, TESTER, DEVOPS roles). GitHub repo access must be granted via `manage_repo` skill.
 
@@ -193,12 +195,12 @@ Multi-role pipeline for complex development sparks. Where `VoiceAgentService` ru
 Every chat command is a **Spark** — the single top-level entity for all user requests. There is no manual spark creation; sparks are created exclusively via the chat/voice agent flow.
 
 ```
-Chat message → POST /api/agent/command { text, sessionId }
+Chat message → POST /v1/agent/command { text, sessionId }
     → SparkService.createSpark() [ALWAYS — every command is a spark]
     → SparkClassifierService auto-classifies type (code, social, research, devops, creative, data)
     → Route decision:
         a) Device online → SparkDispatchService → device decomposes into Tactics
-        b) No device    → VoiceAgentService cloud execution (no tactics)
+        b) No device    → CloudOrchestratorService cloud execution (no tactics)
     → Spark tracked through completion (PENDING → EXECUTING → COMPLETED/FAILED)
 ```
 
@@ -222,15 +224,15 @@ Any → CANCELLED
 - `SparkContext` — ThreadLocal holding current sparkId during execution
 - `SparkClassifierService` — Auto-classifies spark type via Claude Haiku
 - `SparkDispatchService` — WebSocket dispatch to devices
-- `VoiceAgentService` — Cloud execution fallback (accepts sparkId, manages LLM agent loop)
+- `CloudOrchestratorService` — Cloud execution fallback (accepts sparkId, manages LLM agent loop)
 
-## Voice Agent Flow (Cloud Execution)
+## Cloud Agent Flow (Cloud Execution)
 
 ```
 Push-to-talk → expo-av → Whisper API (~500ms) → text
-    → POST /api/agent/command { text, sessionId }
+    → POST /v1/agent/command { text, sessionId }
     → AgentController creates Spark, then:
-        → VoiceAgentService.execute(sparkId, ...):
+        → CloudOrchestratorService.execute(sparkId, ...):
             1. SparkService.markRunning(sparkId)
             2. Build system prompt (personality + user context + memory)
             3. Get tools filtered by user's scopes/tier
