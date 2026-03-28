@@ -14,6 +14,7 @@ import com.google.cloud.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
@@ -23,15 +24,17 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
 
 /**
- * Thin orchestration service for cloud agent execution. Delegates the full agent loop
- * (LLM calls, tool execution, multi-turn conversation) to the AI engine framework
+ * Cloud orchestration service for spark execution. Voice, chat, and API are input adapters —
+ * this service handles the actual cloud execution by delegating to the AI engine framework
  * via {@link AiEngineRouterService}, which resolves the appropriate engine and model
  * based on the spark's SDLC step type.
  */
 @Service
-public class VoiceAgentService {
+public class CloudOrchestratorService {
 
-	private static final Logger logger = LoggerFactory.getLogger(VoiceAgentService.class);
+	private static final Logger logger = LoggerFactory.getLogger(CloudOrchestratorService.class);
+
+	private static final Set<String> ACTION_ORIENTED_TYPES = Set.of("code", "devops");
 
 	private final AiEngineRouterService engineRouterService;
 
@@ -43,7 +46,7 @@ public class VoiceAgentService {
 
 	private final TaskExecutor simpleSparkExecutor;
 
-	public VoiceAgentService(AiEngineRouterService engineRouterService, AgentSystemPrompt agentSystemPrompt,
+	public CloudOrchestratorService(AiEngineRouterService engineRouterService, AgentSystemPrompt agentSystemPrompt,
 			AgentAuditLogRepository auditLogRepository, SparkService sparkService,
 			@Qualifier("simpleSparkExecutor") TaskExecutor simpleSparkExecutor) {
 		this.engineRouterService = engineRouterService;
@@ -54,9 +57,9 @@ public class VoiceAgentService {
 	}
 
 	/**
-	 * Execute a voice command through the AI engine framework (cloud execution path).
+	 * Execute a command through the AI engine framework (cloud execution path).
 	 * @param sparkId the spark ID (already created by the controller)
-	 * @param commandText the transcribed user command
+	 * @param commandText the user command text
 	 * @param userId the authenticated user ID
 	 * @param sessionId the conversation session ID
 	 * @param connectedPlatforms list of connected platform names
@@ -105,11 +108,27 @@ public class VoiceAgentService {
 			String effectiveModel = result.getModel();
 
 			if (result.isSuccess()) {
-				// 10. Log audit
+				// 10. Safety net: detect no-work completion for action-oriented sparks
+				if (toolsInvoked.isEmpty() && isActionOriented(spark.getType())) {
+					String failureMsg = "No actions were performed for this task. Agent response: "
+							+ result.getContent();
+					logger.warn("[CLOUD-ORCHESTRATOR] Code/devops spark={} completed with 0 tools invoked, "
+							+ "marking as FAILED", sparkId);
+
+					logAudit(userId, sessionId, commandText, toolsInvoked, result.getContent(), false,
+							"No tools invoked for action-oriented spark", System.currentTimeMillis() - startTime);
+
+					sparkService.markCloudFailed(sparkId, "No actions performed",
+							result.getTotalTokens(), effectiveModel);
+
+					return AgentResult.failure(failureMsg);
+				}
+
+				// 11. Log audit
 				logAudit(userId, sessionId, commandText, toolsInvoked, result.getContent(), true, null,
 						System.currentTimeMillis() - startTime);
 
-				// 11. Mark spark completed
+				// 12. Mark spark completed
 				sparkService.markCloudCompleted(sparkId, result.getTotalTokens(), effectiveModel);
 
 				return AgentResult.success(result.getContent(), toolsInvoked, effectiveModel);
@@ -141,7 +160,7 @@ public class VoiceAgentService {
 	}
 
 	/**
-	 * Submit a voice command for asynchronous execution and return a {@link CompletableFuture}
+	 * Submit a command for asynchronous execution and return a {@link CompletableFuture}
 	 * that completes when execution finishes. The future is submitted to the
 	 * {@code simpleSparkExecutor} thread pool.
 	 *
@@ -151,7 +170,7 @@ public class VoiceAgentService {
 	 * to the client appropriately without coupling timeout policy to the service layer.
 	 *
 	 * @param sparkId           the spark ID (already created by the controller)
-	 * @param commandText       the transcribed user command
+	 * @param commandText       the user command text
 	 * @param userId            the authenticated user ID
 	 * @param sessionId         the conversation session ID
 	 * @param connectedPlatforms list of connected platform names
@@ -165,6 +184,10 @@ public class VoiceAgentService {
 		return CompletableFuture.supplyAsync(
 				() -> execute(sparkId, commandText, userId, sessionId, connectedPlatforms, timezone, modelOverride),
 				simpleSparkExecutor);
+	}
+
+	private boolean isActionOriented(String sparkType) {
+		return sparkType != null && ACTION_ORIENTED_TYPES.contains(sparkType.toLowerCase().trim());
 	}
 
 	/** Extract tool names from engine events (TOOL_USE events). */

@@ -43,7 +43,7 @@ public class AgentCommandResponse {
 	/**
 	 * How the command was executed:
 	 * <ul>
-	 *   <li>SYNC — synchronous cloud execution via VoiceAgentService</li>
+	 *   <li>SYNC — synchronous cloud execution via CloudOrchestratorService</li>
 	 *   <li>PIPELINE — async PDLC pipeline (PLAYBOOK or FULL_PDLC tier)</li>
 	 *   <li>DEVICE — delegated to a connected device</li>
 	 * </ul>

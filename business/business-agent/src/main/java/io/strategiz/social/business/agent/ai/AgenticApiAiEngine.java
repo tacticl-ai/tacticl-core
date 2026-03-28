@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Agentic AI engine that wraps an {@link LlmProvider} and {@link ToolRegistry} to run a
  * multi-turn agent tool loop internally. Replicates the core loop from
- * {@code VoiceAgentService} but behind the {@link AiEngine} interface, making it
+ * {@code CloudOrchestratorService} but behind the {@link AiEngine} interface, making it
  * composable within the SDLC step pipeline.
  *
  * <p>Each execution round calls the LLM with tools, executes any requested tool calls via

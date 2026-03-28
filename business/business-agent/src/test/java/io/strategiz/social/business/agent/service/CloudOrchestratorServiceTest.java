@@ -30,7 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.task.TaskExecutor;
 
 @ExtendWith(MockitoExtension.class)
-class VoiceAgentServiceTest {
+class CloudOrchestratorServiceTest {
 
 	private static final String SPARK_ID = "spark-123";
 
@@ -55,17 +55,17 @@ class VoiceAgentServiceTest {
 	@Mock
 	private TaskExecutor simpleSparkExecutor;
 
-	private VoiceAgentService voiceAgentService;
+	private CloudOrchestratorService cloudOrchestratorService;
 
 	@BeforeEach
 	void setUp() {
-		voiceAgentService = new VoiceAgentService(engineRouterService, agentSystemPrompt, auditLogRepository,
-				sparkService, simpleSparkExecutor);
+		cloudOrchestratorService = new CloudOrchestratorService(engineRouterService, agentSystemPrompt,
+				auditLogRepository, sparkService, simpleSparkExecutor);
 	}
 
 	@Test
 	void execute_resolvesStepFromSparkType_callsEngine_marksCompleted() {
-		// Given a spark with type "code"
+		// Given a spark with type "code" and tools invoked
 		Spark spark = new Spark();
 		spark.setId(SPARK_ID);
 		spark.setUserId(USER_ID);
@@ -87,8 +87,8 @@ class VoiceAgentServiceTest {
 			.thenReturn(engineResult);
 
 		// When
-		VoiceAgentService.AgentResult result = voiceAgentService.execute(SPARK_ID, "Write a hello world program",
-				USER_ID, SESSION_ID, List.of("Twitter"), "UTC", null);
+		CloudOrchestratorService.AgentResult result = cloudOrchestratorService.execute(SPARK_ID,
+				"Write a hello world program", USER_ID, SESSION_ID, List.of("Twitter"), "UTC", null);
 
 		// Then
 		assertTrue(result.isSuccess());
@@ -118,7 +118,7 @@ class VoiceAgentServiceTest {
 		when(engineRouterService.executeStep(eq(AiSdlcStep.SOCIAL_CONTENT.name()), any(AiEngineRequest.class)))
 			.thenReturn(engineResult);
 
-		VoiceAgentService.AgentResult result = voiceAgentService.execute(SPARK_ID, "Post to Twitter",
+		CloudOrchestratorService.AgentResult result = cloudOrchestratorService.execute(SPARK_ID, "Post to Twitter",
 				USER_ID, SESSION_ID, List.of("Twitter"), "UTC", null);
 
 		assertTrue(result.isSuccess());
@@ -139,13 +139,15 @@ class VoiceAgentServiceTest {
 
 		AiEngineResult engineResult = AiEngineResult.success("Done.", "anthropic-agentic", overrideModel);
 		engineResult.setTotalTokens(100);
-		engineResult.setEvents(List.of());
+		AiEngineEvent toolEvent = new AiEngineEvent(AiEngineEventType.TOOL_USE, "Calling tool: web_search");
+		toolEvent.setToolName("web_search");
+		engineResult.setEvents(List.of(toolEvent));
 
 		when(engineRouterService.executeStep(eq(AiSdlcStep.CODE_GENERATION.name()), any(AiEngineRequest.class)))
 			.thenReturn(engineResult);
 
 		// When: model override is provided
-		VoiceAgentService.AgentResult result = voiceAgentService.execute(SPARK_ID, "Hello", USER_ID,
+		CloudOrchestratorService.AgentResult result = cloudOrchestratorService.execute(SPARK_ID, "Hello", USER_ID,
 				SESSION_ID, List.of(), "UTC", overrideModel);
 
 		// Then: the request should have the override model set
@@ -174,7 +176,7 @@ class VoiceAgentServiceTest {
 		when(engineRouterService.executeStep(eq(AiSdlcStep.WEB_RESEARCH.name()), any(AiEngineRequest.class)))
 			.thenReturn(engineResult);
 
-		voiceAgentService.execute(SPARK_ID, "Search for AI news", USER_ID, SESSION_ID, List.of(), "UTC", null);
+		cloudOrchestratorService.execute(SPARK_ID, "Search for AI news", USER_ID, SESSION_ID, List.of(), "UTC", null);
 
 		ArgumentCaptor<AiEngineRequest> requestCaptor = ArgumentCaptor.forClass(AiEngineRequest.class);
 		verify(engineRouterService).executeStep(eq(AiSdlcStep.WEB_RESEARCH.name()), requestCaptor.capture());
@@ -197,7 +199,7 @@ class VoiceAgentServiceTest {
 			.thenThrow(new AiEngineUnavailableException(AiSdlcStep.CODE_GENERATION.name(),
 					"No engine configured for step 'CODE_GENERATION'"));
 
-		VoiceAgentService.AgentResult result = voiceAgentService.execute(SPARK_ID, "Write code", USER_ID,
+		CloudOrchestratorService.AgentResult result = cloudOrchestratorService.execute(SPARK_ID, "Write code", USER_ID,
 				SESSION_ID, List.of(), "UTC", null);
 
 		assertFalse(result.isSuccess());
@@ -209,7 +211,7 @@ class VoiceAgentServiceTest {
 	void execute_sparkNotFound_returnsFailure() {
 		when(sparkService.getSpark(SPARK_ID, USER_ID)).thenReturn(Optional.empty());
 
-		VoiceAgentService.AgentResult result = voiceAgentService.execute(SPARK_ID, "Hello", USER_ID,
+		CloudOrchestratorService.AgentResult result = cloudOrchestratorService.execute(SPARK_ID, "Hello", USER_ID,
 				SESSION_ID, List.of(), "UTC", null);
 
 		assertFalse(result.isSuccess());
@@ -236,7 +238,7 @@ class VoiceAgentServiceTest {
 		when(engineRouterService.executeStep(eq(AiSdlcStep.CODE_GENERATION.name()), any(AiEngineRequest.class)))
 			.thenReturn(errorResult);
 
-		VoiceAgentService.AgentResult result = voiceAgentService.execute(SPARK_ID, "Write code", USER_ID,
+		CloudOrchestratorService.AgentResult result = cloudOrchestratorService.execute(SPARK_ID, "Write code", USER_ID,
 				SESSION_ID, List.of(), "UTC", null);
 
 		assertFalse(result.isSuccess());
@@ -268,7 +270,7 @@ class VoiceAgentServiceTest {
 		when(engineRouterService.executeStep(eq(AiSdlcStep.CODE_GENERATION.name()), any(AiEngineRequest.class)))
 			.thenReturn(engineResult);
 
-		VoiceAgentService.AgentResult result = voiceAgentService.execute(SPARK_ID, "Search and browse",
+		CloudOrchestratorService.AgentResult result = cloudOrchestratorService.execute(SPARK_ID, "Search and browse",
 				USER_ID, SESSION_ID, List.of(), "UTC", null);
 
 		assertTrue(result.isSuccess());
@@ -288,12 +290,14 @@ class VoiceAgentServiceTest {
 
 		AiEngineResult engineResult = AiEngineResult.success("Done.", "anthropic-agentic", MODEL);
 		engineResult.setTotalTokens(100);
-		engineResult.setEvents(List.of());
+		AiEngineEvent toolEvent = new AiEngineEvent(AiEngineEventType.TOOL_USE, "Calling tool: web_search");
+		toolEvent.setToolName("web_search");
+		engineResult.setEvents(List.of(toolEvent));
 
 		when(engineRouterService.executeStep(eq(AiSdlcStep.CODE_GENERATION.name()), any(AiEngineRequest.class)))
 			.thenReturn(engineResult);
 
-		voiceAgentService.execute(SPARK_ID, "Hello world", USER_ID, SESSION_ID, List.of("Twitter"),
+		cloudOrchestratorService.execute(SPARK_ID, "Hello world", USER_ID, SESSION_ID, List.of("Twitter"),
 				"America/New_York", null);
 
 		ArgumentCaptor<AiEngineRequest> requestCaptor = ArgumentCaptor.forClass(AiEngineRequest.class);
@@ -306,6 +310,98 @@ class VoiceAgentServiceTest {
 		assertEquals(SPARK_ID, capturedRequest.getMetadata().get("sparkId"));
 		assertEquals(USER_ID, capturedRequest.getMetadata().get("userId"));
 		assertEquals(SESSION_ID, capturedRequest.getMetadata().get("sessionId"));
+	}
+
+	// --- Safety net: no-work completion for action-oriented sparks ---
+
+	@Test
+	void execute_codeSparkWithZeroToolsInvoked_marksFailedNotCompleted() {
+		Spark spark = new Spark();
+		spark.setId(SPARK_ID);
+		spark.setUserId(USER_ID);
+		spark.setType("code");
+
+		when(sparkService.getSpark(SPARK_ID, USER_ID)).thenReturn(Optional.of(spark));
+		when(agentSystemPrompt.buildSystemPrompt(eq(USER_ID), any(), eq("UTC"))).thenReturn("system prompt");
+
+		// Engine returns success but with NO tool use events
+		AiEngineResult engineResult = AiEngineResult.success(
+				"I'll need a device connected to modify the code.", "anthropic-agentic", MODEL);
+		engineResult.setTotalTokens(300);
+		engineResult.setEvents(List.of(
+				new AiEngineEvent(AiEngineEventType.STARTED, "Started"),
+				new AiEngineEvent(AiEngineEventType.COMPLETED, "Done")));
+
+		when(engineRouterService.executeStep(eq(AiSdlcStep.CODE_GENERATION.name()), any(AiEngineRequest.class)))
+			.thenReturn(engineResult);
+
+		CloudOrchestratorService.AgentResult result = cloudOrchestratorService.execute(SPARK_ID,
+				"Clean up dead code in strategiz-core", USER_ID, SESSION_ID, List.of(), "UTC", null);
+
+		// Should be failure, not success
+		assertFalse(result.isSuccess());
+		assertTrue(result.getResponseText().contains("No actions were performed"));
+		// Agent's original response should be included
+		assertTrue(result.getResponseText().contains("I'll need a device connected"));
+
+		// Spark should be marked FAILED, not COMPLETED
+		verify(sparkService).markCloudFailed(eq(SPARK_ID), eq("No actions performed"), eq(300L), eq(MODEL));
+		verify(sparkService, never()).markCloudCompleted(any(), any(long.class), any());
+	}
+
+	@Test
+	void execute_devopsSparkWithZeroToolsInvoked_marksFailedNotCompleted() {
+		Spark spark = new Spark();
+		spark.setId(SPARK_ID);
+		spark.setUserId(USER_ID);
+		spark.setType("devops");
+
+		when(sparkService.getSpark(SPARK_ID, USER_ID)).thenReturn(Optional.of(spark));
+		when(agentSystemPrompt.buildSystemPrompt(eq(USER_ID), any(), eq("UTC"))).thenReturn("system prompt");
+
+		AiEngineResult engineResult = AiEngineResult.success(
+				"I can't modify the deployment config without device access.",
+				"anthropic-agentic", MODEL);
+		engineResult.setTotalTokens(200);
+		engineResult.setEvents(List.of());
+
+		when(engineRouterService.executeStep(eq(AiSdlcStep.DEPLOYMENT_SCRIPT.name()), any(AiEngineRequest.class)))
+			.thenReturn(engineResult);
+
+		CloudOrchestratorService.AgentResult result = cloudOrchestratorService.execute(SPARK_ID,
+				"Update the Cloud Build config", USER_ID, SESSION_ID, List.of(), "UTC", null);
+
+		assertFalse(result.isSuccess());
+		verify(sparkService).markCloudFailed(eq(SPARK_ID), eq("No actions performed"), eq(200L), eq(MODEL));
+		verify(sparkService, never()).markCloudCompleted(any(), any(long.class), any());
+	}
+
+	@Test
+	void execute_socialSparkWithZeroToolsInvoked_stillMarksCompleted() {
+		// Social/research/creative sparks can legitimately complete with just text
+		Spark spark = new Spark();
+		spark.setId(SPARK_ID);
+		spark.setUserId(USER_ID);
+		spark.setType("social");
+
+		when(sparkService.getSpark(SPARK_ID, USER_ID)).thenReturn(Optional.of(spark));
+		when(agentSystemPrompt.buildSystemPrompt(eq(USER_ID), any(), eq("UTC"))).thenReturn("system prompt");
+
+		AiEngineResult engineResult = AiEngineResult.success("Here's a tweet draft for you.",
+				"anthropic-agentic", MODEL);
+		engineResult.setTotalTokens(100);
+		engineResult.setEvents(List.of());
+
+		when(engineRouterService.executeStep(eq(AiSdlcStep.SOCIAL_CONTENT.name()), any(AiEngineRequest.class)))
+			.thenReturn(engineResult);
+
+		CloudOrchestratorService.AgentResult result = cloudOrchestratorService.execute(SPARK_ID,
+				"Write a tweet about Tacticl", USER_ID, SESSION_ID, List.of("Twitter"), "UTC", null);
+
+		// Social spark with 0 tools should still be marked completed
+		assertTrue(result.isSuccess());
+		verify(sparkService).markCloudCompleted(SPARK_ID, 100, MODEL);
+		verify(sparkService, never()).markCloudFailed(any(), any(), any(long.class), any());
 	}
 
 }

@@ -33,7 +33,7 @@ public class PipelineAsyncConfig {
 
 	/**
 	 * Executor for lightweight async single-spark execution (timeout-based hybrid routing).
-	 * Used by {@code VoiceAgentService#executeWithTimeout} when a spark is dispatched
+	 * Used by {@code CloudOrchestratorService#executeWithTimeout} when a spark is dispatched
 	 * asynchronously while the controller awaits within a bounded timeout window.
 	 */
 	@Bean("simpleSparkExecutor")
