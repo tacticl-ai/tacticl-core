@@ -36,3 +36,5 @@ logs/
 
 # Worktrees
 .worktrees/
+.claude/worktrees/
+.claire/
