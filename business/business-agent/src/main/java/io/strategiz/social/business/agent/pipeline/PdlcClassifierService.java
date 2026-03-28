@@ -11,9 +11,11 @@ import tools.jackson.databind.json.JsonMapper;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -86,6 +88,39 @@ public class PdlcClassifierService {
 				PdlcRole.TESTER, PdlcRole.DEVOPS));
 	}
 
+	/**
+	 * Keyword patterns mapped to playbook names for heuristic fallback.
+	 * Used when the LLM classifier fails or returns SIMPLE for code/devops sparks.
+	 */
+	/**
+	 * Keyword patterns ordered from most specific to most general — first match wins.
+	 * Uses LinkedHashMap to guarantee iteration order.
+	 */
+	private static final Map<String, Pattern> PLAYBOOK_KEYWORD_PATTERNS = new LinkedHashMap<>();
+
+	static {
+		// Most specific first — order matters because first-match wins in heuristicFallback
+		PLAYBOOK_KEYWORD_PATTERNS.put("SECURITY_PATCH",
+				Pattern.compile("\\b(security|vulnerab|cve|patch|auth\\s*bypass|xss|injection|owasp)\\b",
+						Pattern.CASE_INSENSITIVE));
+		PLAYBOOK_KEYWORD_PATTERNS.put("INFRA_CHANGE",
+				Pattern.compile("\\b(infra|deploy|ci|cd|pipeline|docker|cloud\\s*build|terraform|k8s|kubernetes)\\b",
+						Pattern.CASE_INSENSITIVE));
+		PLAYBOOK_KEYWORD_PATTERNS.put("DOCS_ONLY",
+				Pattern.compile("\\b(docs?|readme|comment|javadoc|changelog)\\b",
+						Pattern.CASE_INSENSITIVE));
+		PLAYBOOK_KEYWORD_PATTERNS.put("UI_CHANGE",
+				Pattern.compile("\\b(ui|css|layout|design|frontend|component|screen|widget)\\b",
+						Pattern.CASE_INSENSITIVE));
+		PLAYBOOK_KEYWORD_PATTERNS.put("REFACTOR",
+				Pattern.compile("\\b(clean\\s*up|refactor|restructur|dead\\s*code|rename|reorganiz|consolidat|simplif)\\b",
+						Pattern.CASE_INSENSITIVE));
+		// Most general last — "fix" and "bug" are broad catch-alls
+		PLAYBOOK_KEYWORD_PATTERNS.put("BUG_FIX",
+				Pattern.compile("\\b(fix|bug|error|broken|crash|npe|null\\s*pointer|exception|fail|regression)\\b",
+						Pattern.CASE_INSENSITIVE));
+	}
+
 	private final AiEngineRouterService aiEngineRouterService;
 
 	public PdlcClassifierService(AiEngineRouterService aiEngineRouterService) {
@@ -115,16 +150,67 @@ public class PdlcClassifierService {
 					AiSdlcStep.SPARK_CLASSIFICATION.name(), request);
 
 			if (!result.isSuccess()) {
-				log.warn("[PDLC-CLASSIFIER] Engine returned error: {}, defaulting to SIMPLE", result.getError());
-				return PdlcClassification.simple();
+				log.warn("[PDLC-CLASSIFIER] Engine returned error: {}, using heuristic fallback", result.getError());
+				return heuristicFallback(title, description);
 			}
 
-			return parseClassification(result.getContent());
+			PdlcClassification classification = parseClassification(result.getContent());
+			return applyCodeDevopsFloor(classification, title, description);
 		}
 		catch (Exception e) {
-			log.error("[PDLC-CLASSIFIER] Classification failed for title='{}': {}", title, e.getMessage(), e);
-			return PdlcClassification.simple();
+			log.error("[PDLC-CLASSIFIER] Classification failed for title='{}': {}, using heuristic fallback",
+					title, e.getMessage(), e);
+			return heuristicFallback(title, description);
 		}
+	}
+
+	/**
+	 * For code/devops sparks, enforce a PLAYBOOK minimum tier. Code tasks almost always
+	 * require pipeline execution — the simple cloud agent path lacks repo-modification tools.
+	 */
+	private PdlcClassification applyCodeDevopsFloor(PdlcClassification classification,
+			String title, String description) {
+		if (classification.tier() != PipelineTier.SIMPLE) {
+			return classification;
+		}
+
+		log.info("[PDLC-CLASSIFIER] Escalating SIMPLE → PLAYBOOK for code/devops spark title='{}'", title);
+		return heuristicFallback(title, description);
+	}
+
+	/**
+	 * Keyword-based heuristic to select a playbook when the LLM classifier fails or
+	 * returns SIMPLE for a code/devops spark. Matches title + description against known
+	 * keyword patterns; defaults to SMALL_FEATURE if no pattern matches.
+	 */
+	PdlcClassification heuristicFallback(String title, String description) {
+		String combined = (title != null ? title : "") + " " + (description != null ? description : "");
+		String matchedPlaybook = null;
+
+		for (Map.Entry<String, Pattern> entry : PLAYBOOK_KEYWORD_PATTERNS.entrySet()) {
+			if (entry.getValue().matcher(combined).find()) {
+				matchedPlaybook = entry.getKey();
+				break;
+			}
+		}
+
+		if (matchedPlaybook == null) {
+			matchedPlaybook = "SMALL_FEATURE";
+		}
+
+		List<PdlcRole> activatedRoles = resolveActivatedRoles(matchedPlaybook, PipelineTier.PLAYBOOK);
+		List<PdlcRole> skippedRoles = resolveSkippedRoles(activatedRoles);
+
+		log.info("[PDLC-CLASSIFIER] Heuristic fallback: playbook='{}' for title='{}'", matchedPlaybook, title);
+
+		return new PdlcClassification(
+				PipelineTier.PLAYBOOK,
+				matchedPlaybook,
+				0.6,
+				activatedRoles,
+				skippedRoles,
+				Map.of(),
+				"Heuristic fallback: matched playbook " + matchedPlaybook + " from keywords");
 	}
 
 	// --- Prompt ---

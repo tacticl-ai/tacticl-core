@@ -131,10 +131,10 @@ class PdlcClassifierServiceTest {
 		assertNull(classification.playbook());
 	}
 
-	// --- Engine failure returns SIMPLE fallback ---
+	// --- Engine failure uses heuristic fallback (not SIMPLE) for code/devops ---
 
 	@Test
-	void classifyDepth_engineReturnsError_returnsSimpleFallback() {
+	void classifyDepth_engineReturnsError_usesHeuristicFallback() {
 		AiEngineResult error = AiEngineResult.error("rate limit exceeded", "api-anthropic");
 		when(aiEngineRouterService.executeStep(
 				eq(AiSdlcStep.SPARK_CLASSIFICATION.name()), any(AiEngineRequest.class)))
@@ -145,13 +145,15 @@ class PdlcClassifierServiceTest {
 				"Users are getting 500 error on login",
 				"code");
 
-		assertEquals(PipelineTier.SIMPLE, classification.tier());
-		assertNull(classification.playbook());
-		assertEquals(0.0, classification.confidence(), 0.001);
+		// Should use heuristic fallback → BUG_FIX (matches "fix" and "bug")
+		assertEquals(PipelineTier.PLAYBOOK, classification.tier());
+		assertEquals("BUG_FIX", classification.playbook());
+		assertEquals(0.6, classification.confidence(), 0.001);
+		assertFalse(classification.activatedRoles().isEmpty());
 	}
 
 	@Test
-	void classifyDepth_engineThrowsException_returnsSimpleFallback() {
+	void classifyDepth_engineThrowsException_usesHeuristicFallback() {
 		when(aiEngineRouterService.executeStep(
 				eq(AiSdlcStep.SPARK_CLASSIFICATION.name()), any(AiEngineRequest.class)))
 				.thenThrow(new AiEngineUnavailableException("SPARK_CLASSIFICATION",
@@ -162,14 +164,16 @@ class PdlcClassifierServiceTest {
 				"Implement feature X in the backend",
 				"code");
 
-		assertEquals(PipelineTier.SIMPLE, classification.tier());
-		assertEquals(0.0, classification.confidence(), 0.001);
+		// No specific keyword match → defaults to SMALL_FEATURE
+		assertEquals(PipelineTier.PLAYBOOK, classification.tier());
+		assertEquals("SMALL_FEATURE", classification.playbook());
+		assertEquals(0.6, classification.confidence(), 0.001);
 	}
 
-	// --- Malformed JSON returns SIMPLE fallback ---
+	// --- Malformed JSON uses heuristic fallback ---
 
 	@Test
-	void classifyDepth_malformedJson_returnsSimpleFallback() {
+	void classifyDepth_malformedJson_usesHeuristicFallback() {
 		AiEngineResult result = AiEngineResult.success(
 				"I think this is a full pipeline task, definitely use all roles",
 				"api-anthropic", "claude-haiku-4-5");
@@ -182,12 +186,14 @@ class PdlcClassifierServiceTest {
 				"Refactor everything",
 				"code");
 
-		assertEquals(PipelineTier.SIMPLE, classification.tier());
-		assertEquals(0.0, classification.confidence(), 0.001);
+		// "refactor" keyword → REFACTOR playbook
+		assertEquals(PipelineTier.PLAYBOOK, classification.tier());
+		assertEquals("REFACTOR", classification.playbook());
+		assertEquals(0.6, classification.confidence(), 0.001);
 	}
 
 	@Test
-	void classifyDepth_emptyResponse_returnsSimpleFallback() {
+	void classifyDepth_emptyResponse_usesHeuristicFallback() {
 		AiEngineResult result = AiEngineResult.success("", "api-anthropic", "claude-haiku-4-5");
 		when(aiEngineRouterService.executeStep(
 				eq(AiSdlcStep.SPARK_CLASSIFICATION.name()), any(AiEngineRequest.class)))
@@ -198,7 +204,101 @@ class PdlcClassifierServiceTest {
 				"A task",
 				"code");
 
-		assertEquals(PipelineTier.SIMPLE, classification.tier());
+		// No keyword match → SMALL_FEATURE default
+		assertEquals(PipelineTier.PLAYBOOK, classification.tier());
+		assertEquals("SMALL_FEATURE", classification.playbook());
+	}
+
+	// --- SIMPLE floor escalation for code/devops ---
+
+	@Test
+	void classifyDepth_llmReturnsSimpleForCodeSpark_escalatesToPlaybook() {
+		// LLM thinks it's simple, but code sparks should never be SIMPLE
+		String json = """
+				{
+				  "tier": "SIMPLE",
+				  "playbook": null,
+				  "confidence": 0.95,
+				  "dimensions": {"scope": 1, "risk": 1, "domainBreadth": 1, "integrationSurface": 1, "testingComplexity": 1, "reversibility": 1},
+				  "reasoning": "Trivial one-liner change."
+				}
+				""";
+		AiEngineResult result = AiEngineResult.success(json, "api-anthropic", "claude-haiku-4-5");
+		when(aiEngineRouterService.executeStep(any(), any(AiEngineRequest.class))).thenReturn(result);
+
+		PdlcClassification classification = pdlcClassifierService.classifyDepth(
+				"Clean up dead code in strategiz-core",
+				"Remove unused imports and dead methods",
+				"code");
+
+		// Should be escalated from SIMPLE → PLAYBOOK
+		assertEquals(PipelineTier.PLAYBOOK, classification.tier());
+		// "clean up" matches REFACTOR pattern
+		assertEquals("REFACTOR", classification.playbook());
+		assertFalse(classification.activatedRoles().isEmpty());
+	}
+
+	@Test
+	void classifyDepth_llmReturnsSimpleForDevopsSpark_escalatesToPlaybook() {
+		String json = "{\"tier\":\"SIMPLE\",\"playbook\":null,\"confidence\":0.90,\"dimensions\":{},\"reasoning\":\"Simple config change.\"}";
+		AiEngineResult result = AiEngineResult.success(json, "api-anthropic", "claude-haiku-4-5");
+		when(aiEngineRouterService.executeStep(any(), any(AiEngineRequest.class))).thenReturn(result);
+
+		PdlcClassification classification = pdlcClassifierService.classifyDepth(
+				"Update Docker config",
+				"Change base image to Java 25",
+				"devops");
+
+		assertEquals(PipelineTier.PLAYBOOK, classification.tier());
+		// "docker" matches INFRA_CHANGE
+		assertEquals("INFRA_CHANGE", classification.playbook());
+	}
+
+	// --- Heuristic keyword matching ---
+
+	@Test
+	void heuristicFallback_bugFixKeywords_returnsBugFix() {
+		PdlcClassification classification = pdlcClassifierService.heuristicFallback(
+				"Fix NPE in UserService", "NullPointerException when calling getById");
+
+		assertEquals(PipelineTier.PLAYBOOK, classification.tier());
+		assertEquals("BUG_FIX", classification.playbook());
+	}
+
+	@Test
+	void heuristicFallback_refactorKeywords_returnsRefactor() {
+		PdlcClassification classification = pdlcClassifierService.heuristicFallback(
+				"Clean up dead code", "Remove unused methods from the auth module");
+
+		assertEquals(PipelineTier.PLAYBOOK, classification.tier());
+		assertEquals("REFACTOR", classification.playbook());
+	}
+
+	@Test
+	void heuristicFallback_infraKeywords_returnsInfraChange() {
+		PdlcClassification classification = pdlcClassifierService.heuristicFallback(
+				"Update CI pipeline", "Add a deploy step to Cloud Build");
+
+		assertEquals(PipelineTier.PLAYBOOK, classification.tier());
+		assertEquals("INFRA_CHANGE", classification.playbook());
+	}
+
+	@Test
+	void heuristicFallback_securityKeywords_returnsSecurityPatch() {
+		PdlcClassification classification = pdlcClassifierService.heuristicFallback(
+				"Patch security vulnerability", "CVE-2026-1234 affects auth module");
+
+		assertEquals(PipelineTier.PLAYBOOK, classification.tier());
+		assertEquals("SECURITY_PATCH", classification.playbook());
+	}
+
+	@Test
+	void heuristicFallback_noKeywordsMatch_returnsSmallFeature() {
+		PdlcClassification classification = pdlcClassifierService.heuristicFallback(
+				"Add user profile endpoint", "Create GET /api/users/me");
+
+		assertEquals(PipelineTier.PLAYBOOK, classification.tier());
+		assertEquals("SMALL_FEATURE", classification.playbook());
 	}
 
 	// --- Confidence gating thresholds ---
@@ -289,10 +389,27 @@ class PdlcClassifierServiceTest {
 		}
 	}
 
-	// --- JSON tolerates surrounding prose ---
+	// --- JSON tolerates surrounding prose (PLAYBOOK+ results pass through) ---
 
 	@Test
-	void classifyDepth_jsonWrappedInProse_parsedCorrectly() {
+	void classifyDepth_jsonWrappedInProse_playbookResult_passesThrough() {
+		String response = "Here is my analysis:\n"
+				+ "{\"tier\":\"PLAYBOOK\",\"playbook\":\"BUG_FIX\",\"confidence\":0.95,"
+				+ "\"dimensions\":{\"scope\":1},\"reasoning\":\"Targeted fix.\"}\n"
+				+ "That is my recommendation.";
+		AiEngineResult result = AiEngineResult.success(response, "api-anthropic", "claude-haiku-4-5");
+		when(aiEngineRouterService.executeStep(any(), any(AiEngineRequest.class))).thenReturn(result);
+
+		PdlcClassification classification = pdlcClassifierService.classifyDepth("Simple fix", "Typo", "code");
+
+		assertEquals(PipelineTier.PLAYBOOK, classification.tier());
+		assertEquals("BUG_FIX", classification.playbook());
+		assertEquals(0.95, classification.confidence(), 0.001);
+	}
+
+	@Test
+	void classifyDepth_jsonWrappedInProse_simpleResult_escalatedToPlaybook() {
+		// Even when LLM says SIMPLE wrapped in prose, it gets escalated for code sparks
 		String response = "Here is my analysis:\n"
 				+ "{\"tier\":\"SIMPLE\",\"playbook\":null,\"confidence\":0.95,"
 				+ "\"dimensions\":{\"scope\":1},\"reasoning\":\"Trivial task.\"}\n"
@@ -300,11 +417,12 @@ class PdlcClassifierServiceTest {
 		AiEngineResult result = AiEngineResult.success(response, "api-anthropic", "claude-haiku-4-5");
 		when(aiEngineRouterService.executeStep(any(), any(AiEngineRequest.class))).thenReturn(result);
 
-		PdlcClassification classification = pdlcClassifierService.classifyDepth("Simple fix", "Typo", "code");
+		PdlcClassification classification = pdlcClassifierService.classifyDepth("Fix typo", "Typo in readme", "code");
 
-		assertEquals(PipelineTier.SIMPLE, classification.tier());
-		assertNull(classification.playbook());
-		assertEquals(0.95, classification.confidence(), 0.001);
+		// Escalated from SIMPLE → PLAYBOOK via heuristic
+		// "readme" matches DOCS_ONLY (higher priority than BUG_FIX "fix")
+		assertEquals(PipelineTier.PLAYBOOK, classification.tier());
+		assertEquals("DOCS_ONLY", classification.playbook());
 	}
 
 }
