@@ -1,5 +1,20 @@
 # CLAUDE.md — Tacticl
 
+## Ecosystem (MUST READ before cross-cutting changes)
+
+Tacticl has 4 repos in a VS Code multi-root workspace. Changes to API paths, auth, WebSocket messages, or Firestore schema affect multiple repos.
+
+| Repo | Role | Consumes tacticl-core via |
+|------|------|--------------------------|
+| **tacticl-core** (this repo) | Java backend, REST API, PDLC pipeline | — |
+| **tacticl-web** | React web dashboard (Spark Control, Chat) | REST (`src/api/*.ts`) + WebSocket |
+| **tacticl-mobile** | React Native mobile app (Chat, Push-to-talk) | REST (`src/api/*.ts`) + WebSocket |
+| **tacticl-device** | Electron desktop agent (executes Sparks locally) | WebSocket only |
+
+**Shared platform:** `cidadel-core` (Java, GitHub Packages) — auth, tokens, AI engine framework.
+
+**When changing API contracts, update ALL clients.** REST endpoints use `/v1/` prefix.
+
 ## Overview
 
 Personal AI assistant that remotes into all your devices and utilizes them as workers. It can handle social automation, web browsing, content generation, video creation, reminders, and much more — any task you can do on your devices, Tacticl can do for you. Claude (tool_use) routes commands to skill handlers.
