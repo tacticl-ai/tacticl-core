@@ -17,7 +17,7 @@ Three additive views that build on existing infrastructure:
 | View | Description | Route |
 |------|-------------|-------|
 | Enhanced Spark List | Upgrade existing SparkListPage with inline role progress bars, playbook labels, execution summaries | `/sparks` (existing) |
-| Pipeline Detail | New page with role pipeline, live progress, event timeline, artifacts, steering controls | `/sparks/:id` (new route) |
+| PDLC Pipeline Detail | New page with PDLC role pipeline, live progress, event timeline, artifacts, steering controls | `/sparks/:id` (new route) |
 | Simple Spark Detail | Same route, lighter layout with execution log for SIMPLE tier sparks | `/sparks/:id` (tier-aware) |
 
 ## View 1: Enhanced Spark List
@@ -40,7 +40,7 @@ Evolves the existing `SparkListPage` component.
 - Entire row is clickable → navigates to `/sparks/:id`
 - Expand arrow still works for quick-glance inline detail (existing behavior preserved)
 
-## View 2: Pipeline Detail Page
+## View 2: PDLC Pipeline Detail Page
 
 New layout for `SparkDetailPage` when spark tier is PLAYBOOK or FULL_PDLC.
 
@@ -64,7 +64,7 @@ Horizontal row of 5 counters:
 | Elapsed | now - PipelineRun.createdAt |
 | Reworks | count of REWORK_TRIGGERED events |
 
-### Role Pipeline
+### PDLC Role Pipeline
 
 Horizontal row of role nodes. Each node shows:
 - Role abbreviation (PM, RSCH, ARCH, PLAN, IMPL, REV, TEST, SEC, DOCS, OPS, RETRO)
@@ -115,7 +115,7 @@ Renders between role pipeline and two-column section when spark status is CHECKP
   - Unknown event types: gray (fallback)
 - Source: `GET /v1/sparks/{id}/pipeline/events`
 
-### Pipeline Controls (collapsible)
+### PDLC Pipeline Controls (collapsible)
 
 Collapsible section below the two-column layout:
 - **Role skip toggles:** Chips for each upcoming (not-yet-started) role. Click to toggle skip. Skipped roles show strikethrough + dimmed.
