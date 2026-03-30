@@ -4,10 +4,12 @@ import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineStatus;
 import io.strategiz.social.data.entity.PipelineTier;
 import io.strategiz.social.data.entity.PipelineRun;
+import io.strategiz.social.data.entity.RoleResultSummary;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 /** Response DTO for a PDLC pipeline run. */
 public class PipelineRunResponse {
@@ -32,6 +34,12 @@ public class PipelineRunResponse {
 
 	private BigDecimal totalCost;
 
+	private Map<String, RoleResultSummary> roleResults;
+
+	private List<String> skippedRequiredRoles;
+
+	private Instant createdAt;
+
 	private Instant startedAt;
 
 	private Instant completedAt;
@@ -48,6 +56,9 @@ public class PipelineRunResponse {
 		response.setReworkCount(run.getReworkCount());
 		response.setTotalTokens(run.getTotalTokens());
 		response.setTotalCost(run.getTotalCost());
+		response.setRoleResults(run.getRoleResults());
+		response.setSkippedRequiredRoles(run.getSkippedRequiredRoles());
+		response.setCreatedAt(run.getCreatedDate() != null ? run.getCreatedDate().toDate().toInstant() : null);
 		response.setStartedAt(run.getStartedAt());
 		response.setCompletedAt(run.getCompletedAt());
 		return response;
@@ -131,6 +142,30 @@ public class PipelineRunResponse {
 
 	public void setTotalCost(BigDecimal totalCost) {
 		this.totalCost = totalCost;
+	}
+
+	public Map<String, RoleResultSummary> getRoleResults() {
+		return roleResults;
+	}
+
+	public void setRoleResults(Map<String, RoleResultSummary> roleResults) {
+		this.roleResults = roleResults;
+	}
+
+	public List<String> getSkippedRequiredRoles() {
+		return skippedRequiredRoles;
+	}
+
+	public void setSkippedRequiredRoles(List<String> skippedRequiredRoles) {
+		this.skippedRequiredRoles = skippedRequiredRoles;
+	}
+
+	public Instant getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(Instant createdAt) {
+		this.createdAt = createdAt;
 	}
 
 	public Instant getStartedAt() {
