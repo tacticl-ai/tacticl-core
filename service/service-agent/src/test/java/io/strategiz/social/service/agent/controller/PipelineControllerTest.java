@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.strategiz.social.business.agent.pipeline.CheckpointService;
 import io.strategiz.social.business.agent.pipeline.PipelineArtifactService;
+import io.strategiz.social.business.agent.pipeline.PipelineStateManager;
 import io.strategiz.social.business.agent.pipeline.PlaybookConfig;
 import io.strategiz.social.business.agent.pipeline.PlaybookRegistry;
 import io.strategiz.social.business.agent.pipeline.PlaybookStage;
@@ -20,6 +21,8 @@ import io.strategiz.social.data.entity.PipelineEventType;
 import io.strategiz.social.data.entity.PipelineRun;
 import io.strategiz.social.data.entity.PipelineStatus;
 import io.strategiz.social.data.entity.PipelineTier;
+import io.strategiz.social.data.entity.RoleResultSummary;
+import io.strategiz.social.data.entity.RoleStatus;
 import io.strategiz.social.data.entity.Spark;
 import io.strategiz.social.data.repository.PipelineEventRepository;
 import io.strategiz.social.data.repository.PipelineRunRepository;
@@ -28,6 +31,7 @@ import io.strategiz.social.service.agent.dto.CheckpointResolutionRequest;
 import io.strategiz.social.service.agent.dto.PipelineEventResponse;
 import io.strategiz.social.service.agent.dto.PipelineRunResponse;
 import io.strategiz.social.service.agent.dto.PlaybookResponse;
+import io.strategiz.social.service.agent.dto.RoleArtifactResponse;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -61,6 +65,9 @@ class PipelineControllerTest {
 
 	@Mock
 	private PlaybookRegistry playbookRegistry;
+
+	@Mock
+	private PipelineStateManager pipelineStateManager;
 
 	@Mock
 	private CheckpointService checkpointService;
@@ -117,6 +124,27 @@ class PipelineControllerTest {
 	}
 
 	@Test
+	void getPipeline_found_includesRoleResultsAndSkippedRoles() {
+		PipelineRun run = buildRun();
+		RoleResultSummary researcherResult = new RoleResultSummary();
+		researcherResult.setStatus(RoleStatus.COMPLETED);
+		researcherResult.setModel("claude-sonnet-4");
+		researcherResult.setTokens(5000);
+		run.getRoleResults().put(PdlcRole.RESEARCHER.name(), researcherResult);
+		run.setSkippedRequiredRoles(List.of("TESTER"));
+		when(pipelineRunRepository.findBySparkId(SPARK_ID)).thenReturn(Optional.of(run));
+
+		ResponseEntity<PipelineRunResponse> response = controller.getPipeline(SPARK_ID, auth(USER_ID));
+
+		assertEquals(HttpStatus.OK, response.getStatusCode());
+		assertNotNull(response.getBody());
+		assertNotNull(response.getBody().getRoleResults());
+		assertEquals(RoleStatus.COMPLETED,
+				response.getBody().getRoleResults().get(PdlcRole.RESEARCHER.name()).getStatus());
+		assertEquals(List.of("TESTER"), response.getBody().getSkippedRequiredRoles());
+	}
+
+	@Test
 	void getPipeline_notFound_returns404() {
 		when(pipelineRunRepository.findBySparkId(SPARK_ID)).thenReturn(Optional.empty());
 
@@ -144,6 +172,7 @@ class PipelineControllerTest {
 
 		PipelineEvent event = new PipelineEvent();
 		event.setId("event-1");
+		event.setPipelineRunId(RUN_ID);
 		event.setEventType(PipelineEventType.ROLE_STARTED);
 		event.setRole(PdlcRole.RESEARCHER);
 		event.setTimestamp(Instant.now());
@@ -156,6 +185,7 @@ class PipelineControllerTest {
 		assertNotNull(response.getBody());
 		assertEquals(1, response.getBody().size());
 		assertEquals("event-1", response.getBody().get(0).getId());
+		assertEquals(RUN_ID, response.getBody().get(0).getPipelineRunId());
 		assertEquals(PipelineEventType.ROLE_STARTED, response.getBody().get(0).getEventType());
 		assertEquals(PdlcRole.RESEARCHER, response.getBody().get(0).getRole());
 	}
@@ -199,7 +229,7 @@ class PipelineControllerTest {
 
 		assertEquals(HttpStatus.OK, response.getStatusCode());
 		assertNotNull(response.getBody());
-		// offset=1, limit=2 → [e2, e3]
+		// offset=1, limit=2 -> [e2, e3]
 		assertEquals(2, response.getBody().size());
 		assertEquals("event-2", response.getBody().get(0).getId());
 		assertEquals("event-3", response.getBody().get(1).getId());
@@ -208,8 +238,40 @@ class PipelineControllerTest {
 	// --- GET /v1/sparks/{sparkId}/pipeline/artifacts/{role} ---
 
 	@Test
-	void getArtifact_found_returnsContent() {
+	void getArtifact_found_returnsRoleArtifactResponse() {
 		PipelineRun run = buildRun();
+		RoleResultSummary researcherResult = new RoleResultSummary();
+		researcherResult.setModel("claude-sonnet-4");
+		researcherResult.setTokens(3500);
+		researcherResult.setIteration(1);
+		run.getRoleResults().put(PdlcRole.RESEARCHER.name(), researcherResult);
+		when(pipelineRunRepository.findBySparkId(SPARK_ID)).thenReturn(Optional.of(run));
+
+		PipelineArtifact artifact = new PipelineArtifact();
+		artifact.setId("artifact-1");
+		artifact.setRole(PdlcRole.RESEARCHER);
+		artifact.setArtifactType("RESEARCH");
+		artifact.setContent(Map.of("summary", "Research findings here"));
+		when(pipelineArtifactService.getArtifactForRole(RUN_ID, PdlcRole.RESEARCHER))
+			.thenReturn(Optional.of(artifact));
+
+		ResponseEntity<RoleArtifactResponse> response = controller.getArtifact(SPARK_ID, "RESEARCHER", auth(USER_ID));
+
+		assertEquals(HttpStatus.OK, response.getStatusCode());
+		assertNotNull(response.getBody());
+		assertEquals("artifact-1", response.getBody().getId());
+		assertEquals(PdlcRole.RESEARCHER, response.getBody().getRole());
+		assertEquals("RESEARCH", response.getBody().getArtifactType());
+		assertEquals("Research findings here", response.getBody().getContent().get("summary"));
+		assertEquals("claude-sonnet-4", response.getBody().getModel());
+		assertEquals(3500, response.getBody().getTokens());
+		assertEquals(1, response.getBody().getIteration());
+	}
+
+	@Test
+	void getArtifact_found_withNoRoleResult_returnsResponseWithNullMetrics() {
+		PipelineRun run = buildRun();
+		// No roleResults for RESEARCHER
 		when(pipelineRunRepository.findBySparkId(SPARK_ID)).thenReturn(Optional.of(run));
 
 		PipelineArtifact artifact = new PipelineArtifact();
@@ -219,18 +281,19 @@ class PipelineControllerTest {
 		when(pipelineArtifactService.getArtifactForRole(RUN_ID, PdlcRole.RESEARCHER))
 			.thenReturn(Optional.of(artifact));
 
-		ResponseEntity<Map<String, Object>> response = controller.getArtifact(SPARK_ID, "RESEARCHER", auth(USER_ID));
+		ResponseEntity<RoleArtifactResponse> response = controller.getArtifact(SPARK_ID, "RESEARCHER", auth(USER_ID));
 
 		assertEquals(HttpStatus.OK, response.getStatusCode());
 		assertNotNull(response.getBody());
-		assertEquals("Research findings here", response.getBody().get("summary"));
+		assertNull(response.getBody().getModel());
+		assertEquals(0, response.getBody().getTokens());
 	}
 
 	@Test
 	void getArtifact_notFound_returns404() {
 		when(pipelineRunRepository.findBySparkId(SPARK_ID)).thenReturn(Optional.empty());
 
-		ResponseEntity<Map<String, Object>> response = controller.getArtifact(SPARK_ID, "RESEARCHER", auth(USER_ID));
+		ResponseEntity<RoleArtifactResponse> response = controller.getArtifact(SPARK_ID, "RESEARCHER", auth(USER_ID));
 
 		assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
 	}
@@ -241,7 +304,7 @@ class PipelineControllerTest {
 		when(pipelineRunRepository.findBySparkId(SPARK_ID)).thenReturn(Optional.of(run));
 		when(pipelineArtifactService.getArtifactForRole(RUN_ID, PdlcRole.IMPLEMENTER)).thenReturn(Optional.empty());
 
-		ResponseEntity<Map<String, Object>> response = controller.getArtifact(SPARK_ID, "IMPLEMENTER", auth(USER_ID));
+		ResponseEntity<RoleArtifactResponse> response = controller.getArtifact(SPARK_ID, "IMPLEMENTER", auth(USER_ID));
 
 		assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
 	}
@@ -251,7 +314,7 @@ class PipelineControllerTest {
 		PipelineRun run = buildRun();
 		when(pipelineRunRepository.findBySparkId(SPARK_ID)).thenReturn(Optional.of(run));
 
-		ResponseEntity<Map<String, Object>> response = controller.getArtifact(SPARK_ID, "RESEARCHER", auth("other-user"));
+		ResponseEntity<RoleArtifactResponse> response = controller.getArtifact(SPARK_ID, "RESEARCHER", auth("other-user"));
 
 		assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
 	}
@@ -261,7 +324,7 @@ class PipelineControllerTest {
 		PipelineRun run = buildRun();
 		when(pipelineRunRepository.findBySparkId(SPARK_ID)).thenReturn(Optional.of(run));
 
-		ResponseEntity<Map<String, Object>> response = controller.getArtifact(SPARK_ID, "INVALID_ROLE", auth(USER_ID));
+		ResponseEntity<RoleArtifactResponse> response = controller.getArtifact(SPARK_ID, "INVALID_ROLE", auth(USER_ID));
 
 		assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
 	}
@@ -374,6 +437,56 @@ class PipelineControllerTest {
 		ResponseEntity<Void> response = controller.resolveCheckpoint(SPARK_ID, "ckpt-1", request, auth(USER_ID));
 
 		assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+	}
+
+	// --- PUT /v1/sparks/{sparkId}/pipeline/skip-roles ---
+
+	@Test
+	void updateSkippedRoles_pendingRole_succeeds() {
+		PipelineRun run = buildRun();
+		run.setSkippedRequiredRoles(List.of("IMPLEMENTER"));
+		when(pipelineStateManager.updateSkipRoles(SPARK_ID, List.of(PdlcRole.IMPLEMENTER), USER_ID))
+				.thenReturn(run);
+
+		ResponseEntity<PipelineRunResponse> response = controller.updateSkippedRoles(
+				SPARK_ID, List.of(PdlcRole.IMPLEMENTER), auth(USER_ID));
+
+		assertEquals(HttpStatus.OK, response.getStatusCode());
+		assertNotNull(response.getBody());
+		assertEquals(List.of("IMPLEMENTER"), response.getBody().getSkippedRequiredRoles());
+	}
+
+	@Test
+	void updateSkippedRoles_nonExecutingPipeline_returns409() {
+		when(pipelineStateManager.updateSkipRoles(SPARK_ID, List.of(PdlcRole.IMPLEMENTER), USER_ID))
+				.thenThrow(new IllegalStateException("Pipeline must be EXECUTING"));
+
+		ResponseEntity<PipelineRunResponse> response = controller.updateSkippedRoles(
+				SPARK_ID, List.of(PdlcRole.IMPLEMENTER), auth(USER_ID));
+
+		assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+	}
+
+	@Test
+	void updateSkippedRoles_noPipeline_returns404() {
+		when(pipelineStateManager.updateSkipRoles(SPARK_ID, List.of(PdlcRole.IMPLEMENTER), USER_ID))
+				.thenThrow(new IllegalArgumentException("No pipeline run found"));
+
+		ResponseEntity<PipelineRunResponse> response = controller.updateSkippedRoles(
+				SPARK_ID, List.of(PdlcRole.IMPLEMENTER), auth(USER_ID));
+
+		assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+	}
+
+	@Test
+	void updateSkippedRoles_wrongUser_returns403() {
+		when(pipelineStateManager.updateSkipRoles(SPARK_ID, List.of(PdlcRole.IMPLEMENTER), "other-user"))
+				.thenThrow(new SecurityException("Pipeline does not belong to user"));
+
+		ResponseEntity<PipelineRunResponse> response = controller.updateSkippedRoles(
+				SPARK_ID, List.of(PdlcRole.IMPLEMENTER), auth("other-user"));
+
+		assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
 	}
 
 	// --- GET /v1/playbooks ---

@@ -5,12 +5,14 @@ import io.cidadel.framework.authorization.annotation.RequireAuth;
 import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.strategiz.social.business.agent.pipeline.CheckpointService;
 import io.strategiz.social.business.agent.pipeline.PipelineArtifactService;
+import io.strategiz.social.business.agent.pipeline.PipelineStateManager;
 import io.strategiz.social.business.agent.pipeline.PlaybookRegistry;
 import io.strategiz.social.data.entity.Checkpoint;
 import io.strategiz.social.data.entity.PdlcRole;
 import io.strategiz.social.data.entity.PipelineArtifact;
 import io.strategiz.social.data.entity.PipelineEvent;
 import io.strategiz.social.data.entity.PipelineRun;
+import io.strategiz.social.data.entity.RoleResultSummary;
 import io.strategiz.social.data.entity.Spark;
 import io.strategiz.social.data.repository.PipelineEventRepository;
 import io.strategiz.social.data.repository.PipelineRunRepository;
@@ -19,11 +21,11 @@ import io.strategiz.social.service.agent.dto.CheckpointResolutionRequest;
 import io.strategiz.social.service.agent.dto.PipelineEventResponse;
 import io.strategiz.social.service.agent.dto.PipelineRunResponse;
 import io.strategiz.social.service.agent.dto.PlaybookResponse;
+import io.strategiz.social.service.agent.dto.RoleArtifactResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +33,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -52,6 +55,8 @@ public class PipelineController {
 
 	private final PlaybookRegistry playbookRegistry;
 
+	private final PipelineStateManager pipelineStateManager;
+
 	private final CheckpointService checkpointService;
 
 	private final SparkRepository sparkRepository;
@@ -60,12 +65,14 @@ public class PipelineController {
 			PipelineEventRepository pipelineEventRepository,
 			PipelineArtifactService pipelineArtifactService,
 			PlaybookRegistry playbookRegistry,
+			PipelineStateManager pipelineStateManager,
 			CheckpointService checkpointService,
 			SparkRepository sparkRepository) {
 		this.pipelineRunRepository = pipelineRunRepository;
 		this.pipelineEventRepository = pipelineEventRepository;
 		this.pipelineArtifactService = pipelineArtifactService;
 		this.playbookRegistry = playbookRegistry;
+		this.pipelineStateManager = pipelineStateManager;
 		this.checkpointService = checkpointService;
 		this.sparkRepository = sparkRepository;
 	}
@@ -131,8 +138,8 @@ public class PipelineController {
 	@GetMapping("/sparks/{sparkId}/pipeline/artifacts/{role}")
 	@RequireAuth
 	@Operation(summary = "Get pipeline artifact for a role",
-			description = "Returns the artifact produced by the specified PDLC role for this spark's pipeline run.")
-	public ResponseEntity<Map<String, Object>> getArtifact(@PathVariable String sparkId,
+			description = "Returns the artifact produced by the specified PDLC role for this spark's pipeline run, enriched with execution metrics.")
+	public ResponseEntity<RoleArtifactResponse> getArtifact(@PathVariable String sparkId,
 			@PathVariable String role,
 			@AuthUser AuthenticatedUser user) {
 		log.debug("Get pipeline artifact for spark={} role={} user={}", sparkId, role, user.getUserId());
@@ -160,7 +167,11 @@ public class PipelineController {
 			return ResponseEntity.notFound().build();
 		}
 
-		return ResponseEntity.ok(artifactOpt.get().getContent());
+		RoleResultSummary roleResult = run.getRoleResults() != null
+				? run.getRoleResults().get(pdlcRole.name())
+				: null;
+
+		return ResponseEntity.ok(RoleArtifactResponse.from(artifactOpt.get(), roleResult));
 	}
 
 	@PostMapping("/sparks/{sparkId}/pipeline/checkpoint/{checkpointId}")
@@ -215,6 +226,30 @@ public class PipelineController {
 		}
 
 		return ResponseEntity.accepted().build();
+	}
+
+	@PutMapping("/sparks/{sparkId}/pipeline/skip-roles")
+	@RequireAuth
+	@Operation(summary = "Update skipped roles for a pipeline",
+			description = "Skip specified roles in an executing pipeline. Only roles not yet started (PENDING) will be skipped.")
+	public ResponseEntity<PipelineRunResponse> updateSkippedRoles(@PathVariable String sparkId,
+			@RequestBody List<PdlcRole> skipRoles,
+			@AuthUser AuthenticatedUser user) {
+		log.info("Update skip-roles for spark={} skipRoles={} user={}", sparkId, skipRoles, user.getUserId());
+
+		try {
+			PipelineRun run = pipelineStateManager.updateSkipRoles(sparkId, skipRoles, user.getUserId());
+			return ResponseEntity.ok(PipelineRunResponse.from(run));
+		}
+		catch (IllegalArgumentException ex) {
+			return ResponseEntity.notFound().build();
+		}
+		catch (SecurityException ex) {
+			return ResponseEntity.status(403).build();
+		}
+		catch (IllegalStateException ex) {
+			return ResponseEntity.status(409).build();
+		}
 	}
 
 	@GetMapping("/playbooks")
