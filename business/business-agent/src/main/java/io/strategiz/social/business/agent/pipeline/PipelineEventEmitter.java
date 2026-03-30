@@ -49,6 +49,7 @@ public class PipelineEventEmitter {
 			PipelineEventType.PIPELINE_CANCELLED,
 			PipelineEventType.ROLE_STARTED,
 			PipelineEventType.ROLE_COMPLETED,
+			PipelineEventType.ROLE_SKIPPED,
 			PipelineEventType.REWORK_TRIGGERED,
 			PipelineEventType.CHECKPOINT_REQUESTED,
 			PipelineEventType.CHECKPOINT_RESOLVED,

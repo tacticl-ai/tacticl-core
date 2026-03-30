@@ -9,6 +9,7 @@ import io.strategiz.social.data.entity.RoleStatus;
 import io.strategiz.social.data.repository.PipelineRunRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -218,6 +219,86 @@ public class PipelineStateManager {
 			pipelineRunRepository.save(run);
 			log.warn("[PIPELINE] Set skippedRequiredRoles={} for run={}", skippedRequiredRoles, runId);
 		});
+	}
+
+	/**
+	 * Update the set of skipped roles on an executing pipeline, filtering to only roles
+	 * that have not yet started (still {@code PENDING} or absent from roleResults).
+	 *
+	 * <p>Validates that the pipeline is in {@code EXECUTING} status. For each newly skipped
+	 * role, marks the role as {@code SKIPPED} in roleResults and emits a {@code ROLE_SKIPPED}
+	 * event via {@link PipelineEventEmitter}.
+	 *
+	 * @param sparkId   the spark ID that owns this pipeline
+	 * @param skipRoles the roles the user wants to skip
+	 * @param userId    the authenticated user requesting the skip
+	 * @return the updated PipelineRun
+	 * @throws IllegalStateException    if the pipeline is not in EXECUTING status
+	 * @throws IllegalArgumentException if no pipeline run exists for the given sparkId
+	 * @throws SecurityException        if the pipeline does not belong to the given userId
+	 */
+	public PipelineRun updateSkipRoles(String sparkId, List<PdlcRole> skipRoles, String userId) {
+		Optional<PipelineRun> runOpt = pipelineRunRepository.findBySparkId(sparkId);
+		if (runOpt.isEmpty()) {
+			throw new IllegalArgumentException("No pipeline run found for spark: " + sparkId);
+		}
+
+		PipelineRun run = runOpt.get();
+
+		if (!run.getUserId().equals(userId)) {
+			throw new SecurityException("Pipeline does not belong to user: " + userId);
+		}
+
+		if (run.getStatus() != PipelineStatus.EXECUTING) {
+			throw new IllegalStateException("Pipeline must be EXECUTING to skip roles; current status: " + run.getStatus());
+		}
+
+		// Filter to only roles that are still PENDING (or not yet in roleResults)
+		List<String> newSkips = skipRoles.stream()
+				.map(PdlcRole::name)
+				.filter(roleName -> {
+					RoleResultSummary result = run.getRoleResults().get(roleName);
+					return result == null || result.getStatus() == RoleStatus.PENDING;
+				})
+				.toList();
+
+		// Merge with existing skipped roles
+		List<String> existingSkips = run.getSkippedRequiredRoles() != null
+				? run.getSkippedRequiredRoles()
+				: List.of();
+		List<String> merged = new ArrayList<>(existingSkips);
+		for (String skip : newSkips) {
+			if (!merged.contains(skip)) {
+				merged.add(skip);
+			}
+		}
+		run.setSkippedRequiredRoles(merged);
+
+		// Mark each newly skipped role as SKIPPED in roleResults and emit events
+		for (String roleName : newSkips) {
+			RoleResultSummary summary = run.getRoleResults()
+					.computeIfAbsent(roleName, k -> new RoleResultSummary());
+			summary.setStatus(RoleStatus.SKIPPED);
+
+			PdlcRole role = PdlcRole.valueOf(roleName);
+			pipelineEventEmitter.emitEvent(run, PipelineEventType.ROLE_SKIPPED, role,
+					Map.of("reason", "User requested skip"));
+		}
+
+		pipelineRunRepository.save(run);
+		log.info("[PIPELINE] Updated skip-roles for run={} spark={} newSkips={}", run.getId(), sparkId, newSkips);
+
+		return run;
+	}
+
+	/**
+	 * Find a pipeline run by spark ID.
+	 *
+	 * @param sparkId the spark ID
+	 * @return the pipeline run, or empty if not found
+	 */
+	public Optional<PipelineRun> findBySparkId(String sparkId) {
+		return pipelineRunRepository.findBySparkId(sparkId);
 	}
 
 	/**

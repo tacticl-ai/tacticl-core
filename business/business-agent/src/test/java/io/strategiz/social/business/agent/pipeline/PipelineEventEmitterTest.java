@@ -246,8 +246,8 @@ class PipelineEventEmitterTest {
 
 	@Test
 	void emitEvent_doesNotBroadcast_forNonBroadcastEventType() {
-		// ROLE_SKIPPED is not in BROADCAST_EVENTS
-		emitter.emitEvent(run, PipelineEventType.ROLE_SKIPPED, PdlcRole.TESTER, Map.of());
+		// ARTIFACT_PRODUCED is not in BROADCAST_EVENTS
+		emitter.emitEvent(run, PipelineEventType.ARTIFACT_PRODUCED, PdlcRole.TESTER, Map.of());
 
 		verify(userBroadcaster, never()).broadcastToUser(
 				org.mockito.ArgumentMatchers.anyString(),

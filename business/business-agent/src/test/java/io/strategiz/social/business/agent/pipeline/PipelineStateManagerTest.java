@@ -3,6 +3,7 @@ package io.strategiz.social.business.agent.pipeline;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.any;
@@ -16,6 +17,7 @@ import io.strategiz.social.data.entity.PipelineEventType;
 import io.strategiz.social.data.entity.PipelineRun;
 import io.strategiz.social.data.entity.PipelineStatus;
 import io.strategiz.social.data.entity.PipelineTier;
+import io.strategiz.social.data.entity.RoleResultSummary;
 import io.strategiz.social.data.entity.RoleStatus;
 import io.strategiz.social.data.repository.PipelineRunRepository;
 import java.math.BigDecimal;
@@ -198,6 +200,90 @@ class PipelineStateManagerTest {
 		Optional<PipelineRun> result = stateManager.getRun("nonexistent");
 
 		assertTrue(result.isEmpty());
+	}
+
+	// --- updateSkipRoles ---
+
+	@Test
+	void updateSkipRoles_pendingRole_marksSkippedAndEmitsEvent() {
+		PipelineRun run = createTestRun();
+		run.setStatus(PipelineStatus.EXECUTING);
+		// IMPLEMENTER has not started yet — no roleResult entry
+		when(pipelineRunRepository.findBySparkId(SPARK_ID)).thenReturn(Optional.of(run));
+
+		PipelineRun result = stateManager.updateSkipRoles(SPARK_ID, List.of(PdlcRole.IMPLEMENTER), USER_ID);
+
+		assertTrue(result.getSkippedRequiredRoles().contains("IMPLEMENTER"));
+		assertEquals(RoleStatus.SKIPPED, result.getRoleResults().get("IMPLEMENTER").getStatus());
+		verify(pipelineRunRepository).save(run);
+		verify(pipelineEventEmitter).emitEvent(eq(run), eq(PipelineEventType.ROLE_SKIPPED),
+				eq(PdlcRole.IMPLEMENTER), any());
+	}
+
+	@Test
+	void updateSkipRoles_completedRole_isFiltered() {
+		PipelineRun run = createTestRun();
+		run.setStatus(PipelineStatus.EXECUTING);
+		// RESEARCHER already completed
+		RoleResultSummary completedResult = new RoleResultSummary();
+		completedResult.setStatus(RoleStatus.COMPLETED);
+		run.getRoleResults().put("RESEARCHER", completedResult);
+		when(pipelineRunRepository.findBySparkId(SPARK_ID)).thenReturn(Optional.of(run));
+
+		PipelineRun result = stateManager.updateSkipRoles(SPARK_ID,
+				List.of(PdlcRole.RESEARCHER, PdlcRole.IMPLEMENTER), USER_ID);
+
+		// RESEARCHER should not be skipped (already completed), but IMPLEMENTER should be
+		assertTrue(result.getSkippedRequiredRoles().contains("IMPLEMENTER"));
+		assertEquals(1, result.getSkippedRequiredRoles().size());
+		assertEquals(RoleStatus.COMPLETED, result.getRoleResults().get("RESEARCHER").getStatus());
+		assertEquals(RoleStatus.SKIPPED, result.getRoleResults().get("IMPLEMENTER").getStatus());
+	}
+
+	@Test
+	void updateSkipRoles_nonExecutingPipeline_throwsIllegalState() {
+		PipelineRun run = createTestRun();
+		run.setStatus(PipelineStatus.COMPLETED);
+		when(pipelineRunRepository.findBySparkId(SPARK_ID)).thenReturn(Optional.of(run));
+
+		assertThrows(IllegalStateException.class,
+				() -> stateManager.updateSkipRoles(SPARK_ID, List.of(PdlcRole.IMPLEMENTER), USER_ID));
+	}
+
+	@Test
+	void updateSkipRoles_noPipelineRun_throwsIllegalArgument() {
+		when(pipelineRunRepository.findBySparkId(SPARK_ID)).thenReturn(Optional.empty());
+
+		assertThrows(IllegalArgumentException.class,
+				() -> stateManager.updateSkipRoles(SPARK_ID, List.of(PdlcRole.IMPLEMENTER), USER_ID));
+	}
+
+	@Test
+	void updateSkipRoles_wrongUser_throwsSecurityException() {
+		PipelineRun run = createTestRun();
+		run.setStatus(PipelineStatus.EXECUTING);
+		when(pipelineRunRepository.findBySparkId(SPARK_ID)).thenReturn(Optional.of(run));
+
+		assertThrows(SecurityException.class,
+				() -> stateManager.updateSkipRoles(SPARK_ID, List.of(PdlcRole.IMPLEMENTER), "other-user"));
+	}
+
+	@Test
+	void updateSkipRoles_pendingRoleInResults_marksSkipped() {
+		PipelineRun run = createTestRun();
+		run.setStatus(PipelineStatus.EXECUTING);
+		// IMPLEMENTER is explicitly PENDING in roleResults
+		RoleResultSummary pendingResult = new RoleResultSummary();
+		pendingResult.setStatus(RoleStatus.PENDING);
+		run.getRoleResults().put("IMPLEMENTER", pendingResult);
+		when(pipelineRunRepository.findBySparkId(SPARK_ID)).thenReturn(Optional.of(run));
+
+		PipelineRun result = stateManager.updateSkipRoles(SPARK_ID, List.of(PdlcRole.IMPLEMENTER), USER_ID);
+
+		assertTrue(result.getSkippedRequiredRoles().contains("IMPLEMENTER"));
+		assertEquals(RoleStatus.SKIPPED, result.getRoleResults().get("IMPLEMENTER").getStatus());
+		verify(pipelineEventEmitter).emitEvent(eq(run), eq(PipelineEventType.ROLE_SKIPPED),
+				eq(PdlcRole.IMPLEMENTER), any());
 	}
 
 	private PipelineRun createTestRun() {
