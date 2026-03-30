@@ -12,6 +12,8 @@ public class PipelineEventResponse {
 
 	private String id;
 
+	private String pipelineRunId;
+
 	private PipelineEventType eventType;
 
 	private PdlcRole role;
@@ -25,6 +27,7 @@ public class PipelineEventResponse {
 	public static PipelineEventResponse from(PipelineEvent event) {
 		PipelineEventResponse response = new PipelineEventResponse();
 		response.setId(event.getId());
+		response.setPipelineRunId(event.getPipelineRunId());
 		response.setEventType(event.getEventType());
 		response.setRole(event.getRole());
 		response.setRoleIteration(event.getRoleIteration());
@@ -39,6 +42,14 @@ public class PipelineEventResponse {
 
 	public void setId(String id) {
 		this.id = id;
+	}
+
+	public String getPipelineRunId() {
+		return pipelineRunId;
+	}
+
+	public void setPipelineRunId(String pipelineRunId) {
+		this.pipelineRunId = pipelineRunId;
 	}
 
 	public PipelineEventType getEventType() {
