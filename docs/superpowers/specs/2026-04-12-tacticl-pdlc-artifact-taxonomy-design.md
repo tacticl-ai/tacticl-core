@@ -111,7 +111,7 @@ Examples:
 
 | Tier | Artifact | Filename | Authored by |
 |------|----------|----------|-------------|
-| 1 | Product Report | `YYYY-MM-DD-tacticl-{slug}-phase-1-product-report.md` | PM + RESEARCHER (assembled) |
+| 1 | PRD (Product Requirements Doc) | `YYYY-MM-DD-tacticl-{slug}-phase-1-prd.md` | PM + RESEARCHER (assembled) |
 | 2 | Product Requirements Doc | `YYYY-MM-DD-tacticl-{slug}-phase-1-product-requirements.md` | PM |
 | 2 | Research Summary | `YYYY-MM-DD-tacticl-{slug}-phase-1-research-summary.md` | RESEARCHER |
 | 2 | Hi-fi Mockups | `YYYY-MM-DD-tacticl-{slug}-phase-1-mockup-{screen}.html` | PM / DESIGNER |
@@ -133,7 +133,7 @@ Phase 2 will produce: SAD, ERD, Story Breakdown
 
 | Tier | Artifact | Filename | Authored by |
 |------|----------|----------|-------------|
-| 1 | Design Report | `YYYY-MM-DD-tacticl-{slug}-phase-2-design-report.md` | ARCHITECT + DESIGNER + PLANNER (assembled) |
+| 1 | SAD (System Architecture Doc) | `YYYY-MM-DD-tacticl-{slug}-phase-2-sad.md` | ARCHITECT + DESIGNER + PLANNER (assembled) |
 | 2 | System Architecture Doc | `YYYY-MM-DD-tacticl-{slug}-phase-2-architecture.md` | ARCHITECT |
 | 2 | Entity Relationship Diagram | `YYYY-MM-DD-tacticl-{slug}-phase-2-erd.md` | ARCHITECT |
 | 2 | Component Screens | `YYYY-MM-DD-tacticl-{slug}-phase-2-screens-{name}.html` | DESIGNER |
