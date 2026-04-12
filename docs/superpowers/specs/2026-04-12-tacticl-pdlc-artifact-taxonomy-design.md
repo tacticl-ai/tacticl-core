@@ -38,6 +38,28 @@ Not MDX — agents (Claude Code CLI) produce these files. Markdown is what they 
 
 ---
 
+### HTML_ASSEMBLER Step
+
+Every phase definition includes a shell-handled `HTML_ASSEMBLER` step that runs after all role containers complete:
+
+1. Reads the Tier 1 `.md` file (the phase report)
+2. Reads all linked Tier 2 artifact paths
+3. Renders a self-contained `.html` file using the phase-specific template from `tacticl-docs/architecture/pdlc/templates/`
+4. Embeds: phase badge, spark title, pipeline cost-so-far, date, approve/request-changes/cancel buttons (signed short-TTL URL to tacticl-core checkpoint API)
+5. Commits both `.md` and `.html` to the pipeline run's GitHub branch
+6. Emits `CHECKPOINT_REQUESTED` event to tacticl-core
+
+**Source of truth:** The `.md` file is always the source of truth. The `.html` is a derived rendering surface. If a user requests changes at a checkpoint, agents update the `.md` and the HTML_ASSEMBLER regenerates the `.html`.
+
+**Templates location:** `tacticl-docs/architecture/pdlc/templates/`
+- `phase-1-prd-hitl.html` — PRD template
+- `phase-2-sad-hitl.html` — SAD template (includes Mermaid.js + draw.io SVG injection)
+- `phase-3-implementation-hitl.html`
+- `phase-4-quality-hitl.html`
+- `phase-5-deploy-hitl.html`
+
+---
+
 ### YAML Frontmatter Schema
 
 Every artifact carries a YAML frontmatter block. The dashboard reads this for metadata display and status tracking.
@@ -112,6 +134,7 @@ Examples:
 | Tier | Artifact | Filename | Authored by |
 |------|----------|----------|-------------|
 | 1 | PRD (Product Requirements Doc) | `YYYY-MM-DD-tacticl-{slug}-phase-1-prd.md` | PM + RESEARCHER (assembled) |
+| 1 | PRD (HITL HTML) | `YYYY-MM-DD-tacticl-{slug}-phase-1-prd.html` | HTML_ASSEMBLER (generated from prd.md) |
 | 2 | Product Requirements Doc | `YYYY-MM-DD-tacticl-{slug}-phase-1-product-requirements.md` | PM |
 | 2 | Research Summary | `YYYY-MM-DD-tacticl-{slug}-phase-1-research-summary.md` | RESEARCHER |
 | 2 | Hi-fi Mockups | `YYYY-MM-DD-tacticl-{slug}-phase-1-mockup-{screen}.html` | PM / DESIGNER |
@@ -134,6 +157,7 @@ Phase 2 will produce: SAD, ERD, Story Breakdown
 | Tier | Artifact | Filename | Authored by |
 |------|----------|----------|-------------|
 | 1 | SAD (System Architecture Doc) | `YYYY-MM-DD-tacticl-{slug}-phase-2-sad.md` | ARCHITECT + DESIGNER + PLANNER (assembled) |
+| 1 | SAD (HITL HTML) | `YYYY-MM-DD-tacticl-{slug}-phase-2-sad.html` | HTML_ASSEMBLER (generated from sad.md) |
 | 2 | System Architecture Doc | `YYYY-MM-DD-tacticl-{slug}-phase-2-architecture.md` | ARCHITECT |
 | 2 | Entity Relationship Diagram | `YYYY-MM-DD-tacticl-{slug}-phase-2-erd.md` | ARCHITECT |
 | 2 | Component Screens | `YYYY-MM-DD-tacticl-{slug}-phase-2-screens-{name}.html` | DESIGNER |
@@ -156,6 +180,7 @@ Phase 2 will produce: SAD, ERD, Story Breakdown
 | Tier | Artifact | Filename | Authored by |
 |------|----------|----------|-------------|
 | 1 | Implementation Report | `YYYY-MM-DD-tacticl-{slug}-phase-3-implementation-report.md` | IMPLEMENTER + internal REVIEWER |
+| 1 | Implementation Report (HITL HTML) | `YYYY-MM-DD-tacticl-{slug}-phase-3-implementation-report.html` | HTML_ASSEMBLER (generated from implementation-report.md) |
 | 2 | Per-story implementation logs | in `implementation-report.md` as sections | IMPLEMENTER |
 
 **Tier 1 structure:**
@@ -181,6 +206,7 @@ Phase 4 will run: TESTER, REVIEWER, SECURITY_ANALYST in parallel
 | Tier | Artifact | Filename | Authored by |
 |------|----------|----------|-------------|
 | 1 | Quality Report | `YYYY-MM-DD-tacticl-{slug}-phase-4-quality-report.md` | Assembled from all 3 |
+| 1 | Quality Report (HITL HTML) | `YYYY-MM-DD-tacticl-{slug}-phase-4-quality-report.html` | HTML_ASSEMBLER (generated from quality-report.md) |
 | 2 | Test Results | `YYYY-MM-DD-tacticl-{slug}-phase-4-test-results.md` | TESTER |
 | 2 | Coverage Breakdown | `YYYY-MM-DD-tacticl-{slug}-phase-4-coverage-breakdown.md` | TESTER |
 | 2 | Code Review | `YYYY-MM-DD-tacticl-{slug}-phase-4-code-review.md` | REVIEWER |
@@ -211,6 +237,7 @@ Story X went through {N} rework iterations before passing.
 | Tier | Artifact | Filename | Authored by |
 |------|----------|----------|-------------|
 | 1 | Deployment Report | `YYYY-MM-DD-tacticl-{slug}-phase-5-deployment-report.md` | TECHNICAL_WRITER + DEVOPS |
+| 1 | Deployment Report (HITL HTML) | `YYYY-MM-DD-tacticl-{slug}-phase-5-deployment-report.html` | HTML_ASSEMBLER (generated from deployment-report.md) |
 | 2 | PR Descriptions | `YYYY-MM-DD-tacticl-{slug}-phase-5-pr-descriptions.md` | TECHNICAL_WRITER |
 | 2 | Deployment Notes | `YYYY-MM-DD-tacticl-{slug}-phase-5-deployment-notes.md` | DEVOPS |
 
