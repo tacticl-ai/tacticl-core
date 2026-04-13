@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tacticl PDLC v2 — PRD</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-alt: #161b22;
+    --bg-soft: #1c2128;
+    --border: #30363d;
+    --border-soft: #21262d;
+    --text: #e6edf3;
+    --text-soft: #8b949e;
+    --text-dim: #6e7681;
+    --accent: #7c9bff;
+    --accent-soft: #3d5afe;
+    --success: #3fb950;
+    --warning: #d29922;
+    --danger: #f85149;
+    --code-bg: #1c2128;
+    --link: #58a6ff;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    max-width: 1400px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--bg-alt);
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+  }
+
+  .sidebar-header {
+    padding: 0 24px 16px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .sidebar-title {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-soft);
+    margin: 0 0 4px;
+    font-weight: 600;
+  }
+
+  .sidebar-subtitle {
+    font-size: 15px;
+    color: var(--text);
+    margin: 0;
+    font-weight: 500;
+  }
+
+  .toc {
+    list-style: none;
+    padding: 16px 0;
+    margin: 0;
+  }
+
+  .toc li { margin: 0; }
+
+  .toc a {
+    display: block;
+    padding: 6px 24px;
+    color: var(--text-soft);
+    text-decoration: none;
+    font-size: 13.5px;
+    border-left: 2px solid transparent;
+    transition: all 0.15s ease;
+  }
+
+  .toc a:hover {
+    color: var(--text);
+    background: var(--bg-soft);
+    border-left-color: var(--accent);
+  }
+
+  .toc .toc-l2 {
+    padding-left: 40px;
+    font-size: 12.5px;
+  }
+
+  /* Main content */
+  main {
+    padding: 48px 64px 96px;
+    max-width: 920px;
+  }
+
+  .doc-header {
+    padding-bottom: 24px;
+    margin-bottom: 40px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .doc-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    background: rgba(124, 155, 255, 0.15);
+    color: var(--accent);
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+
+  .doc-title {
+    font-size: 36px;
+    margin: 0 0 16px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  .doc-meta {
+    display: flex;
+    gap: 24px;
+    font-size: 13px;
+    color: var(--text-soft);
+  }
+
+  .doc-meta strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  h1, h2, h3, h4, h5 {
+    color: var(--text);
+    font-weight: 600;
+    line-height: 1.3;
+    scroll-margin-top: 24px;
+  }
+
+  h1 {
+    font-size: 32px;
+    margin: 48px 0 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: -0.01em;
+  }
+
+  h2 {
+    font-size: 24px;
+    margin: 40px 0 16px;
+    letter-spacing: -0.005em;
+  }
+
+  h3 {
+    font-size: 19px;
+    margin: 32px 0 12px;
+    color: var(--accent);
+  }
+
+  h4 {
+    font-size: 16px;
+    margin: 24px 0 10px;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  p {
+    margin: 0 0 16px;
+    color: var(--text);
+  }
+
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  strong { color: var(--text); font-weight: 600; }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    background: var(--code-bg);
+    color: #c9d1d9;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border-soft);
+  }
+
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 20px 0;
+  }
+
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+  }
+
+  /* Lists */
+  ul, ol { padding-left: 24px; margin: 16px 0; }
+  li { margin: 6px 0; }
+  li::marker { color: var(--text-dim); }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 14px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  th {
+    background: var(--bg-soft);
+    text-align: left;
+    padding: 12px 16px;
+    font-weight: 600;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-soft);
+    color: var(--text);
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tr:hover td { background: var(--bg-soft); }
+
+  /* Blockquotes */
+  blockquote {
+    border-left: 4px solid var(--accent);
+    background: var(--bg-alt);
+    margin: 20px 0;
+    padding: 16px 20px;
+    border-radius: 0 6px 6px 0;
+    color: var(--text-soft);
+  }
+
+  blockquote p:last-child { margin-bottom: 0; }
+
+  /* Callout boxes */
+  .callout {
+    border-left: 4px solid;
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 0 6px 6px 0;
+    background: var(--bg-alt);
+  }
+
+  .callout-info { border-color: var(--accent); }
+  .callout-success { border-color: var(--success); }
+  .callout-warning { border-color: var(--warning); }
+  .callout-danger { border-color: var(--danger); }
+
+  .callout-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .callout-info .callout-title { color: var(--accent); }
+  .callout-success .callout-title { color: var(--success); }
+  .callout-warning .callout-title { color: var(--warning); }
+  .callout-danger .callout-title { color: var(--danger); }
+
+  /* Horizontal rule */
+  hr {
+    border: none;
+    height: 1px;
+    background: var(--border);
+    margin: 48px 0;
+  }
+
+  /* Checkbox lists */
+  input[type="checkbox"] {
+    accent-color: var(--accent);
+    margin-right: 8px;
+  }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { position: relative; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    main { padding: 32px 24px; }
+  }
+
+  /* Section anchors */
+  .anchor {
+    opacity: 0;
+    margin-left: 8px;
+    color: var(--text-dim);
+    font-weight: normal;
+    transition: opacity 0.15s;
+  }
+
+  h2:hover .anchor, h3:hover .anchor { opacity: 1; }
+
+  /* Highlight quality callouts */
+  .quality-box {
+    background: linear-gradient(135deg, rgba(63, 185, 80, 0.1), rgba(124, 155, 255, 0.05));
+    border: 1px solid rgba(63, 185, 80, 0.3);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 24px 0;
+  }
+
+  .quality-box h4 {
+    margin-top: 0;
+    color: var(--success);
+  }
+
+  /* Print */
+  @media print {
+    .sidebar { display: none; }
+    .layout { grid-template-columns: 1fr; }
+    main { padding: 0; max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <p class="sidebar-title">Document</p>
+      <h2 class="sidebar-subtitle">PDLC v2 PRD</h2>
+    </div>
+    <ul class="toc">
+      <li><a href="#summary">1. Executive Summary</a></li>
+      <li><a href="#problem">2. Problem Statement</a></li>
+      <li><a href="#vision">3. Vision & Goals</a></li>
+      <li><a href="#non-goals">4. Non-Goals</a></li>
+      <li><a href="#users">5. Users & Personas</a></li>
+      <li><a href="#use-cases">6. Use Cases</a></li>
+      <li><a href="#functional">7. Functional Requirements</a></li>
+      <li class="toc-l2"><a href="#fr-execution">7.1 Pipeline Execution</a></li>
+      <li class="toc-l2"><a href="#fr-orchestration">7.2 Role Orchestration</a></li>
+      <li class="toc-l2"><a href="#fr-knowledge">7.3 Knowledge System</a></li>
+      <li class="toc-l2"><a href="#fr-quality">7.4 Quality Multipliers</a></li>
+      <li class="toc-l2"><a href="#fr-checkpoints">7.5 Checkpoints</a></li>
+      <li class="toc-l2"><a href="#fr-triggers">7.6 Triggers</a></li>
+      <li class="toc-l2"><a href="#fr-outputs">7.7 Output Artifacts</a></li>
+      <li class="toc-l2"><a href="#fr-state">7.8 State & Recovery</a></li>
+      <li class="toc-l2"><a href="#fr-retro">7.9 Retro Loop</a></li>
+      <li class="toc-l2"><a href="#fr-obs">7.10 Observability</a></li>
+      <li><a href="#non-functional">8. Non-Functional Requirements</a></li>
+      <li><a href="#metrics">9. Success Metrics</a></li>
+      <li><a href="#deps">10. Dependencies</a></li>
+      <li><a href="#data">11. Data Storage & Persistence</a></li>
+      <li class="toc-l2"><a href="#data-systems">11.1 Storage Systems</a></li>
+      <li class="toc-l2"><a href="#data-mongo">11.2 MongoDB Collections</a></li>
+      <li class="toc-l2"><a href="#data-qdrant">11.3 Qdrant Collection</a></li>
+      <li class="toc-l2"><a href="#data-fs">11.4 Filesystem Layout</a></li>
+      <li class="toc-l2"><a href="#data-vault">11.5 Vault Secret Paths</a></li>
+      <li class="toc-l2"><a href="#data-cross">11.6 Cross-Product Strategy</a></li>
+      <li class="toc-l2"><a href="#data-schema">11.7 Schema Ownership</a></li>
+      <li class="toc-l2"><a href="#data-retention">11.8 Retention & Backup</a></li>
+      <li class="toc-l2"><a href="#data-index">11.9 Indexing Strategy</a></li>
+      <li class="toc-l2"><a href="#data-usercode">11.10 User Code Databases</a></li>
+      <li><a href="#constraints">12. Constraints</a></li>
+      <li><a href="#future">13. Out of Scope</a></li>
+      <li><a href="#glossary">14. Glossary</a></li>
+    </ul>
+  </aside>
+
+  <main>
+    <div class="doc-header">
+      <span class="doc-badge">Product Requirements Document</span>
+      <h1 class="doc-title">Tacticl PDLC v2</h1>
+      <div class="doc-meta">
+        <span><strong>Date:</strong> 2026-04-11</span>
+        <span><strong>Status:</strong> Draft</span>
+        <span><strong>Author:</strong> Gabriel Jimenez</span>
+      </div>
+    </div>
+
+    <section id="summary">
+      <h1>1. Executive Summary</h1>
+      <p>Tacticl v1 ships a Product Development Lifecycle (PDLC) pipeline that runs 12 specialized AI agents inside a single Spring Boot JVM on Cloud Run. It works, but it has architectural ceilings that prevent it from reaching the quality bar required for production software delivery: shared thread pools, hand-coded orchestration, no workspace isolation, no cross-run memory, limited rework iterations, and tight coupling between pipeline logic and LLM provider code.</p>
+      <p>Tacticl PDLC v2 rebuilds the pipeline on top of <strong>cidadel-ai-arbiter</strong>, Tacticl's new agent execution factory: each role runs in its own Docker container on Hetzner with a pre-assembled workspace, Claude Code CLI as the execution engine, aggressive multi-candidate generation and rework loops, scoped vector search over past successful runs, a 4-layer knowledge system, and between-agent user checkpoints.</p>
+      <div class="quality-box">
+        <h4>Core Thesis</h4>
+        <p style="margin: 0;">The goal is <strong>not</strong> speed of delivery or cost minimization. <strong>The goal is the highest possible quality of generated code</strong> — production-ready, tested, documented, secure, and consistent with the target codebase's conventions. Every design choice in v2 prioritizes quality, even at significant cost and latency overhead.</p>
+      </div>
+    </section>
+
+    <section id="problem">
+      <h1>2. Problem Statement</h1>
+
+      <h2>2.1 What's Broken in v1</h2>
+
+      <h3>Architecture</h3>
+      <ul>
+        <li>All 12 roles execute in one JVM thread pool (<code>pdlcPipelineExecutor</code>, 4 core / 8 max). Concurrent pipelines compete for CPU, memory, and Anthropic rate limits at the JVM level.</li>
+        <li>Zero workspace isolation — every pipeline shares the same filesystem and process. Two concurrent IMPLEMENTER runs on different repos theoretically could clobber each other. The safety net is "don't run concurrent PDLC for now."</li>
+        <li>Pipeline orchestration is hand-coded Java. Adding a new role, a new playbook, or a new rework policy requires code changes, compilation, and deploy.</li>
+        <li>LLM routing happens through <code>AiEngineRouterService</code> with provider adapters wired via Spring beans. Each provider is a separate Gradle module. The router code is intertwined with cost tracking, rework detection, and event emission.</li>
+      </ul>
+
+      <h3>Knowledge & Memory</h3>
+      <ul>
+        <li>No cross-run memory. Every pipeline starts from scratch. An IMPLEMENTER that solved a similar problem last week has no way to recall that solution.</li>
+        <li><code>KnowledgeBaseService</code> exists but uses Firestore vector search (being decommissioned with the Hetzner migration) and is populated only by the Retro Analyst — most roles have no authored knowledge curated for them.</li>
+        <li>Agents waste turns re-discovering codebase conventions every run. The same file imports, naming patterns, and architectural decisions get re-derived over and over.</li>
+      </ul>
+
+      <h3>Execution Engine</h3>
+      <ul>
+        <li>Claude Code CLI is invoked as a subprocess from Java via <code>client-claude-code</code>. Subprocess spawn adds 5-11 seconds of overhead per invocation. The persistent session mode exists but the architecture fundamentally wants the CLI to live inside a Node.js runtime, not Java.</li>
+        <li>CLI execution happens on the same Cloud Run instance that serves HTTP requests. A long-running CODE_GENERATION session competes with spark classification, dashboard queries, and device WebSocket handling.</li>
+      </ul>
+
+      <h3>Quality Ceiling</h3>
+      <ul>
+        <li>Rework loops cap at 3 iterations. Complex tasks that need 5-8 iterations are marked failed.</li>
+        <li>IMPLEMENTER generates one candidate. If that candidate has subtle bugs the REVIEWER doesn't catch, they ship.</li>
+        <li>Tests are generated after implementation (not TDD). Tests become rubber-stamps rather than specifications.</li>
+        <li>No mandatory multi-critic consensus. A single REVIEWER can approve flawed code.</li>
+        <li>No REFACTOR pass after tests pass — functional code is considered "done."</li>
+      </ul>
+
+      <h3>Operational</h3>
+      <ul>
+        <li>Cloud Run Java image is ~400MB and includes Claude Code CLI, Node.js runtime, Playwright, and every LLM client. Cold starts are slow, deploys are slow.</li>
+        <li>Firestore PDLC state means queries are expensive and limited. No aggregations, no efficient cross-pipeline analytics.</li>
+        <li><code>PipelineRecoveryJob</code> runs on startup but pipeline state lives in Firestore subcollections that are hard to reason about.</li>
+      </ul>
+
+      <h2>2.2 Why a Refactor, Not a Fix</h2>
+      <p>The v1 problems aren't bugs — they're consequences of the architecture. You can't bolt workspace isolation onto an in-JVM pipeline. You can't make Java a good host for Claude Code CLI. You can't make single-candidate generation produce best-of-3 quality by adding a retry.</p>
+      <p>The arbiter factory pattern — already proven in strategiz v2-generative — solves all of these at the architecture level. Tacticl v2 adopts it wholesale for PDLC work.</p>
+    </section>
+
+    <section id="vision">
+      <h1>3. Vision & Goals</h1>
+
+      <h2>3.1 Vision</h2>
+      <blockquote>
+        <p>Tacticl is a factory for building software. A user describes what they want in natural language. The factory produces production-ready code — designed, implemented, tested, reviewed, documented, and deployed — using 12 specialized AI agents coordinated through a configurable pipeline. The factory improves over time through a weekly learning loop. The user is in control at every checkpoint.</p>
+      </blockquote>
+
+      <h2>3.2 Primary Goals</h2>
+      <table>
+        <thead>
+          <tr><th>#</th><th>Goal</th><th>How we measure it</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>G1</td><td><strong>Production-ready code output</strong></td><td>% of FULL_PDLC pipelines that produce PRs passing all CI checks on first run</td></tr>
+          <tr><td>G2</td><td><strong>Isolation & safety</strong></td><td>Zero cross-pipeline context contamination; per-run filesystem isolation</td></tr>
+          <tr><td>G3</td><td><strong>Configurable without code</strong></td><td>New pipelines, roles, knowledge added by editing JSON + markdown, no Java deploys</td></tr>
+          <tr><td>G4</td><td><strong>Cross-run memory</strong></td><td>Agents can recall and reuse patterns from past successful pipelines</td></tr>
+          <tr><td>G5</td><td><strong>Quality through multiplicity</strong></td><td>Multi-candidate generation, multi-critic consensus, aggressive rework, TDD enforcement</td></tr>
+          <tr><td>G6</td><td><strong>User control at decision points</strong></td><td>Mandatory checkpoints at key phases; pipeline pauses until user approves</td></tr>
+          <tr><td>G7</td><td><strong>Self-improving</strong></td><td>Weekly retro loop identifies and proposes learnings; human approves; next runs benefit</td></tr>
+        </tbody>
+      </table>
+
+      <h2>3.3 Secondary Goals</h2>
+      <table>
+        <thead><tr><th>#</th><th>Goal</th></tr></thead>
+        <tbody>
+          <tr><td>G8</td><td>Unified infrastructure with strategiz on Hetzner (shared arbiter, shared MongoDB, shared Qdrant)</td></tr>
+          <tr><td>G9</td><td>Clean separation between tacticl-core (control plane) and arbiter (execution plane)</td></tr>
+          <tr><td>G10</td><td>Every LLM call observable via OpenTelemetry traces, cost tracked per role per pipeline</td></tr>
+          <tr><td>G11</td><td>Smooth migration path from v1 — both can run concurrently during rollout</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="non-goals">
+      <h1>4. Non-Goals</h1>
+      <p>Explicitly <strong>not</strong> included in v2 scope:</p>
+      <ul>
+        <li><strong>Non-PDLC workloads</strong> — social posting, chat/spark execution, video generation, research tasks stay in Java tacticl-core for now. They migrate in later phases.</li>
+        <li><strong>Device-side execution</strong> — desktop daemon tactics decomposition is a separate execution plane. PDLC v2 is server-side only.</li>
+        <li><strong>Multi-tenant SaaS</strong> — v2 targets single-user and small-team use. Multi-tenant isolation beyond per-user workspace namespacing is v3.</li>
+        <li><strong>General-purpose agent framework</strong> — v2 is specifically for PDLC. It's not "run any agent on any task."</li>
+        <li><strong>IDE integration</strong> — no VSCode extension, no JetBrains plugin. Chat, voice, and GitHub webhook are the only triggers.</li>
+        <li><strong>Real-time collaborative editing</strong> — agents produce PRs; humans review async.</li>
+        <li><strong>Cost minimization</strong> — quality is the priority. Cost controls exist but not at the expense of output quality.</li>
+      </ul>
+    </section>
+
+    <section id="users">
+      <h1>5. Users & Personas</h1>
+
+      <h3>5.1 Primary: Solo Developer / Founder</h3>
+      <ul>
+        <li>Builds products alone or on a small team</li>
+        <li>Uses tacticl to offload implementation work while staying in architectural control</li>
+        <li>Reviews every PR before merging</li>
+        <li>Cares about code quality, maintainability, test coverage</li>
+        <li>Willing to wait minutes (or hours) for a high-quality result</li>
+        <li>Has 1-10 repos connected to tacticl</li>
+      </ul>
+
+      <h3>5.2 Secondary: Product Manager</h3>
+      <ul>
+        <li>Files feature requests as GitHub issues</li>
+        <li>Tacticl picks up the issue via webhook and runs PDLC</li>
+        <li>PM reviews the resulting PR without needing to write code themselves</li>
+        <li>Uses checkpoints to steer the pipeline when the AI's direction needs adjustment</li>
+      </ul>
+
+      <h3>5.3 Tertiary: Engineering Lead</h3>
+      <ul>
+        <li>Sets org-wide quality bars via configurable checkpoints, rework limits, and required critics</li>
+        <li>Reviews weekly retro outputs, approves learnings</li>
+        <li>Monitors pipeline cost/quality metrics across the team</li>
+      </ul>
+    </section>
+
+    <section id="use-cases">
+      <h1>6. Use Cases</h1>
+
+      <h3>UC1: Solo Developer Implements a Feature</h3>
+      <p><strong>Trigger:</strong> "Add a password reset flow to the auth service. Send a reset link via SendGrid, verify the token, let the user set a new password."</p>
+      <ol>
+        <li><code>SparkClassifierService</code> classifies as <code>code</code> spark</li>
+        <li><code>PdlcClassifierService</code> selects <code>FULL_PDLC</code> playbook</li>
+        <li>Tacticl-core submits pipeline to arbiter via gRPC</li>
+        <li>Arbiter runs PRODUCT phase: PM writes PRD → RESEARCHER investigates existing code</li>
+        <li><strong>Checkpoint:</strong> User reviews the PRD, approves</li>
+        <li>Arbiter runs DESIGN phase: ARCHITECT + PLANNER</li>
+        <li><strong>Checkpoint:</strong> User reviews design, approves</li>
+        <li>Arbiter runs DEVELOPMENT phase: IMPLEMENTER generates 3 candidates → CRITIC selects best</li>
+        <li>Arbiter runs TEST phase (parallel): TESTER + REVIEWER + SECURITY_ANALYST — all must approve, rework up to 5 iterations</li>
+        <li>Arbiter runs REFACTOR pass after TEST approves</li>
+        <li>Arbiter runs DEPLOY phase: TECHNICAL_WRITER + DEVOPS</li>
+        <li>RETRO_ANALYST runs post-pipeline</li>
+        <li>Arbiter creates a PR on user's GitHub repo</li>
+        <li>Push notification: "Your password reset flow PR is ready"</li>
+      </ol>
+
+      <h3>UC2: Bug Fix from GitHub Issue</h3>
+      <p><strong>Trigger:</strong> GitHub issue filed with label <code>tacticl-implement</code>: "Login endpoint returns 500 when username contains emoji"</p>
+      <ol>
+        <li>GitHub webhook fires → tacticl-core receives</li>
+        <li>Tacticl-core creates a spark from the issue</li>
+        <li><code>BUG_FIX</code> playbook selected</li>
+        <li>RESEARCHER reproduces bug → IMPLEMENTER fixes (multi-candidate) → TESTER writes regression test → REVIEWER approves</li>
+        <li>PR created, linked to original issue</li>
+        <li>Issue commented with PR link</li>
+      </ol>
+
+      <h3>UC3: User Rejects an Architecture</h3>
+      <ol>
+        <li>User feedback at DESIGN checkpoint: "Don't use SendGrid, we use Mailgun. Also tokens should expire in 15 minutes, not 1 hour."</li>
+        <li>Tacticl-core forwards feedback with <code>status=rework</code></li>
+        <li>ARCHITECT re-dispatched with feedback in <code>context/checkpoint-feedback.md</code></li>
+        <li>New design produced, pipeline pauses at checkpoint again</li>
+      </ol>
+
+      <h3>UC4: Rework Loop from Failing Tests</h3>
+      <ol>
+        <li>TEST phase runs, IMPLEMENTER's code fails 2 of 8 tests</li>
+        <li>TESTER marks rework needed, writes feedback</li>
+        <li>Shell re-dispatches IMPLEMENTER with prior implementation + test failures in context</li>
+        <li>Loop continues until tests pass or rework counter hits 5</li>
+        <li>If exhausted → <code>REWORK_ESCALATED</code> event → user checkpoint</li>
+      </ol>
+
+      <h3>UC5: Retro Learning Loop</h3>
+      <ol>
+        <li>Weekly cron Sunday 2 AM UTC</li>
+        <li>RETRO scans past week's archived workspaces</li>
+        <li>Identifies patterns: "47 pipelines had IMPLEMENTER wasting tokens re-discovering Jackson 3"</li>
+        <li>Proposes learning: "Add to IMPLEMENTER authored knowledge: 'This codebase uses Jackson 3'"</li>
+        <li>Writes to MongoDB <code>agent_knowledge</code> with <code>status=proposed</code></li>
+        <li>Eng lead reviews, approves</li>
+        <li>Next IMPLEMENTER run includes learning in <code>workspace/knowledge/learned/patterns.md</code></li>
+      </ol>
+    </section>
+
+    <section id="functional">
+      <h1>7. Functional Requirements</h1>
+
+      <h2 id="fr-execution">7.1 Pipeline Execution</h2>
+      <ul>
+        <li><strong>FR1.1:</strong> System MUST run the 12 PDLC roles as isolated Docker containers on Hetzner, one container per role dispatch.</li>
+        <li><strong>FR1.2:</strong> Each container MUST receive a fresh, pre-assembled workspace via bind mount before starting.</li>
+        <li><strong>FR1.3:</strong> Containers MUST run Claude Code CLI as the execution engine.</li>
+        <li><strong>FR1.4:</strong> Container images MUST be generic (single <code>cidadel-agent</code> image). Agent identity comes from <code>boot.md</code> + <code>CLAUDE.md</code>.</li>
+        <li><strong>FR1.5:</strong> Workspaces MUST be isolated — two concurrent pipelines share zero filesystem state.</li>
+        <li><strong>FR1.6:</strong> Failed or completed containers MUST be destroyed after result extraction; workspaces archived for 30 days.</li>
+        <li><strong>FR1.7:</strong> Pipeline execution MUST be asynchronous — <code>SubmitPipeline</code> returns in ≤2 seconds with a pipeline ID.</li>
+      </ul>
+
+      <h2 id="fr-orchestration">7.2 Role Orchestration</h2>
+      <ul>
+        <li><strong>FR2.1:</strong> Pipelines MUST be defined as JSON files in a registry, not hardcoded Java.</li>
+        <li><strong>FR2.2:</strong> Each role definition MUST include: agent type, model, max_turns, resource class, boot template path, CLAUDE.md path, knowledge files, pre-population spec.</li>
+        <li><strong>FR2.3:</strong> The shell MUST dispatch roles according to the pipeline's dependency graph, supporting sequential and parallel groups.</li>
+        <li><strong>FR2.4:</strong> The shell MUST pass results from completed roles via <code>workspace/context/prior-agent-output.md</code>.</li>
+        <li><strong>FR2.5:</strong> The shell MUST support both container-handled agents and shell-handled agents (deterministic compute, no LLM).</li>
+      </ul>
+
+      <h2 id="fr-knowledge">7.3 Knowledge System (4 Layers)</h2>
+      <div class="callout callout-info">
+        <div class="callout-title">Key Design Decision</div>
+        <p style="margin:0;">Vector search is used ONLY for past runs. The user's live repo is explored via Claude Code's native Grep/Glob/Read/Bash — fresher, more precise than RAG.</p>
+      </div>
+      <ul>
+        <li><strong>FR3.1:</strong> Layer 1 (Live Repo) — shell clones user's repo into <code>workspace/context/repo/</code> before container starts, fresh every run.</li>
+        <li><strong>FR3.2:</strong> Layer 2 (Authored Knowledge) — shell populates <code>workspace/knowledge/authored/</code> with curated markdown from registry, scoped per agent type.</li>
+        <li><strong>FR3.3:</strong> Layer 3 (Learned Patterns) — shell queries MongoDB <code>agent_knowledge</code> for approved learnings, renders into <code>workspace/knowledge/learned/patterns.md</code>.</li>
+        <li><strong>FR3.4:</strong> Layer 4 (Past Runs Vector Search) — Qdrant MCP server available inside agent containers via <code>find_similar_runs(query, top_k)</code>.</li>
+        <li><strong>FR3.5:</strong> Retro agent indexes successful pipelines into Qdrant using Voyage-code-3 embeddings.</li>
+        <li><strong>FR3.6:</strong> Vector search MUST NOT be used for exploring user's live repo — agents use native tools.</li>
+      </ul>
+
+      <h2 id="fr-quality">7.4 Quality Multipliers</h2>
+      <div class="quality-box">
+        <h4>The Real Quality Engine</h4>
+        <p style="margin:0;">These multipliers matter more than any other technical choice. Cost and time are not constraints here.</p>
+      </div>
+      <ul>
+        <li><strong>FR4.1: Multi-candidate generation</strong> — IMPLEMENTER generates 3 parallel candidate implementations by default. CRITIC sub-agent selects best. Configurable 1-5.</li>
+        <li><strong>FR4.2: Rework loops</strong> — Up to 5 iterations per role. Triggered by REVIEWER rejection, TESTER failures, SECURITY_ANALYST vulnerabilities, or self-signaled rework.</li>
+        <li><strong>FR4.3: Multi-critic consensus</strong> — TEST phase runs REVIEWER + TESTER + SECURITY_ANALYST. All three must approve before DEPLOY.</li>
+        <li><strong>FR4.4: Test-first enforcement</strong> — In FULL_PDLC, TESTER writes failing tests BEFORE IMPLEMENTER writes code. TDD at the pipeline level.</li>
+        <li><strong>FR4.5: REFACTOR pass</strong> — After TEST approves, IMPLEMENTER runs dedicated refactor iteration for code quality.</li>
+        <li><strong>FR4.6: Sub-agent self-correction</strong> — Container agents may spawn sub-agents for validation.</li>
+        <li><strong>FR4.7: High max_turns</strong> — Default 100 per role.</li>
+        <li><strong>FR4.8: Best models</strong> — Opus for ARCHITECT/SECURITY/CRITIC/RETRO. Sonnet for IMPLEMENTER/TESTER/REVIEWER. Haiku never used in PDLC v2.</li>
+      </ul>
+
+      <h2 id="fr-checkpoints">7.5 Checkpoints & User Control</h2>
+      <ul>
+        <li><strong>FR5.1:</strong> Pipeline definitions may mark any role as requiring a checkpoint.</li>
+        <li><strong>FR5.2:</strong> Shell pauses pipeline on checkpoint, writes record to MongoDB, emits <code>CHECKPOINT_REQUESTED</code>.</li>
+        <li><strong>FR5.3:</strong> Tacticl-core forwards event to mobile/web via WebSocket + push notification.</li>
+        <li><strong>FR5.4:</strong> User responds with approve / reject+feedback / cancel.</li>
+        <li><strong>FR5.5:</strong> Tacticl-core relays via gRPC <code>ResolveCheckpoint</code>.</li>
+        <li><strong>FR5.6:</strong> Arbiter resumes or re-dispatches rejected role with feedback in context.</li>
+        <li><strong>FR5.7:</strong> <strong>Mandatory checkpoints in FULL_PDLC:</strong> after PM, after ARCHITECT, before DEPLOY.</li>
+      </ul>
+
+      <h2 id="fr-triggers">7.6 Triggers</h2>
+      <ul>
+        <li><strong>FR6.1: Chat</strong> — Existing <code>POST /v1/agent/command</code></li>
+        <li><strong>FR6.2: Voice</strong> — Existing push-to-talk flow</li>
+        <li><strong>FR6.3: GitHub webhook</strong> — New <code>POST /v1/webhooks/github</code>, triggered by issue with label <code>tacticl-implement</code></li>
+        <li><strong>FR6.4: Scheduled cron</strong> — Recurring sparks via existing <code>agent_reminders</code> collection</li>
+      </ul>
+
+      <h2 id="fr-outputs">7.7 Output Artifacts</h2>
+      <ul>
+        <li><strong>FR7.1:</strong> Default output is a PR on user's GitHub/GitLab repo.</li>
+        <li><strong>FR7.2:</strong> Per-user and per-repo configurable: <code>diff-only</code> | <code>branch-push</code> | <code>pull-request</code> (default) | <code>auto-merge</code>.</li>
+        <li><strong>FR7.3:</strong> Auto-merge is opt-in per repo, requires all CI checks to pass.</li>
+        <li><strong>FR7.4:</strong> PR description includes: original request, playbook, roles, artifacts, cost breakdown, retro observations.</li>
+      </ul>
+
+      <h2 id="fr-state">7.8 State & Recovery</h2>
+      <ul>
+        <li><strong>FR8.1:</strong> All pipeline state persisted to MongoDB <code>pipeline_runs</code> on every state transition.</li>
+        <li><strong>FR8.2:</strong> In-memory <code>PipelineTracker</code> caches hot state.</li>
+        <li><strong>FR8.3:</strong> On shell restart, hydrate from MongoDB, resume interrupted pipelines.</li>
+        <li><strong>FR8.4:</strong> Pipeline execution must be idempotent — resuming picks up from last completed role.</li>
+      </ul>
+
+      <h2 id="fr-retro">7.9 Retro Learning Loop</h2>
+      <ul>
+        <li><strong>FR9.1:</strong> Retro container runs weekly (Sunday 2 AM UTC).</li>
+        <li><strong>FR9.2:</strong> Scans past 7 days of archived workspaces.</li>
+        <li><strong>FR9.3:</strong> Identifies patterns: failures, token waste, knowledge gaps, template improvements.</li>
+        <li><strong>FR9.4:</strong> Writes proposed learnings to MongoDB with <code>status=proposed</code>.</li>
+        <li><strong>FR9.5:</strong> Eng lead reviews in console UI.</li>
+        <li><strong>FR9.6:</strong> Approved learnings flow into next workspace assembly.</li>
+        <li><strong>FR9.7:</strong> Retro also populates Qdrant past-runs index.</li>
+      </ul>
+
+      <h2 id="fr-obs">7.10 Observability</h2>
+      <ul>
+        <li><strong>FR10.1:</strong> Every role emits OTel spans: <code>role.start</code>, <code>role.complete</code>, <code>role.rework</code>, <code>role.checkpoint</code>.</li>
+        <li><strong>FR10.2:</strong> Token usage tracked per role per pipeline in MongoDB.</li>
+        <li><strong>FR10.3:</strong> Cost tracked with per-pipeline ceiling ($100 default) and monthly spending limit.</li>
+        <li><strong>FR10.4:</strong> Structured JSONL logs in <code>workspace/logs/</code>.</li>
+      </ul>
+    </section>
+
+    <section id="non-functional">
+      <h1>8. Non-Functional Requirements</h1>
+
+      <h2>8.1 Quality (Primary Priority)</h2>
+      <table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Target</th></tr></thead>
+        <tbody>
+          <tr><td>NFR-Q1</td><td>First-run CI pass rate</td><td>≥85% (stretch: ≥95%)</td></tr>
+          <tr><td>NFR-Q2</td><td>Bug regression rate (30d)</td><td>≤2%</td></tr>
+          <tr><td>NFR-Q3</td><td>Style consistency</td><td>≥90% match repo conventions</td></tr>
+          <tr><td>NFR-Q4</td><td>Test coverage on generated code</td><td>≥80% line coverage</td></tr>
+        </tbody>
+      </table>
+
+      <h2>8.2 Performance</h2>
+      <table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Target</th></tr></thead>
+        <tbody>
+          <tr><td>NFR-P1</td><td>SubmitPipeline latency (p95)</td><td>≤2 seconds</td></tr>
+          <tr><td>NFR-P2</td><td>PDLC total latency</td><td>No hard cap — quality > speed</td></tr>
+          <tr><td>NFR-P3</td><td>Container spawn latency</td><td>≤3 seconds</td></tr>
+          <tr><td>NFR-P4</td><td>Checkpoint response latency</td><td>≤5 seconds from user approval to next dispatch</td></tr>
+        </tbody>
+      </table>
+
+      <h2>8.3 Scale</h2>
+      <ul>
+        <li><strong>NFR-S1:</strong> 20+ concurrent PDLC pipelines on current Hetzner infrastructure</li>
+        <li><strong>NFR-S2:</strong> Up to 15 concurrent containers per pipeline (parallel TEST phase + sub-agents)</li>
+        <li><strong>NFR-S3:</strong> Qdrant scales to ~100K past run chunks, sub-100ms p95</li>
+      </ul>
+
+      <h2>8.4 Cost</h2>
+      <ul>
+        <li><strong>NFR-C1:</strong> Default per-pipeline ceiling: $100</li>
+        <li><strong>NFR-C2:</strong> Default monthly user budget: $0 (must be explicitly enabled)</li>
+        <li><strong>NFR-C3:</strong> Cost transparency per role in pipeline detail view</li>
+        <li><strong>NFR-C4:</strong> Cost is NOT a quality constraint — multipliers never disabled for cost</li>
+      </ul>
+
+      <h2>8.5 Reliability</h2>
+      <ul>
+        <li><strong>NFR-R1:</strong> Pipeline recovery on shell restart via MongoDB-backed state</li>
+        <li><strong>NFR-R2:</strong> Container failure auto-retry (1 attempt before escalating to rework loop)</li>
+        <li><strong>NFR-R3:</strong> Callback retry with exponential backoff (3 attempts)</li>
+      </ul>
+
+      <h2>8.6 Security</h2>
+      <ul>
+        <li><strong>NFR-Sec1:</strong> Per-pipeline bind mounts, no shared filesystem</li>
+        <li><strong>NFR-Sec2:</strong> GitHub tokens per-pipeline env var, never logged, rotated per-workspace</li>
+        <li><strong>NFR-Sec3:</strong> Containers run as non-root, no privileged mode</li>
+        <li><strong>NFR-Sec4:</strong> All secrets from Vault, never hardcoded</li>
+        <li><strong>NFR-Sec5:</strong> SECURITY_ANALYST veto is a hard stop — cannot be overridden without explicit user checkpoint</li>
+      </ul>
+    </section>
+
+    <section id="metrics">
+      <h1>9. Success Metrics</h1>
+
+      <h2>9.1 Launch Criteria (v2 GA)</h2>
+      <ul>
+        <li>☐ FULL_PDLC runs end-to-end with all 12 roles without manual intervention</li>
+        <li>☐ At least 3 sample PRs pass CI on first run without human changes</li>
+        <li>☐ Checkpoint flow works end-to-end</li>
+        <li>☐ Multi-candidate generation produces measurably better code than single-candidate</li>
+        <li>☐ Rework loop triggers correctly on test failures and reviews</li>
+        <li>☐ Retro agent populates <code>agent_knowledge</code> with ≥5 proposed learnings</li>
+        <li>☐ Past runs index in Qdrant supports semantic search with ≤100ms p95</li>
+        <li>☐ Tacticl-core forwards pipeline progress via WebSocket</li>
+        <li>☐ All 5 Hetzner infrastructure pieces operational</li>
+      </ul>
+
+      <h2>9.2 Ongoing Quality Metrics</h2>
+      <table>
+        <thead><tr><th>Metric</th><th>Target</th><th>Measurement</th></tr></thead>
+        <tbody>
+          <tr><td>First-run CI pass rate</td><td>≥85%</td><td>% of pipelines with PRs passing CI without edits</td></tr>
+          <tr><td>PR merge rate</td><td>≥70%</td><td>% of pipelines whose PR gets merged</td></tr>
+          <tr><td>Rework rate</td><td>≤30%</td><td>% of roles requiring ≥1 rework iteration</td></tr>
+          <tr><td>Checkpoint rejection rate</td><td>≤15%</td><td>% of checkpoints rejected vs approved</td></tr>
+          <tr><td>Retro learnings proposed</td><td>≥10/week</td><td>Signal retro is finding patterns</td></tr>
+          <tr><td>Retro learnings approved</td><td>≥50%</td><td>Signal learnings are useful</td></tr>
+          <tr><td>Test coverage on generated code</td><td>≥80%</td><td>Measured by TESTER reports</td></tr>
+          <tr><td>Pipeline cost p50</td><td>&lt;$5</td><td>Median cost per pipeline</td></tr>
+          <tr><td>Pipeline cost p95</td><td>&lt;$30</td><td>95th percentile cost</td></tr>
+        </tbody>
+      </table>
+
+      <h2>9.3 Anti-Goals</h2>
+      <div class="callout callout-warning">
+        <div class="callout-title">Things to NOT Optimize For</div>
+        <ul style="margin:8px 0 0;">
+          <li><strong>Speed-to-PR</strong> — Don't celebrate sub-10-minute pipelines if they produce lower-quality code. A 2-hour pipeline that produces merge-ready code is better.</li>
+          <li><strong>Cost per pipeline</strong> — Don't reduce multi-candidate, rework, or max_turns to cut costs.</li>
+          <li><strong>Number of pipelines run</strong> — Count merged PRs and first-run CI pass rate, not vanity metrics.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="deps">
+      <h1>10. Dependencies</h1>
+
+      <h2>10.1 External</h2>
+      <table>
+        <thead><tr><th>Dependency</th><th>Purpose</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Anthropic API</strong> (Opus 4.6, Sonnet 4.6)</td><td>Primary LLM</td><td>Live</td></tr>
+          <tr><td><strong>Voyage-code-3</strong></td><td>Embeddings for past-runs index</td><td>Needs account + API key</td></tr>
+          <tr><td><strong>GitHub API</strong></td><td>Repo clone, PR creation, webhooks</td><td>Live (existing)</td></tr>
+          <tr><td><strong>Hetzner CPX31+</strong></td><td>Hosting arbiter, MongoDB, Qdrant, tacticl-core</td><td>Live (second box needed for agent fleet)</td></tr>
+          <tr><td><strong>MongoDB 7</strong></td><td>Persistent state, agent_knowledge, pipeline_runs</td><td>Live on Hetzner</td></tr>
+          <tr><td><strong>Qdrant</strong></td><td>Past-runs vector index</td><td>New — needs deploy to Hetzner</td></tr>
+        </tbody>
+      </table>
+
+      <h2>10.2 Internal</h2>
+      <table>
+        <thead><tr><th>Repo</th><th>Component</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>cidadel-ai-arbiter</td><td>Shell, workspace assembler, container manager, gRPC</td><td>Live (needs tacticl registry + checkpoint support)</td></tr>
+          <tr><td>cidadel-core</td><td>Auth (PASETO), user/session, shared LLM infra</td><td>Live on Hetzner</td></tr>
+          <tr><td>tacticl-core</td><td>Control plane, WebSocket bridge, spark CRUD, webhooks, checkpoint relay</td><td>Needs refactor</td></tr>
+          <tr><td>tacticl-web + tacticl-mobile</td><td>Pipeline dashboard, checkpoint UI</td><td>Needs v2 updates</td></tr>
+        </tbody>
+      </table>
+
+      <h2>10.3 Prerequisite Work</h2>
+      <ol>
+        <li><strong>P1:</strong> Firestore → MongoDB migration for tacticl-core (separate project)</li>
+        <li><strong>P2:</strong> Tacticl-core Hetzner deployment (separate project)</li>
+        <li><strong>P3:</strong> Qdrant on Hetzner (Docker container in platform-net)</li>
+        <li><strong>P4:</strong> Tacticl pipeline registry at <code>/agent-registry/tacticl/</code> on Hetzner</li>
+      </ol>
+    </section>
+
+    <section id="data">
+      <h1>11. Data Storage & Persistence</h1>
+
+      <h2 id="data-systems">11.1 Storage Systems</h2>
+      <p>Tacticl PDLC v2 uses four storage systems. No new systems introduced beyond what the platform already runs.</p>
+      <table>
+        <thead><tr><th>System</th><th>Purpose</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td><strong>MongoDB 7</strong></td><td>Primary OLTP — pipeline state, agent knowledge, tacticl operational data</td><td>Live on Hetzner</td></tr>
+          <tr><td><strong>Qdrant</strong></td><td>Vector search over past successful runs (cross-run memory)</td><td><strong>New</strong> — deploy as Docker container in platform-net</td></tr>
+          <tr><td><strong>Filesystem</strong></td><td>Workspaces, registry, archived runs</td><td>Live on Hetzner (<code>/opt/cidadel/</code>)</td></tr>
+          <tr><td><strong>Vault</strong></td><td>Secrets (LLM keys, GitHub tokens, MongoDB creds)</td><td>Live</td></tr>
+        </tbody>
+      </table>
+      <div class="callout callout-warning">
+        <div class="callout-title">Explicitly NOT Used</div>
+        <p style="margin:0;">Redis, Postgres, Neo4j. Per Constraint C6. Don't add new database systems in v2.</p>
+      </div>
+
+      <h2 id="data-mongo">11.2 MongoDB Collections</h2>
+
+      <h3>New collections in <code>tacticlDb</code> (for v2):</h3>
+      <table>
+        <thead><tr><th>Collection</th><th>Purpose</th><th>Writer</th><th>Reader</th></tr></thead>
+        <tbody>
+          <tr><td><code>pipeline_runs</code></td><td>Pipeline state, role statuses, aggregated metrics, playbook</td><td>Arbiter shell</td><td>Tacticl-core (dashboard), arbiter</td></tr>
+          <tr><td><code>pipeline_events</code></td><td>Append-only event log: role start/complete, rework, checkpoint, cost warnings</td><td>Arbiter shell</td><td>Tacticl-core (dashboard)</td></tr>
+          <tr><td><code>pipeline_artifacts</code></td><td>Role output artifacts — PRDs, designs, test results, GitHub refs</td><td>Arbiter shell</td><td>Tacticl-core (dashboard)</td></tr>
+          <tr><td><code>pipeline_checkpoints</code></td><td>Pending user approvals, checkpoint responses</td><td>Arbiter + tacticl-core</td><td>Both</td></tr>
+          <tr><td><code>pipeline_jobs</code></td><td>Maps <code>sparkId → arbiterPipelineId</code> for callback routing</td><td>Tacticl-core</td><td>Tacticl-core</td></tr>
+          <tr><td><code>pipeline_configs</code></td><td>Per-user, per-repo output preferences (diff/branch/PR/auto-merge)</td><td>Tacticl-core</td><td>Tacticl-core</td></tr>
+          <tr><td><code>webhook_events</code></td><td>GitHub webhook history, dedup, audit</td><td>Tacticl-core</td><td>Tacticl-core</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Shared collection in <code>cidadelShared</code> database:</h3>
+      <table>
+        <thead><tr><th>Collection</th><th>Purpose</th><th>Writer</th><th>Reader</th></tr></thead>
+        <tbody>
+          <tr><td><code>agent_knowledge</code></td><td>Retro-proposed + human-approved learnings, scoped by <code>product</code> field</td><td>Retro agent (arbiter), console UI (tacticl-core)</td><td>Arbiter workspace assembler</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Existing tacticl collections (carried forward from Firestore migration P1):</h3>
+      <p><code>users</code>, <code>sparks</code>, <code>tactics</code>, <code>execution_logs</code>, <code>devices</code>, <code>social_integrations</code>, <code>repo_grants</code>, <code>agent_tokens</code>, <code>reminders</code>, <code>content_templates</code>, <code>scheduled_batches</code>, <code>generated_videos</code>, <code>action_confirmations</code>, <code>agent_audit_log</code>, <code>device_commands</code></p>
+      <p>These remain owned by tacticl-core (Java) and are untouched by arbiter in PDLC v2.</p>
+
+      <h2 id="data-qdrant">11.3 Qdrant Collection: <code>tacticl_past_runs</code></h2>
+      <p>Self-hosted Qdrant Docker container on Hetzner, registered in <code>platform-net</code> for internal access from arbiter shell and agent containers.</p>
+      <p><strong>Point structure:</strong></p>
+      <ul>
+        <li><strong>Vector:</strong> Voyage-code-3 embedding (1024 dimensions)</li>
+        <li><strong>Payload schema:</strong></li>
+      </ul>
+<pre><code>{
+  "product": "tacticl",
+  "pipeline_id": "uuid",
+  "agent_type": "IMPLEMENTER",
+  "playbook": "FULL_PDLC",
+  "chunk_type": "role_prompt | role_output | outcome_summary",
+  "success_score": 0.92,
+  "merged_to_main": true,
+  "tags": ["auth", "oauth", "spring-boot"],
+  "timestamp": "2026-04-01T12:34:56Z",
+  "content": "... chunk text ..."
+}</code></pre>
+      <p><strong>Indexing strategy:</strong></p>
+      <ul>
+        <li>Filter on <code>product</code> + <code>agent_type</code> for scoped retrieval</li>
+        <li>Filter on <code>success_score >= 0.8</code> (only successful runs indexed)</li>
+        <li>Filter on <code>merged_to_main = true</code> (only user-accepted work)</li>
+      </ul>
+      <p><strong>Query pattern:</strong> Agent containers call MCP tool <code>find_similar_runs(query_text, agent_type, top_k=5)</code> → returns top-5 semantically similar chunks from past successful PDLC runs.</p>
+      <p><strong>Writer:</strong> Retro agent weekly job. Reads archived workspaces, chunks content, embeds via Voyage-code-3, upserts to Qdrant.</p>
+      <p><strong>Reader:</strong> Agent containers via local MCP server. The MCP server exposes <code>find_similar_runs</code> as a tool Claude Code can invoke during execution.</p>
+
+      <h2 id="data-fs">11.4 Filesystem Layout</h2>
+      <p><strong>Active workspaces</strong> (bind-mounted to containers):</p>
+<pre><code>/opt/cidadel/agent-workspaces/
+  workspace-{pipeline_id}-{role}-{ts}/
+    boot.md
+    CLAUDE.md
+    knowledge/
+      authored/
+      learned/patterns.md
+    context/
+      repo/           # cloned user repo
+      user-prompt.md
+      prior-agent-output.md
+      checkpoint-feedback.md
+    results/
+    logs/</code></pre>
+
+      <p><strong>Archived workspaces</strong> (30-day retention, cron cleanup):</p>
+<pre><code>/opt/cidadel/agent-workspaces/archive/
+  tacticl/
+    2026/04/11/
+      workspace-.../</code></pre>
+
+      <p><strong>Registry</strong> (git-versioned, SSH-deployed):</p>
+<pre><code>/opt/cidadel/agent-registry/tacticl/
+  pipelines/
+    full-pdlc.json
+    bug-fix.json
+    small-feature.json
+    refactor.json
+    infra-change.json
+    docs-only.json
+    ui-change.json
+    security-patch.json
+  agents/
+    pm.json
+    researcher.json
+    architect.json
+    designer.json
+    planner.json
+    implementer.json
+    reviewer.json
+    tester.json
+    security-analyst.json
+    technical-writer.json
+    devops.json
+    retro-analyst.json
+  templates/
+    *.md.hbs                  # Handlebars boot templates
+  claude-configs/
+    *.md                      # CLAUDE.md per agent
+  knowledge/
+    authored/
+      java-conventions.md
+      spring-boot-patterns.md
+      testing-guidelines.md</code></pre>
+
+      <h2 id="data-vault">11.5 Vault Secret Paths</h2>
+      <table>
+        <thead><tr><th>Path</th><th>Content</th></tr></thead>
+        <tbody>
+          <tr><td><code>secret/tacticl/anthropic</code></td><td>Anthropic API key (or OAuth token for Claude Code CLI)</td></tr>
+          <tr><td><code>secret/tacticl/voyage</code></td><td>Voyage-code-3 API key (for retro agent embeddings)</td></tr>
+          <tr><td><code>secret/tacticl/github/{userId}</code></td><td>Per-user GitHub OAuth tokens</td></tr>
+          <tr><td><code>secret/cidadel/mongodb</code></td><td>MongoDB connection credentials</td></tr>
+          <tr><td><code>secret/cidadel/qdrant</code></td><td>Qdrant API key (if auth enabled)</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="data-cross">11.6 Cross-Product Database Strategy</h2>
+      <p>Since the arbiter is shared between strategiz and tacticl:</p>
+      <h3>Per-product databases (each product owns its pipeline state):</h3>
+      <ul>
+        <li><code>strategizDb</code> — strategy generation runs, strategiz-specific collections</li>
+        <li><code>tacticlDb</code> — PDLC runs, tacticl-specific collections</li>
+      </ul>
+      <p><strong>Rationale:</strong> Pipeline execution schemas diverge between products. Don't force a single schema.</p>
+      <h3>Shared <code>cidadelShared</code> database (cross-cutting data):</h3>
+      <ul>
+        <li><code>agent_knowledge</code> — retro learnings, scoped by <code>product</code> field at query time</li>
+        <li><code>pipeline_costs_rollup</code> (future) — cost analytics across products</li>
+      </ul>
+      <p><strong>Rationale:</strong> Cross-product visibility into learning patterns; retro scanner can identify cross-product insights ("both strategiz and tacticl waste tokens on the same thing").</p>
+
+      <h2 id="data-schema">11.7 Schema Ownership & Cross-Language Sync</h2>
+      <table>
+        <thead><tr><th>Collection Category</th><th>Source of Truth</th><th>Other Side</th></tr></thead>
+        <tbody>
+          <tr><td>Arbiter-written (<code>pipeline_runs</code>, <code>pipeline_events</code>, <code>pipeline_artifacts</code>)</td><td>TypeScript schemas in arbiter (Zod or manual), documented in SAD</td><td>Java reads as <code>Document</code>, typed via documented contract</td></tr>
+          <tr><td>Tacticl-core operational (<code>sparks</code>, <code>tactics</code>, <code>devices</code>, etc.)</td><td>Java <code>MongoBaseEntity</code> classes in cidadel-core framework</td><td>N/A — arbiter doesn't touch</td></tr>
+          <tr><td>Shared (<code>agent_knowledge</code>)</td><td>Defined once in cidadel-core framework, TypeScript types mirror in arbiter</td><td>Both sides must sync on schema changes</td></tr>
+        </tbody>
+      </table>
+      <div class="callout callout-info">
+        <div class="callout-title">Schema Evolution Rule</div>
+        <p style="margin:0;">Breaking changes require coordinated deploys. Additive changes (new optional fields) are safe without sync.</p>
+      </div>
+
+      <h2 id="data-retention">11.8 Retention & Backup Policy</h2>
+      <table>
+        <thead><tr><th>Store</th><th>Retention</th><th>Backup</th></tr></thead>
+        <tbody>
+          <tr><td>MongoDB operational</td><td>Indefinite</td><td>Daily <code>mongodump</code> → external storage</td></tr>
+          <tr><td>MongoDB <code>pipeline_events</code></td><td>90 days</td><td>Daily</td></tr>
+          <tr><td>Qdrant <code>tacticl_past_runs</code></td><td>Indefinite (grows with learning)</td><td>Weekly snapshot → external storage</td></tr>
+          <tr><td>Active workspaces</td><td>Pipeline duration only</td><td>None (ephemeral)</td></tr>
+          <tr><td>Archived workspaces</td><td>30 days on local disk</td><td>Weekly rsync → external storage</td></tr>
+          <tr><td>Registry</td><td>Git version control</td><td>Git (GitHub)</td></tr>
+          <tr><td>Vault</td><td>N/A</td><td>Vault's built-in backup</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="data-index">11.9 Indexing Strategy (MongoDB)</h2>
+      <p>Critical indexes to create on launch:</p>
+      <table>
+        <thead><tr><th>Collection</th><th>Indexes</th></tr></thead>
+        <tbody>
+          <tr><td><code>pipeline_runs</code></td><td><code>{userId: 1, createdAt: -1}</code>, <code>{sparkId: 1}</code>, <code>{status: 1, claimedBy: 1}</code></td></tr>
+          <tr><td><code>pipeline_events</code></td><td><code>{pipelineId: 1, timestamp: 1}</code>, <code>{eventType: 1, timestamp: -1}</code></td></tr>
+          <tr><td><code>pipeline_artifacts</code></td><td><code>{pipelineId: 1, roleType: 1}</code></td></tr>
+          <tr><td><code>pipeline_checkpoints</code></td><td><code>{pipelineId: 1, status: 1}</code>, <code>{userId: 1, status: 1}</code></td></tr>
+          <tr><td><code>pipeline_jobs</code></td><td><code>{arbiterPipelineId: 1}</code> (unique), <code>{userId: 1, createdAt: -1}</code></td></tr>
+          <tr><td><code>agent_knowledge</code></td><td><code>{product: 1, status: 1}</code>, <code>{product: 1, agent_types: 1}</code> (multikey)</td></tr>
+          <tr><td><code>webhook_events</code></td><td><code>{deliveryId: 1}</code> (unique), <code>{source: 1, timestamp: -1}</code></td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="data-usercode">11.10 Databases That User Code Needs (NOT Tacticl Infrastructure)</h2>
+      <div class="callout callout-danger">
+        <div class="callout-title">Important Distinction</div>
+        <p style="margin:0;">Sections 11.2–11.9 describe <strong>tacticl's own factory infrastructure</strong> — storing pipeline state, agent knowledge, operational data. These databases are <strong>NEVER accessed by user code</strong>. Tacticl does not host production data for user applications.</p>
+      </div>
+
+      <h3>Case A: User's spark targets an existing repo (majority of PDLC work)</h3>
+      <p>The agent uses whatever database configuration already exists in the repo.</p>
+      <ul>
+        <li>Shell clones user's repo into <code>workspace/context/repo/</code></li>
+        <li>IMPLEMENTER reads <code>docker-compose.yml</code>, <code>application.properties</code>, existing schema</li>
+        <li>Agent writes code that matches the repo's existing database setup</li>
+        <li>TESTER runs the repo's existing test infrastructure (Spring Boot with H2, Node.js with Testcontainers, etc.)</li>
+        <li>Tacticl provides nothing database-related — the repo's setup handles it</li>
+      </ul>
+
+      <h3>Case B: Greenfield spark — building from scratch</h3>
+      <p>The agent picks an appropriate database, generates code + infrastructure, and hands off to the user.</p>
+      <ul>
+        <li>ARCHITECT chooses database based on requirements</li>
+        <li>IMPLEMENTER generates application code + <code>docker-compose.yml</code> + migrations + README</li>
+        <li>TESTER uses embedded databases (H2, Fongo, Fake Redis) or Testcontainers for integration tests</li>
+        <li>DEVOPS generates deployment configs (Docker Compose, Kubernetes manifests, etc.)</li>
+        <li>Pipeline produces a runnable PR — <strong>user deploys it to their own infrastructure</strong></li>
+        <li>Tacticl does NOT host the running application. Ever.</li>
+      </ul>
+
+      <h3>Testing Strategy for Database-Dependent Code</h3>
+      <table>
+        <thead><tr><th>Strategy</th><th>When</th><th>How</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Embedded databases</strong> (default)</td><td>Unit tests, simple integration tests</td><td>H2/HSQLDB for SQL, Fongo for MongoDB, Fake Redis — runs in-memory inside the agent container, zero infrastructure</td></tr>
+          <tr><td><strong>Testcontainers</strong> (escape hatch)</td><td>Real integration tests where embedded isn't sufficient</td><td>Ephemeral Postgres/MySQL/Mongo/Redis containers spun up inside the agent container's Docker context, destroyed after tests</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Container Image Requirements for Testcontainers Support</h3>
+      <ul>
+        <li><strong>Docker socket mount</strong> (v2 default) — <code>/var/run/docker.sock</code> mounted into agent container. Agent spawns sibling containers on host Docker daemon. Simple, privileged.</li>
+        <li><strong>Docker-in-Docker</strong> (v2.1 if needed) — nested Docker daemon inside the agent container. Heavier, more isolated.</li>
+      </ul>
+      <p><strong>Security safeguard:</strong> Arbiter shell validates <code>docker run</code> commands against a curated allowlist (Postgres, Mongo, Redis, MySQL). Agent containers cannot spawn arbitrary images on the host.</p>
+
+      <h3>What Is NEVER Done</h3>
+      <div class="callout callout-danger">
+        <ul style="margin:8px 0 0;">
+          <li>User code never accesses tacticl's MongoDB, Qdrant, or any infrastructure database</li>
+          <li>Tacticl never provisions production databases for user applications</li>
+          <li>Tacticl never hosts user data in its own storage systems</li>
+          <li>In-memory databases (H2, SQLite in-memory, embedded Mongo) are strictly testing tools — never a substitute for real production databases</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="constraints">
+      <h1>12. Constraints</h1>
+      <ul>
+        <li><strong>C1:</strong> Hetzner infrastructure only. No GCP, no AWS.</li>
+        <li><strong>C2:</strong> Tacticl-core remains Java/Spring Boot as the control plane.</li>
+        <li><strong>C3:</strong> cidadel-core is the auth source of truth — don't rebuild in Node.js.</li>
+        <li><strong>C4:</strong> Claude Code CLI is the execution engine — not SDK, not direct API.</li>
+        <li><strong>C5:</strong> Single Vault endpoint for all secrets.</li>
+        <li><strong>C6:</strong> MongoDB + Qdrant only. No Postgres, no Neo4j, no Redis.</li>
+      </ul>
+    </section>
+
+    <section id="future">
+      <h1>13. Out of Scope / Future Work</h1>
+
+      <h3>13.1 Deferred to v2.1</h3>
+      <ul>
+        <li>Multi-repo PDLC (one pipeline spanning multiple repos)</li>
+        <li>IDE integration (VSCode/JetBrains)</li>
+        <li>Real-time agent token streaming to UI</li>
+        <li>Live debugging — attach to running container</li>
+        <li>Cost prediction before submission</li>
+      </ul>
+
+      <h3>13.2 Deferred to v3</h3>
+      <ul>
+        <li>Non-PDLC workloads through arbiter (social, chat, research, video)</li>
+        <li>Multi-tenant isolation beyond per-user namespacing</li>
+        <li>Team/org features — shared knowledge, shared pipelines, RBAC</li>
+        <li>Knowledge graph (Neo4j) for code relationships</li>
+        <li>Self-hosted LLM models</li>
+        <li>Device-side work integration</li>
+      </ul>
+    </section>
+
+    <section id="glossary">
+      <h1>14. Glossary</h1>
+      <table>
+        <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Pipeline</strong></td><td>Ordered sequence of agent roles producing a deliverable</td></tr>
+          <tr><td><strong>Playbook</strong></td><td>Named pipeline configuration (FULL_PDLC, BUG_FIX, etc.)</td></tr>
+          <tr><td><strong>Role</strong></td><td>Specialized AI agent with specific responsibility</td></tr>
+          <tr><td><strong>Phase</strong></td><td>Logical grouping of roles (PRODUCT, DESIGN, DEVELOPMENT, TEST, DEPLOY)</td></tr>
+          <tr><td><strong>Workspace</strong></td><td>Per-run isolated filesystem with boot.md, CLAUDE.md, knowledge, context, results, logs</td></tr>
+          <tr><td><strong>Agent container</strong></td><td>Docker container running Claude Code CLI, executing a single role</td></tr>
+          <tr><td><strong>Shell</strong></td><td>Arbiter orchestrator — dispatches agents, manages workspaces, handles callbacks</td></tr>
+          <tr><td><strong>Registry</strong></td><td>Filesystem store of pipeline definitions, agent definitions, templates, knowledge</td></tr>
+          <tr><td><strong>Checkpoint</strong></td><td>Pause point requiring user approval</td></tr>
+          <tr><td><strong>Rework loop</strong></td><td>Re-dispatching a role with feedback after rejection</td></tr>
+          <tr><td><strong>Multi-candidate</strong></td><td>Generating N parallel implementations, CRITIC sub-agent selects best</td></tr>
+          <tr><td><strong>Critic</strong></td><td>Sub-agent evaluating outputs (validation, selection, review)</td></tr>
+          <tr><td><strong>Retro agent</strong></td><td>Weekly job scanning past runs, proposing learnings</td></tr>
+          <tr><td><strong>Past runs index</strong></td><td>Qdrant vector DB of successful past pipelines</td></tr>
+          <tr><td><strong>Control plane</strong></td><td>tacticl-core's new role: auth, CRUD, WebSocket bridge, webhooks</td></tr>
+          <tr><td><strong>Execution plane</strong></td><td>The arbiter: where pipelines actually run</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <hr>
+
+    <p style="text-align: center; color: var(--text-dim); font-size: 13px; margin-top: 48px;">
+      Tacticl PDLC v2 — Product Requirements Document · Draft 2026-04-11
+    </p>
+  </main>
+</div>
+</body>
+</html>
