@@ -78,7 +78,6 @@ src/test/java/io/tacticl/business/connections/service/DeviceRegistryServiceTest.
 src/main/java/io/tacticl/service/connections/controller/ConnectionController.java
 src/main/java/io/tacticl/service/connections/controller/DeviceController.java
 src/main/java/io/tacticl/service/connections/dto/ConnectionSummaryDto.java
-src/main/java/io/tacticl/service/connections/dto/ConnectionDetailDto.java
 src/main/java/io/tacticl/service/connections/dto/OAuthCallbackRequestDto.java
 src/main/java/io/tacticl/service/connections/dto/PairingTokenResponseDto.java
 src/main/java/io/tacticl/service/connections/dto/DeviceSummaryDto.java
@@ -636,11 +635,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
+import org.testcontainers.junit.jupiter.Testcontainers;
 import java.time.Instant;
 import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataMongoTest
+@Testcontainers
 class DeviceRepositoryTest {
 
     @Autowired DeviceRepository deviceRepo;
