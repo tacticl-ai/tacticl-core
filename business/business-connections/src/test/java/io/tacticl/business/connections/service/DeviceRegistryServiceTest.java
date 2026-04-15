@@ -82,4 +82,25 @@ class DeviceRegistryServiceTest {
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getName()).isEqualTo("My Mac");
     }
+
+    @Test
+    void rename_updatesDeviceName() {
+        var device = Device.create("user1", "Old Name", "MACOS", "1.0", List.of());
+        when(deviceRepository.findById("dev-1")).thenReturn(Optional.of(device));
+        when(deviceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var result = service.rename("user1", "dev-1", "New Name");
+
+        assertThat(result.getName()).isEqualTo("New Name");
+        verify(deviceRepository).save(device);
+    }
+
+    @Test
+    void rename_wrongUser_throws() {
+        var device = Device.create("user2", "Mac", "MACOS", "1.0", List.of());
+        when(deviceRepository.findById("dev-1")).thenReturn(Optional.of(device));
+
+        assertThatThrownBy(() -> service.rename("user1", "dev-1", "New Name"))
+            .isInstanceOf(SecurityException.class);
+    }
 }
