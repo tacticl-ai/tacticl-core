@@ -10,7 +10,6 @@ cidadel = "0.4.19"
 bucket4j = "8.10.1"
 springdoc = "3.0.2"
 resilience4j = "2.2.0"
-google-cloud-firestore = "3.28.0"
 playwright = "1.49.0"
 
 # Testing (versions managed by Spring Boot BOM)
@@ -54,7 +53,6 @@ bucket4j-core = { module = "com.bucket4j:bucket4j-core", version.ref = "bucket4j
 springdoc-openapi = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
 jackson-databind = { module = "tools.jackson.core:jackson-databind" }
 httpclient = { module = "org.apache.httpcomponents:httpclient", version = "4.5.14" }
-google-cloud-firestore = { module = "com.google.cloud:google-cloud-firestore", version.ref = "google-cloud-firestore" }
 playwright = { module = "com.microsoft.playwright:playwright", version.ref = "playwright" }
 
 # Testing

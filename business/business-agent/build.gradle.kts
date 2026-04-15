@@ -4,10 +4,6 @@ plugins {
 
 dependencies {
     // Internal modules
-    implementation(project(":data:data-social"))
-    implementation(project(":data:data-browser"))
-    implementation(project(":business:business-social"))
-    implementation(project(":client:client-siliconflow"))
     implementation(project(":client:client-brave-search"))
     implementation(project(":client:client-jina"))
     implementation(project(":client:client-google"))
@@ -29,7 +25,4 @@ dependencies {
     implementation(libs.cidadel.business.ai.engine)
     implementation(libs.cidadel.client.claude.code)
     implementation(libs.cidadel.client.codex)
-
-    // Google Cloud Firestore (for UserDataPurgeService batch operations)
-    implementation(libs.google.cloud.firestore)
 }

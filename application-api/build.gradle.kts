@@ -5,32 +5,21 @@ plugins {
 
 dependencies {
     // Service layer
-    implementation(project(":service:service-social"))
     implementation(project(":service:service-agent"))
     implementation(project(":service:service-spark"))
     implementation(project(":service:service-checkpoint"))
     implementation(project(":service:service-repo"))
     implementation(project(":service:service-token"))
+    implementation(project(":service:service-connections"))
 
     // Business layer
-    implementation(project(":business:business-social"))
     implementation(project(":business:business-agent"))
-    implementation(project(":business:business-browser"))
-
-    // Data layer
-    implementation(project(":data:data-social"))
-    implementation(project(":data:data-browser"))
 
     // Client layer
-    implementation(project(":client:client-twitter"))
-    implementation(project(":client:client-linkedin"))
-    implementation(project(":client:client-instagram"))
     implementation(project(":client:client-google"))
     implementation(project(":client:client-github"))
-    implementation(project(":client:client-siliconflow"))
     implementation(project(":client:client-brave-search"))
     implementation(project(":client:client-jina"))
-    implementation(project(":client:client-gcs"))
 
     // Cidadel shared infrastructure
     implementation(libs.cidadel.framework.authorization)
@@ -49,9 +38,6 @@ dependencies {
 
     // Cidadel service base (used by service-agent)
     implementation(libs.cidadel.service.framework.base)
-
-    // Cidadel data base (BaseEntity, BaseRepository, auditing, transactions)
-    implementation(libs.cidadel.data.framework.base)
 
     // Spring Boot
     implementation(libs.spring.boot.starter.web)

@@ -5,5 +5,7 @@ plugins {
 dependencies {
     // Internal modules
     implementation(project(":business:business-agent"))
-    implementation(project(":data:data-social"))
+
+    // Cidadel shared infrastructure (module-specific, beyond parent)
+    implementation(libs.cidadel.service.framework.base)
 }
