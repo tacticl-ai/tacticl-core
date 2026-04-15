@@ -15,9 +15,14 @@ public class GitHubOAuthProvider implements OAuthProvider {
     private final RestClient restClient;
 
     public GitHubOAuthProvider(String clientId, String clientSecret) {
+        this(clientId, clientSecret, RestClient.create());
+    }
+
+    // Package-private for testing
+    GitHubOAuthProvider(String clientId, String clientSecret, RestClient restClient) {
         this.clientId = clientId;
         this.clientSecret = clientSecret;
-        this.restClient = RestClient.create();
+        this.restClient = restClient;
     }
 
     @Override
@@ -34,9 +39,9 @@ public class GitHubOAuthProvider implements OAuthProvider {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public OAuthTokens exchangeCode(String code, String redirectUri) {
-        @SuppressWarnings("unchecked")
-        var response = restClient.post()
+        var response = (Map<String, Object>) restClient.post()
             .uri(TOKEN_URL)
             .header("Accept", "application/json")
             .body(Map.of(
@@ -48,6 +53,11 @@ public class GitHubOAuthProvider implements OAuthProvider {
             .retrieve()
             .body(Map.class);
 
+        if (response == null || response.containsKey("error")) {
+            var error = response != null ? response.get("error") : "null response";
+            throw new IllegalStateException("GitHub token exchange failed: " + error);
+        }
+
         var accessToken = (String) response.get("access_token");
         var identity = fetchAccountIdentity(accessToken);
         return new OAuthTokens(accessToken, null, null, identity);
@@ -58,13 +68,16 @@ public class GitHubOAuthProvider implements OAuthProvider {
         throw new UnsupportedOperationException("GitHub tokens do not support refresh");
     }
 
+    @SuppressWarnings("unchecked")
     private String fetchAccountIdentity(String accessToken) {
-        @SuppressWarnings("unchecked")
-        var user = restClient.get()
+        var user = (Map<String, Object>) restClient.get()
             .uri(USER_URL)
             .header("Authorization", "Bearer " + accessToken)
             .retrieve()
             .body(Map.class);
+        if (user == null || user.get("login") == null) {
+            throw new IllegalStateException("GitHub user identity fetch failed");
+        }
         return "@" + user.get("login");
     }
 }
