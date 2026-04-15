@@ -61,7 +61,7 @@ class ConnectionRegistryServiceTest {
 
         assertThat(connection.getAccountIdentity()).isEqualTo("@alice");
         assertThat(connection.getStatus()).isEqualTo(ConnectionStatus.CONNECTED);
-        verify(vaultTokenStore).store(eq("user1"), anyString(), eq(tokens));
+        verify(vaultTokenStore).store(eq("user1"), eq("github"), eq(tokens));
         verify(connectionRepository).save(any(Connection.class));
     }
 
@@ -82,6 +82,15 @@ class ConnectionRegistryServiceTest {
         when(connectionRepository.findById("conn-1")).thenReturn(Optional.of(connection));
 
         assertThatThrownBy(() -> service.disconnect("user1", "conn-1"))
+            .isInstanceOf(SecurityException.class);
+    }
+
+    @Test
+    void getConnection_wrongUser_throws() {
+        var connection = Connection.create("user2", "GITHUB", "vault/path", "@alice", List.of("repo"));
+        when(connectionRepository.findById("conn-1")).thenReturn(Optional.of(connection));
+
+        assertThatThrownBy(() -> service.getConnection("user1", "conn-1"))
             .isInstanceOf(SecurityException.class);
     }
 }

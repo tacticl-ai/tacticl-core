@@ -7,7 +7,7 @@ import io.tacticl.data.connections.repository.ConnectionRepository;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -41,8 +41,7 @@ public class ConnectionRegistryService {
                 buildVaultPath(userId, providerName), tokens.accountIdentity(),
                 List.of()));
 
-        var connectionId = connection.getId() != null ? connection.getId() : UUID.randomUUID().toString();
-        vaultTokenStore.store(userId, connectionId, tokens);
+        vaultTokenStore.store(userId, providerName.toLowerCase(), tokens);
 
         if (tokens.expiresAt() != null) {
             connection.markConnected(tokens.expiresAt());
@@ -54,13 +53,14 @@ public class ConnectionRegistryService {
         return connectionRepository.findByUserId(userId);
     }
 
-    public Connection getConnection(String userId, String connectionId) {
-        var connection = connectionRepository.findById(connectionId)
-            .orElseThrow(() -> new IllegalArgumentException("Connection not found: " + connectionId));
-        if (!connection.getUserId().equals(userId)) {
-            throw new SecurityException("Connection does not belong to user");
-        }
-        return connection;
+    public Optional<Connection> getConnection(String userId, String connectionId) {
+        return connectionRepository.findById(connectionId)
+            .filter(conn -> {
+                if (!conn.getUserId().equals(userId)) {
+                    throw new SecurityException("Connection does not belong to user");
+                }
+                return true;
+            });
     }
 
     public void disconnect(String userId, String connectionId) {
