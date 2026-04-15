@@ -1,5 +1,6 @@
 package io.tacticl.service.connections.controller;
 
+import io.cidadel.service.base.controller.BaseController;
 import io.tacticl.business.connections.service.ConnectionRegistryService;
 import io.tacticl.service.connections.dto.ConnectionSummaryDto;
 import io.tacticl.service.connections.dto.OAuthCallbackRequestDto;
@@ -11,7 +12,12 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/v1/connections")
-public class ConnectionController {
+public class ConnectionController extends BaseController {
+
+    @Override
+    protected String getModuleName() {
+        return "connections";
+    }
 
     private final ConnectionRegistryService connectionRegistryService;
 

@@ -1,5 +1,6 @@
 package io.tacticl.service.connections.controller;
 
+import io.cidadel.service.base.controller.BaseController;
 import io.tacticl.business.connections.service.DeviceRegistryService;
 import io.tacticl.service.connections.dto.DeviceSummaryDto;
 import io.tacticl.service.connections.dto.PairingTokenResponseDto;
@@ -10,7 +11,12 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/connections/devices")
-public class DeviceController {
+public class DeviceController extends BaseController {
+
+    @Override
+    protected String getModuleName() {
+        return "devices";
+    }
 
     private final DeviceRegistryService deviceRegistryService;
 
@@ -47,11 +53,15 @@ public class DeviceController {
     }
 
     @PatchMapping("/{deviceId}")
-    public ResponseEntity<DeviceSummaryDto> rename(
+    public ResponseEntity<?> rename(
             @PathVariable String deviceId,
             @RequestBody Map<String, String> body,
             @RequestHeader("X-User-Id") String userId) {
-        var device = deviceRegistryService.rename(userId, deviceId, body.get("name"));
+        var name = body.get("name");
+        if (name == null || name.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        var device = deviceRegistryService.rename(userId, deviceId, name);
         return ResponseEntity.ok(new DeviceSummaryDto(
             device.getId(), device.getName(), device.getOs(), device.getStatus().name(),
             device.getCapabilities(), null));
