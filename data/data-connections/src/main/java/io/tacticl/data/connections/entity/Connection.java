@@ -2,7 +2,6 @@ package io.tacticl.data.connections.entity;
 
 import io.tacticl.data.connections.base.BaseMongoEntity;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
@@ -12,7 +11,6 @@ import java.util.List;
 @CompoundIndex(def = "{'userId': 1, 'provider': 1}", unique = true)
 public class Connection extends BaseMongoEntity {
 
-    @Indexed
     private String userId;
     private String provider;
     private ConnectionStatus status;

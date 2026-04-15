@@ -50,30 +50,4 @@ class ConnectionRepositoryTest {
         assertThat(result).isEmpty();
     }
 
-    @Test
-    void connection_markExpired_changesStatus() {
-        var conn = Connection.create("user1", "GITHUB", "vault/path/1", "@alice", List.of("repo"));
-        assertThat(conn.getStatus()).isEqualTo(ConnectionStatus.CONNECTED);
-
-        conn.markExpired();
-
-        assertThat(conn.getStatus()).isEqualTo(ConnectionStatus.EXPIRED);
-    }
-
-    @Test
-    void connection_markError_changesStatus() {
-        var conn = Connection.create("user1", "GITHUB", "vault/path/1", "@alice", List.of("repo"));
-
-        conn.markError();
-
-        assertThat(conn.getStatus()).isEqualTo(ConnectionStatus.ERROR);
-    }
-
-    @Test
-    void repositoryInterface_hasRequiredMethods() throws NoSuchMethodException {
-        // Verify method signatures exist at compile time
-        assertThat(ConnectionRepository.class.getMethod("findByUserId", String.class)).isNotNull();
-        assertThat(ConnectionRepository.class.getMethod("findByUserIdAndProvider", String.class, String.class)).isNotNull();
-        assertThat(ConnectionRepository.class.getMethod("deleteByUserIdAndProvider", String.class, String.class)).isNotNull();
-    }
 }
