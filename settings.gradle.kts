@@ -26,5 +26,8 @@ include(
 include(":data:data-connections")
 include(":business:business-connections")
 include(":service:service-connections")
+include(":data:data-sparks")
+include(":business:business-sparks")
+include(":service:service-sparks")
 
 // Version catalog auto-discovered from gradle/libs.versions.toml
