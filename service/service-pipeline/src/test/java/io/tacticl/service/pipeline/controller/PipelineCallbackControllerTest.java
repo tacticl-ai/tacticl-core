@@ -1,7 +1,7 @@
 package io.tacticl.service.pipeline.controller;
 
 import io.tacticl.business.pipeline.service.PipelineEventEmitter;
-import io.tacticl.service.pipeline.dto.PipelineCallbackEvent;
+import io.tacticl.business.pipeline.dto.PipelineCallbackEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

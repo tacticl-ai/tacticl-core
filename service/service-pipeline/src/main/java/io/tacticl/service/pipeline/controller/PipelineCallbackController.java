@@ -2,7 +2,7 @@ package io.tacticl.service.pipeline.controller;
 
 import io.cidadel.service.base.controller.BaseController;
 import io.tacticl.business.pipeline.service.PipelineEventEmitter;
-import io.tacticl.service.pipeline.dto.PipelineCallbackEvent;
+import io.tacticl.business.pipeline.dto.PipelineCallbackEvent;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;

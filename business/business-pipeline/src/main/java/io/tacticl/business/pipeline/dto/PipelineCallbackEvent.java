@@ -1,4 +1,4 @@
-package io.tacticl.service.pipeline.dto;
+package io.tacticl.business.pipeline.dto;
 
 public record PipelineCallbackEvent(
     String pipelineRunId,

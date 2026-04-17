@@ -30,6 +30,7 @@ class PdlcV2ServiceTest {
     @Mock PipelineCheckpointRepository pipelineCheckpointRepository;
     @Mock SparkRepository sparkRepository;
     @Mock ArbiterPipelineService arbiterPipelineService;
+    @Mock PipelineEventEmitter pipelineEventEmitter;
 
     PdlcV2Service service;
 
@@ -38,6 +39,7 @@ class PdlcV2ServiceTest {
         service = new PdlcV2Service(
             pipelineRunRepository, pipelineEventRepository,
             pipelineCheckpointRepository, sparkRepository, arbiterPipelineService,
+            pipelineEventEmitter,
             "https://api.tacticl.ai/v1/internal/pipeline/callback"
         );
     }
