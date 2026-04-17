@@ -6,6 +6,7 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication(scanBasePackages = {
+		"io.strategiz.social.application",
 		"io.tacticl",
 		"io.cidadel.framework",
 		"io.cidadel.client.anthropic",
