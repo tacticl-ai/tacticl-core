@@ -4,6 +4,7 @@ import io.tacticl.business.connections.service.ConnectionRegistryService;
 import io.tacticl.business.connections.service.DeviceRegistryService;
 import io.tacticl.business.connections.service.SecretsVaultService;
 import io.tacticl.business.connections.service.VaultTokenStore;
+import io.tacticl.business.connections.provider.OAuthTokens;
 import io.tacticl.data.connections.entity.Connection;
 import io.tacticl.data.connections.entity.Device;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,37 @@ class TacticlInternalServiceImplTest {
 
         assertThat(resp.connections()).isEmpty();
         assertThat(resp.devices()).isEmpty();
+    }
+
+    @Test
+    void getAvailableConnections_withConnection_resolvesAccessToken() {
+        Connection conn = Connection.create("user-1", "GITHUB", "vault/path",
+                "user@example.com", List.of("repo:read"));
+        OAuthTokens tokens = new OAuthTokens("live-access-token", null, null, "user@example.com");
+        when(connectionRegistryService.listConnections("user-1")).thenReturn(List.of(conn));
+        when(deviceRegistryService.listDevices("user-1")).thenReturn(List.of());
+        when(vaultTokenStore.retrieve("vault/path")).thenReturn(tokens);
+
+        TacticlInternalResponse.GetConnectionsResponse resp =
+                service.getAvailableConnections(new TacticlInternalRequest.GetConnectionsRequest("user-1"));
+
+        assertThat(resp.connections()).hasSize(1);
+        assertThat(resp.connections().get(0).accessToken()).isEqualTo("live-access-token");
+    }
+
+    @Test
+    void getAvailableConnections_vaultReturnsNull_returnsEmptyToken() {
+        Connection conn = Connection.create("user-1", "GITHUB", "vault/path",
+                "user@example.com", List.of("repo:read"));
+        when(connectionRegistryService.listConnections("user-1")).thenReturn(List.of(conn));
+        when(deviceRegistryService.listDevices("user-1")).thenReturn(List.of());
+        when(vaultTokenStore.retrieve("vault/path")).thenReturn(null);
+
+        TacticlInternalResponse.GetConnectionsResponse resp =
+                service.getAvailableConnections(new TacticlInternalRequest.GetConnectionsRequest("user-1"));
+
+        assertThat(resp.connections()).hasSize(1);
+        assertThat(resp.connections().get(0).accessToken()).isEmpty();
     }
 
     @Test

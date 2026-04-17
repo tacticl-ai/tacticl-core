@@ -7,11 +7,15 @@ import io.tacticl.business.connections.service.VaultTokenStore;
 import io.tacticl.business.connections.provider.OAuthTokens;
 import io.tacticl.data.connections.entity.Connection;
 import io.tacticl.data.connections.entity.Device;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
 public class TacticlInternalServiceImpl implements TacticlInternalService {
+
+    private static final Logger log = LoggerFactory.getLogger(TacticlInternalServiceImpl.class);
 
     private final ConnectionRegistryService connectionRegistryService;
     private final SecretsVaultService secretsVaultService;
@@ -73,6 +77,7 @@ public class TacticlInternalServiceImpl implements TacticlInternalService {
             OAuthTokens tokens = vaultTokenStore.retrieve(connection.getVaultPath());
             return tokens != null ? tokens.accessToken() : "";
         } catch (Exception e) {
+            log.warn("Failed to resolve access token for connection {}: {}", connection.getId(), e.getMessage());
             return "";
         }
     }
