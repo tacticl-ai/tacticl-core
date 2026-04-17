@@ -7,6 +7,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication(scanBasePackages = {
 		"io.strategiz.social.application",
+		"io.strategiz.social.service",
 		"io.tacticl",
 		"io.cidadel.framework",
 		"io.cidadel.client.anthropic",
