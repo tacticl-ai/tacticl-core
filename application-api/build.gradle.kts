@@ -6,10 +6,7 @@ plugins {
 dependencies {
     // Service layer
     implementation(project(":service:service-agent"))
-    implementation(project(":service:service-spark"))
-    implementation(project(":service:service-checkpoint"))
-    implementation(project(":service:service-repo"))
-    implementation(project(":service:service-token"))
+    implementation(project(":service:service-sparks"))
     implementation(project(":service:service-connections"))
     implementation(project(":service:service-pipeline"))
     implementation(project(":service:service-conversation"))
