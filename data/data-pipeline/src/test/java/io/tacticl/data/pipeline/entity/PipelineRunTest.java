@@ -60,4 +60,55 @@ class PipelineRunTest {
         run.addCost(3.10);
         assertThat(run.getTotalCostUsd()).isEqualTo(8.35, org.assertj.core.data.Offset.offset(0.001));
     }
+
+    private PipelineRun run() {
+        return PipelineRun.create("user-1", "spark-1", "req", "repo",
+                                  "FULL_PDLC", List.of(), 100.0);
+    }
+
+    @Test
+    void pauseAtCheckpoint_setsPhaseCheckpoint() {
+        PipelineRun run = run();
+        run.pauseAtCheckpoint("cp-1", "PRODUCT");
+        assertThat(run.getStatus()).isEqualTo(PipelineStatus.PAUSED_AT_CHECKPOINT);
+        assertThat(run.getCurrentCheckpointId()).isEqualTo("cp-1");
+        assertThat(run.getPhases()).containsKey("PRODUCT");
+        assertThat(run.getPhases().get("PRODUCT").getCheckpointId()).isEqualTo("cp-1");
+    }
+
+    @Test
+    void markRoleStarted_createsPhaseAndRoleIfAbsent() {
+        PipelineRun run = run();
+        run.markRoleStarted("PRODUCT", "PM");
+        assertThat(run.getPhases()).containsKey("PRODUCT");
+        assertThat(run.getPhases().get("PRODUCT").getRoles()).containsKey("PM");
+        assertThat(run.getPhases().get("PRODUCT").getRoles().get("PM").getStatus()).isEqualTo("RUNNING");
+        assertThat(run.getPhases().get("PRODUCT").getStatus()).isEqualTo("RUNNING");
+    }
+
+    @Test
+    void markRoleCompleted_updatesRoleCostAndRunCost() {
+        PipelineRun run = run();
+        run.markRoleStarted("PRODUCT", "PM");
+        run.markRoleCompleted("PRODUCT", "PM", 2.10);
+        assertThat(run.getPhases().get("PRODUCT").getRoles().get("PM").getCostUsd()).isEqualTo(2.10);
+        assertThat(run.getTotalCostUsd()).isEqualTo(2.10);
+        assertThat(run.getPhases().get("PRODUCT").getRoles().get("PM").getStatus()).isEqualTo("COMPLETED");
+    }
+
+    @Test
+    void markRoleRework_incrementsReworkCount() {
+        PipelineRun run = run();
+        run.markRoleStarted("DEVELOPMENT", "IMPLEMENTER");
+        run.markRoleCompleted("DEVELOPMENT", "IMPLEMENTER", 5.0);
+        run.markRoleRework("DEVELOPMENT", "IMPLEMENTER");
+        assertThat(run.getPhases().get("DEVELOPMENT").getRoles().get("IMPLEMENTER").getReworkCount()).isEqualTo(1);
+    }
+
+    @Test
+    void setArtifact_storesArtifactByKey() {
+        PipelineRun run = run();
+        run.setArtifact("phase1Prd", "path/to/prd.md");
+        assertThat(run.getArtifacts()).containsEntry("phase1Prd", "path/to/prd.md");
+    }
 }

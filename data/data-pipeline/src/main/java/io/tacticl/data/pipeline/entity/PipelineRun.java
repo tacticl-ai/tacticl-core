@@ -82,6 +82,34 @@ public class PipelineRun {
         this.status = PipelineStatus.PAUSED_AT_CHECKPOINT;
         this.currentCheckpointId = checkpointId;
         this.updatedAt = Instant.now();
+        if (phase != null) {
+            phases.computeIfAbsent(phase, k -> PhaseState.pending()).setCheckpoint(checkpointId);
+        }
+    }
+
+    public void markRoleStarted(String phase, String role) {
+        PhaseState phaseState = phases.computeIfAbsent(phase, k -> PhaseState.pending());
+        if (!"RUNNING".equals(phaseState.getStatus())) phaseState.markRunning();
+        phaseState.getRoles().computeIfAbsent(role, k -> RoleState.pending()).markRunning();
+        this.updatedAt = Instant.now();
+    }
+
+    public void markRoleCompleted(String phase, String role, double costUsd) {
+        PhaseState phaseState = phases.computeIfAbsent(phase, k -> PhaseState.pending());
+        phaseState.getRoles().computeIfAbsent(role, k -> RoleState.pending()).markCompleted(costUsd);
+        this.totalCostUsd += costUsd;
+        this.updatedAt = Instant.now();
+    }
+
+    public void markRoleRework(String phase, String role) {
+        PhaseState phaseState = phases.computeIfAbsent(phase, k -> PhaseState.pending());
+        phaseState.getRoles().computeIfAbsent(role, k -> RoleState.pending()).incrementRework();
+        this.updatedAt = Instant.now();
+    }
+
+    public void setArtifact(String key, String path) {
+        artifacts.put(key, path);
+        this.updatedAt = Instant.now();
     }
 
     public void resumeFromCheckpoint() {
