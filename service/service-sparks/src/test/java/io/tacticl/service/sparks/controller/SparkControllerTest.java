@@ -21,10 +21,12 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.List;
 import java.util.Optional;
 import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -97,12 +99,22 @@ class SparkControllerTest {
 
     @Test
     void streamEvents_returnsSseEmitter() {
+        Spark spark = Spark.create("user-1", "test");
         SseEmitter sse = new SseEmitter(30_000L);
+        when(sparkService.get("user-1", "spark-1")).thenReturn(Optional.of(spark));
         when(sparkEventEmitter.register(eq("spark-1"), any())).thenReturn(sse);
 
-        SseEmitter result = controller.streamEvents(mock(AuthenticatedUser.class), "spark-1");
+        SseEmitter result = controller.streamEvents(user("user-1"), "spark-1");
 
         assertThat(result).isNotNull();
+    }
+
+    @Test
+    void streamEvents_unknownSpark_throws404() {
+        when(sparkService.get("user-1", "unknown")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> controller.streamEvents(user("user-1"), "unknown"))
+                .isInstanceOf(ResponseStatusException.class);
     }
 
     @Test

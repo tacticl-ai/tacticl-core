@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.Map;
 
@@ -77,12 +78,12 @@ public class SparkController extends BaseController {
     }
 
     @GetMapping("/{sparkId}")
-    public ResponseEntity<?> getSpark(
+    public ResponseEntity<SparkDetailDto> getSpark(
             @AuthUser AuthenticatedUser user,
             @PathVariable String sparkId) {
         return sparkService.get(user.getUserId(), sparkId)
                 .map(s -> ResponseEntity.ok(toDetail(s)))
-                .orElse(ResponseEntity.notFound().build());
+                .orElse(ResponseEntity.<SparkDetailDto>notFound().build());
     }
 
     @DeleteMapping("/{sparkId}")
@@ -97,6 +98,8 @@ public class SparkController extends BaseController {
     public SseEmitter streamEvents(
             @AuthUser AuthenticatedUser user,
             @PathVariable String sparkId) {
+        sparkService.get(user.getUserId(), sparkId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         SseEmitter emitter = new SseEmitter(300_000L);
         return sparkEventEmitter.register(sparkId, emitter);
     }
