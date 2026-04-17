@@ -30,4 +30,9 @@ include(":data:data-sparks")
 include(":business:business-sparks")
 include(":service:service-sparks")
 
+include(":data:data-pipeline")
+include(":client:client-ai-arbiter")
+include(":business:business-pipeline")
+include(":service:service-pipeline")
+
 // Version catalog auto-discovered from gradle/libs.versions.toml
