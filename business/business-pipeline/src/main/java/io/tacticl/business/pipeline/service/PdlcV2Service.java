@@ -94,21 +94,28 @@ public class PdlcV2Service {
             pipelineRunId, PageRequest.of(page, size));
     }
 
-    /**
-     * Checkpoint resolution is local-only — we update our state so the SSE stream reflects it.
-     * The arbiter handles its own internal checkpoint flow; there is no resolveCheckpoint RPC.
-     */
     public void resolveCheckpoint(String userId, String sparkId, String checkpointId,
                                   CheckpointDecision decision, String feedback) {
         PipelineRun run = pipelineRunRepository.findBySparkIdAndUserId(sparkId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("Pipeline run not found for spark: " + sparkId));
+                .orElseThrow(() -> new IllegalArgumentException(
+                    "Pipeline run not found for spark: " + sparkId));
 
         PipelineCheckpoint checkpoint = pipelineCheckpointRepository
                 .findByIdAndPipelineRunId(checkpointId, run.getId())
-                .orElseThrow(() -> new IllegalArgumentException("Checkpoint not found: " + checkpointId));
+                .orElseThrow(() -> new IllegalArgumentException(
+                    "Checkpoint not found: " + checkpointId));
 
         checkpoint.resolve(decision, feedback);
         pipelineCheckpointRepository.save(checkpoint);
+
+        if (run.getArbiterPipelineId() != null) {
+            arbiterPipelineService.resolveCheckpoint(
+                run.getArbiterPipelineId(), checkpointId, decision.name(), feedback
+            );
+        }
+
+        run.resumeFromCheckpoint();
+        pipelineRunRepository.save(run);
         log.info("Resolved checkpoint {} for run {} with decision {}", checkpointId, run.getId(), decision);
     }
 
