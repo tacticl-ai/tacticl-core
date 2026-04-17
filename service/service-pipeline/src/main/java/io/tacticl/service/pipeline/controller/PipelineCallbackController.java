@@ -1,5 +1,6 @@
 package io.tacticl.service.pipeline.controller;
 
+import io.cidadel.service.base.controller.BaseController;
 import io.tacticl.business.pipeline.service.PipelineEventEmitter;
 import io.tacticl.service.pipeline.dto.PipelineCallbackEvent;
 import org.springframework.http.ResponseEntity;
@@ -14,7 +15,10 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/v1/internal/pipeline")
-public class PipelineCallbackController {
+public class PipelineCallbackController extends BaseController {
+
+    @Override
+    protected String getModuleName() { return "pipeline-callback"; }
 
     private static final String PIPELINE_COMPLETED = "PIPELINE_COMPLETED";
     private static final String PIPELINE_FAILED = "PIPELINE_FAILED";

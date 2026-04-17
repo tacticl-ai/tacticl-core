@@ -90,4 +90,29 @@ class PdlcV2ServiceTest {
         when(pipelineRunRepository.findBySparkIdAndUserId("spark-1", "user-1")).thenReturn(Optional.empty());
         assertThat(service.getStatus("user-1", "spark-1")).isEmpty();
     }
+
+    @Test
+    void cancelPipeline_marksRunCancelledAndCallsArbiter() {
+        PipelineRun run = PipelineRun.create("user-1", "spark-1", "req", "url", "BUG_FIX", List.of(), 10.0);
+        when(pipelineRunRepository.findBySparkIdAndUserId("spark-1", "user-1")).thenReturn(Optional.of(run));
+        when(pipelineRunRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        doNothing().when(arbiterPipelineService).cancelPipeline(any());
+
+        service.cancelPipeline("user-1", "spark-1");
+
+        assertThat(run.getStatus()).isEqualTo(io.tacticl.data.pipeline.entity.PipelineStatus.CANCELLED);
+        verify(pipelineRunRepository).save(run);
+        verify(arbiterPipelineService).cancelPipeline(run.getId());
+    }
+
+    @Test
+    void resolveCheckpoint_sparkNotFound_throwsIllegalArgument() {
+        when(pipelineRunRepository.findBySparkIdAndUserId("bad-spark", "user-1")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.resolveCheckpoint(
+            "user-1", "bad-spark", "cp-1",
+            io.tacticl.data.pipeline.entity.CheckpointDecision.APPROVED, null
+        )).isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("bad-spark");
+    }
 }
