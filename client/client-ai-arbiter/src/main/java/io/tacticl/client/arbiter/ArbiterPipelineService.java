@@ -12,4 +12,6 @@ public interface ArbiterPipelineService {
     SubmitPipelineResponse submitPipeline(SubmitPipelineRequest request);
     void cancelPipeline(String arbiterPipelineId);
     PipelineResultResponse getResult(String arbiterPipelineId);
+    void resolveCheckpoint(String arbiterPipelineId, String checkpointId,
+                           String decision, String feedback);
 }
