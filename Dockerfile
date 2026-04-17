@@ -15,18 +15,8 @@ RUN mkdir -p /opt/playwright
 WORKDIR /app
 
 COPY application-api/build/libs/application-api.jar app.jar
-
-# Install Playwright Chromium browser at build time — skip gracefully if not in JAR.
-# Playwright is only included when business-browser module is active (cloud-browser-automation branch).
-RUN apt-get update && apt-get install -y unzip && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /tmp/extracted && cd /tmp/extracted && unzip -q /app/app.jar \
-    && if ls BOOT-INF/lib/playwright-*.jar 1>/dev/null 2>&1; then \
-         echo "Playwright found — installing Chromium" \
-         && java -cp "BOOT-INF/lib/*:BOOT-INF/classes" com.microsoft.playwright.CLI install chromium; \
-       else \
-         echo "Playwright not in JAR — skipping browser install"; \
-       fi \
-    && rm -rf /tmp/extracted
+# Note: Playwright Chromium install removed — business-browser module not active.
+# System libs above are kept so the image is ready when it's re-enabled.
 
 EXPOSE 8080
 
