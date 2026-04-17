@@ -21,8 +21,4 @@ dependencies {
     implementation(libs.cidadel.client.openai.direct)
     implementation(libs.cidadel.client.grok.direct)
 
-    // Cidadel AI engine
-    implementation(libs.cidadel.business.ai.engine)
-    implementation(libs.cidadel.client.claude.code)
-    implementation(libs.cidadel.client.codex)
 }
