@@ -16,6 +16,9 @@ public class UserProfileService {
     }
 
     public UserProfile getOrCreate(AuthenticatedUser user) {
+        if (user.getUserId() == null) {
+            throw new IllegalArgumentException("Token missing userId claim");
+        }
         if (user.getName() == null) {
             throw new IllegalArgumentException("Token missing name claim");
         }

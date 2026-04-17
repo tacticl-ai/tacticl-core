@@ -74,6 +74,15 @@ class UserProfileServiceTest {
     }
 
     @Test
+    void getOrCreate_throws_whenUserIdIsNull() {
+        var nullIdUser = mock(AuthenticatedUser.class);
+        when(nullIdUser.getUserId()).thenReturn(null);
+        assertThatThrownBy(() -> userProfileService.getOrCreate(nullIdUser))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("userId");
+    }
+
+    @Test
     void getOrCreate_throws_whenNameIsNull() {
         assertThatThrownBy(() -> userProfileService.getOrCreate(user("u4", null, "e@example.com")))
             .isInstanceOf(IllegalArgumentException.class)
