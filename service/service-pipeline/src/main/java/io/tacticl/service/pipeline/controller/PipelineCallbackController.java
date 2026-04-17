@@ -32,6 +32,8 @@ public class PipelineCallbackController extends BaseController {
 
     @PostMapping("/callback")
     public ResponseEntity<Void> handleCallback(@RequestBody PipelineCallbackEvent event) {
+        // TODO: Persist event to PipelineEventRepository when arbiter integration goes live.
+        // Currently events are only fanned out via SSE; if no subscriber is connected, the event is lost.
         pipelineEventEmitter.emit(event.pipelineRunId(), event.eventType(), event.payloadJson());
 
         if (PIPELINE_COMPLETED.equals(event.eventType())

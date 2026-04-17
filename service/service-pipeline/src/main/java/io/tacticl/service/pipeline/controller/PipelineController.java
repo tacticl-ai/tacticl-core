@@ -64,9 +64,21 @@ public class PipelineController extends BaseController {
             @RequestBody ResolveCheckpointDto body) {
         pdlcV2Service.resolveCheckpoint(
             user.getUserId(), sparkId, checkpointId,
-            CheckpointDecision.valueOf(body.decision()),
+            parseDecision(body.decision()),
             body.feedback()
         );
         return ResponseEntity.ok().build();
+    }
+
+    // TODO: Add DELETE /{sparkId}/pipeline or POST /{sparkId}/pipeline/cancel endpoint
+    // when cancel UX is defined. PdlcV2Service.cancelPipeline() is ready.
+
+    private CheckpointDecision parseDecision(String decision) {
+        try {
+            return CheckpointDecision.valueOf(decision);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Invalid checkpoint decision: " + decision + ". Valid values: APPROVED, REWORK, CANCEL");
+        }
     }
 }
