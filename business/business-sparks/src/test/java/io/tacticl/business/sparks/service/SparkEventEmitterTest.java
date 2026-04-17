@@ -27,7 +27,7 @@ class SparkEventEmitterTest {
     }
 
     @Test
-    void emit_callsOnCompletionAndHandlesSendError() {
+    void emit_toEmptySubscriberSet_doesNotThrow() {
         // emit to a sparkId with no subscribers should not throw
         assertThatCode(() -> emitter.emit("spark-1", "STATUS_UPDATE", "EXECUTING"))
                 .doesNotThrowAnyException();

@@ -22,11 +22,10 @@ public class SparkEventEmitter {
     }
 
     public void unregister(String sparkId, SseEmitter emitter) {
-        Set<SseEmitter> set = emitters.get(sparkId);
-        if (set != null) {
+        emitters.computeIfPresent(sparkId, (k, set) -> {
             set.remove(emitter);
-            if (set.isEmpty()) emitters.remove(sparkId);
-        }
+            return set.isEmpty() ? null : set;
+        });
     }
 
     public void emit(String sparkId, String eventName, Object data) {
