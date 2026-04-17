@@ -2,6 +2,7 @@ package io.strategiz.social.application;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication(scanBasePackages = {
@@ -11,8 +12,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 		"io.cidadel.client.openai",
 		"io.cidadel.client.grok",
 		"io.cidadel.framework.ai.engine",
-		"io.cidadel.business.ai.engine"
+		"io.cidadel.business.ai.engine",
+		"io.cidadel.data"
 })
+@EnableMongoRepositories(basePackages = {"io.tacticl", "io.cidadel.data"})
 @EnableScheduling
 public class TacticlApplication {
 

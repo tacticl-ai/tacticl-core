@@ -44,6 +44,7 @@ dependencies {
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.security)
     implementation(libs.spring.boot.starter.websocket)
+    implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
 
     // Testing
     testImplementation(libs.spring.boot.starter.test)
