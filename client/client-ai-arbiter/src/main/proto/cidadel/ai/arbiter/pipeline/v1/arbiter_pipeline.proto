@@ -11,6 +11,7 @@ service ArbiterPipelineService {
   rpc StreamPipelineProgress(PipelineProgressRequest) returns (stream PipelineProgressEvent);
   rpc CancelPipeline(CancelPipelineRequest) returns (CancelPipelineResponse);
   rpc GetPipelineResult(GetPipelineResultRequest) returns (GetPipelineResultResponse);
+  rpc ResolveCheckpoint(ResolveCheckpointRequest) returns (ResolveCheckpointResponse);
 }
 
 message SubmitPipelineRequest {
@@ -59,4 +60,15 @@ message GetPipelineResultResponse {
   int64 duration_ms = 5;
   int32 total_tokens = 6;
   double estimated_cost_usd = 7;
+}
+
+message ResolveCheckpointRequest {
+  string pipeline_id = 1;
+  string checkpoint_id = 2;
+  string decision = 3;
+  string feedback = 4;
+}
+
+message ResolveCheckpointResponse {
+  bool accepted = 1;
 }
