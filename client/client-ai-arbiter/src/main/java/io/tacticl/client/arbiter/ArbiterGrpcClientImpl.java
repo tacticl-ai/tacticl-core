@@ -4,6 +4,7 @@ import cidadel.ai.arbiter.pipeline.v1.ArbiterPipelineServiceGrpc;
 import cidadel.ai.arbiter.pipeline.v1.CancelPipelineRequest;
 import cidadel.ai.arbiter.pipeline.v1.GetPipelineResultRequest;
 import cidadel.ai.arbiter.pipeline.v1.GetPipelineResultResponse;
+import cidadel.ai.arbiter.pipeline.v1.ResolveCheckpointRequest;
 import io.tacticl.client.arbiter.dto.PipelineResultResponse;
 import io.tacticl.client.arbiter.dto.SubmitPipelineRequest;
 import io.tacticl.client.arbiter.dto.SubmitPipelineResponse;
@@ -15,6 +16,7 @@ import tools.jackson.databind.json.JsonMapper;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Real gRPC client for cidadel-ai-arbiter.
@@ -51,7 +53,8 @@ public class ArbiterGrpcClientImpl implements ArbiterPipelineService {
                 .build();
 
         log.info("Submitting pipeline to arbiter: runId={} playbook={}", request.pipelineRunId(), request.playbook());
-        cidadel.ai.arbiter.pipeline.v1.SubmitPipelineResponse protoResp = stub.submitPipeline(protoReq);
+        cidadel.ai.arbiter.pipeline.v1.SubmitPipelineResponse protoResp =
+            stub.withDeadlineAfter(10, TimeUnit.SECONDS).submitPipeline(protoReq);
         log.info("Arbiter accepted pipeline: arbiterPipelineId={} status={}", protoResp.getPipelineId(), protoResp.getStatus());
 
         return new SubmitPipelineResponse(request.pipelineRunId(), protoResp.getPipelineId(), protoResp.getStatus());
@@ -63,7 +66,7 @@ public class ArbiterGrpcClientImpl implements ArbiterPipelineService {
             .setPipelineId(arbiterPipelineId)
             .build();
         log.info("Cancelling pipeline in arbiter: arbiterPipelineId={}", arbiterPipelineId);
-        stub.cancelPipeline(protoReq);
+        stub.withDeadlineAfter(10, TimeUnit.SECONDS).cancelPipeline(protoReq);
     }
 
     @Override
@@ -81,6 +84,20 @@ public class ArbiterGrpcClientImpl implements ArbiterPipelineService {
             protoResp.getTotalTokens(),
             protoResp.getEstimatedCostUsd()
         );
+    }
+
+    @Override
+    public void resolveCheckpoint(String arbiterPipelineId, String checkpointId,
+                                  String decision, String feedback) {
+        ResolveCheckpointRequest protoReq = ResolveCheckpointRequest.newBuilder()
+            .setPipelineId(arbiterPipelineId)
+            .setCheckpointId(checkpointId)
+            .setDecision(decision)
+            .setFeedback(feedback != null ? feedback : "")
+            .build();
+        log.info("Resolving checkpoint in arbiter: arbiterPipelineId={} checkpointId={} decision={}",
+                 arbiterPipelineId, checkpointId, decision);
+        stub.withDeadlineAfter(10, TimeUnit.SECONDS).resolveCheckpoint(protoReq);
     }
 
     private String buildContextJson(SubmitPipelineRequest request) {

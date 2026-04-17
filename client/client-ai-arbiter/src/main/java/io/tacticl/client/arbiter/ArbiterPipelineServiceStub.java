@@ -31,4 +31,11 @@ public class ArbiterPipelineServiceStub implements ArbiterPipelineService {
         log.info("[STUB] getResult: arbiterPipelineId={}", arbiterPipelineId);
         return new PipelineResultResponse(arbiterPipelineId, "UNKNOWN", null, null, 0L, 0, 0.0);
     }
+
+    @Override
+    public void resolveCheckpoint(String arbiterPipelineId, String checkpointId,
+                                  String decision, String feedback) {
+        log.info("[STUB] resolveCheckpoint: arbiterPipelineId={} checkpointId={} decision={}",
+                 arbiterPipelineId, checkpointId, decision);
+    }
 }
