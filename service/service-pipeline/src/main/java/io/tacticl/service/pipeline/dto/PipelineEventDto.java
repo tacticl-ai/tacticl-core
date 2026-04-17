@@ -5,16 +5,15 @@ import java.time.Instant;
 
 public record PipelineEventDto(
     String id,
+    String pipelineRunId,
     String eventType,
     String role,
     String phase,
     Instant timestamp,
     String payloadJson
 ) {
-    public static PipelineEventDto from(PipelineEvent event) {
-        return new PipelineEventDto(
-            event.getId(), event.getEventType(), event.getRole(),
-            event.getPhase(), event.getTimestamp(), event.getPayloadJson()
-        );
+    public static PipelineEventDto from(PipelineEvent e) {
+        return new PipelineEventDto(e.getId(), e.getPipelineRunId(), e.getEventType(),
+                                    e.getRole(), e.getPhase(), e.getTimestamp(), e.getPayloadJson());
     }
 }

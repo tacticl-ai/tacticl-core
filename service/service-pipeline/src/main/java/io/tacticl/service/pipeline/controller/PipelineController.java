@@ -11,6 +11,7 @@ import io.tacticl.service.pipeline.dto.ResolveCheckpointDto;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -70,8 +71,13 @@ public class PipelineController extends BaseController {
         return ResponseEntity.ok().build();
     }
 
-    // TODO: Add DELETE /{sparkId}/pipeline or POST /{sparkId}/pipeline/cancel endpoint
-    // when cancel UX is defined. PdlcV2Service.cancelPipeline() is ready.
+    @DeleteMapping
+    public ResponseEntity<Void> cancelPipeline(
+            @AuthUser AuthenticatedUser user,
+            @PathVariable String sparkId) {
+        pdlcV2Service.cancelPipeline(user.getUserId(), sparkId);
+        return ResponseEntity.ok().build();
+    }
 
     private CheckpointDecision parseDecision(String decision) {
         try {
