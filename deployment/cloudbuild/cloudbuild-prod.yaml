@@ -49,8 +49,8 @@ steps:
     args:
       - '-c'
       - |
-        NEW_REV=$(gcloud run revisions list --service=tacticl-core --region=us-east1 --platform=managed --sort-by=~createTime --limit=1 --format='value(name)')
-        echo "Migrating traffic to revision: $NEW_REV"
-        gcloud run services update-traffic tacticl-core --to-revisions=$NEW_REV=100 --region=us-east1 --platform=managed
+        NEW_REV=$$(gcloud run revisions list --service=tacticl-core --region=us-east1 --platform=managed --sort-by=~createTime --limit=1 --format='value(name)')
+        echo "Migrating traffic to revision: $$NEW_REV"
+        gcloud run services update-traffic tacticl-core --to-revisions=$$NEW_REV=100 --region=us-east1 --platform=managed
 
 timeout: '1200s'
