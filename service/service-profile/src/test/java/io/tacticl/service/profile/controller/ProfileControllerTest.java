@@ -1,6 +1,8 @@
 package io.tacticl.service.profile.controller;
 
 import io.cidadel.framework.authorization.context.AuthenticatedUser;
+import io.cidadel.framework.exception.CidadelException;
+import io.tacticl.business.profile.ProfileErrorCode;
 import io.tacticl.business.profile.service.UserProfileService;
 import io.tacticl.data.profile.entity.UserProfile;
 import org.junit.jupiter.api.Test;
@@ -63,11 +65,10 @@ class ProfileControllerTest {
     @Test
     void getProfile_propagatesException_whenServiceThrows() {
         when(userProfileService.getOrCreate(any(AuthenticatedUser.class)))
-            .thenThrow(new IllegalArgumentException("Token missing name claim"));
+            .thenThrow(new CidadelException(ProfileErrorCode.INVALID_TOKEN_CLAIMS, "business-profile", "Token missing name claim"));
 
         assertThatThrownBy(() ->
             profileController.getProfile(mockUser())
-        ).isInstanceOf(IllegalArgumentException.class)
-         .hasMessageContaining("name");
+        ).isInstanceOf(CidadelException.class);
     }
 }

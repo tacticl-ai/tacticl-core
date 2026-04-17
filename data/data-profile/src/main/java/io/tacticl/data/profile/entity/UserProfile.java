@@ -1,6 +1,6 @@
 package io.tacticl.data.profile.entity;
 
-import io.tacticl.data.profile.base.BaseMongoEntity;
+import io.tacticl.data.connections.base.BaseMongoEntity;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
