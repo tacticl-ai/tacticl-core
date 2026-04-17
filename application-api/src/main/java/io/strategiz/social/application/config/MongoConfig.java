@@ -12,6 +12,6 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
  */
 @Configuration
 @EnableMongoAuditing
-@EnableMongoRepositories(basePackages = {"io.tacticl", "io.cidadel.data"})
+@EnableMongoRepositories(basePackages = {"io.tacticl"})
 public class MongoConfig {
 }
