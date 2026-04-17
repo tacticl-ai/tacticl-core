@@ -39,8 +39,18 @@ steps:
       - '--memory=4Gi'
       - '--set-env-vars=SPRING_PROFILES_ACTIVE=prod,STRATEGIZ_VAULT_ADDRESS=https://strategiz-vault-43628135674.us-east1.run.app'
       - '--set-secrets=VAULT_TOKEN=vault-root-token:latest'
-      - '--allow-unauthenticated'
+      - '--no-traffic'
       - '--timeout=3600'
       - '--session-affinity'
+
+  # Step 4: Migrate traffic to new revision once healthy
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        NEW_REV=$(gcloud run revisions list --service=tacticl-core --region=us-east1 --platform=managed --sort-by=~createTime --limit=1 --format='value(name)')
+        echo "Migrating traffic to revision: $NEW_REV"
+        gcloud run services update-traffic tacticl-core --to-revisions=$NEW_REV=100 --region=us-east1 --platform=managed
 
 timeout: '1200s'
