@@ -35,4 +35,7 @@ include(":client:client-ai-arbiter")
 include(":business:business-pipeline")
 include(":service:service-pipeline")
 
+include(":data:data-conversation")
+include(":service:service-conversation")
+
 // Version catalog auto-discovered from gradle/libs.versions.toml
