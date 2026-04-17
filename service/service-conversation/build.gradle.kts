@@ -7,10 +7,12 @@ plugins {
 dependencies {
     implementation(project(":data:data-conversation"))
     implementation(project(":data:data-pipeline"))
+    implementation(project(":data:data-sparks"))
     implementation(project(":business:business-sparks"))
     implementation(project(":business:business-pipeline"))
     implementation(libs.cidadel.service.framework.base)
     implementation(libs.cidadel.framework.token.issuance)
     implementation(libs.cidadel.client.anthropic.direct)
+    testImplementation(project(":data:data-sparks"))
     testRuntimeOnly(libs.junit.platform.launcher)
 }
