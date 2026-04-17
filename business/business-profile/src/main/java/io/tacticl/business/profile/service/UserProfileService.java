@@ -2,7 +2,7 @@ package io.tacticl.business.profile.service;
 
 import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.cidadel.framework.exception.CidadelException;
-import io.cidadel.framework.exception.ErrorCode;
+import io.tacticl.business.profile.ProfileErrorCode;
 import io.tacticl.data.profile.entity.UserProfile;
 import io.tacticl.data.profile.repository.UserProfileRepository;
 import org.springframework.dao.DuplicateKeyException;
@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class UserProfileService {
+
+    private static final String MODULE_NAME = "business-profile";
 
     private final UserProfileRepository userProfileRepository;
 
@@ -19,13 +21,13 @@ public class UserProfileService {
 
     public UserProfile getOrCreate(AuthenticatedUser user) {
         if (user.getUserId() == null) {
-            throw new CidadelException(ErrorCode.VALIDATION_ERROR, "Token missing userId claim");
+            throw new CidadelException(ProfileErrorCode.INVALID_TOKEN_CLAIMS, MODULE_NAME, "Token missing userId claim");
         }
         if (user.getName() == null) {
-            throw new CidadelException(ErrorCode.VALIDATION_ERROR, "Token missing name claim");
+            throw new CidadelException(ProfileErrorCode.INVALID_TOKEN_CLAIMS, MODULE_NAME, "Token missing name claim");
         }
         if (user.getEmail() == null) {
-            throw new CidadelException(ErrorCode.VALIDATION_ERROR, "Token missing email claim");
+            throw new CidadelException(ProfileErrorCode.INVALID_TOKEN_CLAIMS, MODULE_NAME, "Token missing email claim");
         }
         return userProfileRepository.findByCidadelUserIdAndIsActiveTrue(user.getUserId())
             .orElseGet(() -> insertProfile(user));
