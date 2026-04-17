@@ -6,8 +6,11 @@ import io.cidadel.service.base.controller.BaseController;
 import io.tacticl.business.pipeline.service.PdlcV2Service;
 import io.tacticl.business.pipeline.service.PipelineEventEmitter;
 import io.tacticl.data.pipeline.entity.CheckpointDecision;
+import io.tacticl.data.pipeline.entity.PipelineRun;
+import io.tacticl.service.pipeline.dto.PipelineEventDto;
 import io.tacticl.service.pipeline.dto.PipelineRunDto;
 import io.tacticl.service.pipeline.dto.ResolveCheckpointDto;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -69,6 +73,19 @@ public class PipelineController extends BaseController {
             body.feedback()
         );
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/events/history")
+    public ResponseEntity<Page<PipelineEventDto>> getEventHistory(
+            @AuthUser AuthenticatedUser user,
+            @PathVariable String sparkId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        PipelineRun run = pdlcV2Service.getStatus(user.getUserId(), sparkId)
+                .orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Pipeline run not found for spark: " + sparkId));
+        return ResponseEntity.ok(pdlcV2Service.getEvents(run.getId(), page, size)
+                .map(PipelineEventDto::from));
     }
 
     @DeleteMapping

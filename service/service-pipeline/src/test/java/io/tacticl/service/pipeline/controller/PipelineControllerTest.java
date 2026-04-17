@@ -5,12 +5,14 @@ import io.tacticl.business.pipeline.service.PdlcV2Service;
 import io.tacticl.business.pipeline.service.PipelineEventEmitter;
 import io.tacticl.data.pipeline.entity.PipelineRun;
 import io.tacticl.data.pipeline.entity.PipelineStatus;
+import io.tacticl.service.pipeline.dto.PipelineEventDto;
 import io.tacticl.service.pipeline.dto.ResolveCheckpointDto;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import java.util.List;
@@ -74,5 +76,29 @@ class PipelineControllerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         verify(pdlcV2Service).cancelPipeline("user-1", "spark-1");
+    }
+
+    @Test
+    void getEventHistory_found_returns200WithPage() {
+        PipelineRun run = PipelineRun.create("user-1", "spark-1", "req", "url", "BUG_FIX", List.of(), 10.0);
+        when(pdlcV2Service.getStatus("user-1", "spark-1")).thenReturn(Optional.of(run));
+        when(pdlcV2Service.getEvents(run.getId(), 0, 50)).thenReturn(Page.empty());
+
+        ResponseEntity<Page<PipelineEventDto>> response =
+                controller.getEventHistory(user("user-1"), "spark-1", 0, 50);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        verify(pdlcV2Service).getEvents(run.getId(), 0, 50);
+    }
+
+    @Test
+    void getEventHistory_notFound_throws404() {
+        when(pdlcV2Service.getStatus("user-1", "spark-1")).thenReturn(Optional.empty());
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+            org.springframework.web.server.ResponseStatusException.class,
+            () -> controller.getEventHistory(user("user-1"), "spark-1", 0, 50)
+        );
     }
 }
