@@ -45,7 +45,7 @@ class PdlcV2ServiceTest {
     @Test
     void submitPipeline_createsPipelineRun_andCallsArbiter() {
         when(arbiterPipelineService.submitPipeline(any())).thenReturn(
-            new SubmitPipelineResponse("run-1", "PENDING")
+            new SubmitPipelineResponse("run-1", "arbiter-xyz", "PENDING")
         );
         when(pipelineRunRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         Spark mockSpark = Spark.create("user-1", "Add auth flow");
@@ -92,8 +92,9 @@ class PdlcV2ServiceTest {
     }
 
     @Test
-    void cancelPipeline_marksRunCancelledAndCallsArbiter() {
+    void cancelPipeline_marksRunCancelled_callsArbiterWhenIdKnown() {
         PipelineRun run = PipelineRun.create("user-1", "spark-1", "req", "url", "BUG_FIX", List.of(), 10.0);
+        run.setArbiterPipelineId("arbiter-abc");
         when(pipelineRunRepository.findBySparkIdAndUserId("spark-1", "user-1")).thenReturn(Optional.of(run));
         when(pipelineRunRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         doNothing().when(arbiterPipelineService).cancelPipeline(any());
@@ -102,7 +103,20 @@ class PdlcV2ServiceTest {
 
         assertThat(run.getStatus()).isEqualTo(io.tacticl.data.pipeline.entity.PipelineStatus.CANCELLED);
         verify(pipelineRunRepository).save(run);
-        verify(arbiterPipelineService).cancelPipeline(run.getId());
+        verify(arbiterPipelineService).cancelPipeline("arbiter-abc");
+    }
+
+    @Test
+    void cancelPipeline_skipsArbiterWhenNoArbiterPipelineId() {
+        PipelineRun run = PipelineRun.create("user-1", "spark-1", "req", "url", "BUG_FIX", List.of(), 10.0);
+        // arbiterPipelineId is null (e.g. stub was used, no real arbiter)
+        when(pipelineRunRepository.findBySparkIdAndUserId("spark-1", "user-1")).thenReturn(Optional.of(run));
+        when(pipelineRunRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.cancelPipeline("user-1", "spark-1");
+
+        assertThat(run.getStatus()).isEqualTo(io.tacticl.data.pipeline.entity.PipelineStatus.CANCELLED);
+        verifyNoInteractions(arbiterPipelineService);
     }
 
     @Test

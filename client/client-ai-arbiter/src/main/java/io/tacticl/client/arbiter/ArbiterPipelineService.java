@@ -1,10 +1,15 @@
 package io.tacticl.client.arbiter;
 
-import io.tacticl.client.arbiter.dto.*;
+import io.tacticl.client.arbiter.dto.PipelineResultResponse;
+import io.tacticl.client.arbiter.dto.SubmitPipelineRequest;
+import io.tacticl.client.arbiter.dto.SubmitPipelineResponse;
 
+/**
+ * Abstraction over the cidadel-ai-arbiter gRPC service.
+ * Implementations: ArbiterGrpcClientImpl (real) and ArbiterPipelineServiceStub (fallback).
+ */
 public interface ArbiterPipelineService {
     SubmitPipelineResponse submitPipeline(SubmitPipelineRequest request);
-    void resolveCheckpoint(ResolveCheckpointRequest request);
-    PipelineStatusResponse getPipelineStatus(String pipelineRunId);
-    void cancelPipeline(String pipelineRunId);
+    void cancelPipeline(String arbiterPipelineId);
+    PipelineResultResponse getResult(String arbiterPipelineId);
 }

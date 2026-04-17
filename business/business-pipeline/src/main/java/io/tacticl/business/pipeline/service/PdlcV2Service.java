@@ -1,8 +1,8 @@
 package io.tacticl.business.pipeline.service;
 
 import io.tacticl.client.arbiter.ArbiterPipelineService;
-import io.tacticl.client.arbiter.dto.ResolveCheckpointRequest;
 import io.tacticl.client.arbiter.dto.SubmitPipelineRequest;
+import io.tacticl.client.arbiter.dto.SubmitPipelineResponse;
 import io.tacticl.data.pipeline.entity.*;
 import io.tacticl.data.pipeline.repository.*;
 import io.tacticl.data.sparks.entity.Spark;
@@ -57,8 +57,14 @@ public class PdlcV2Service {
             run.getId(), sparkId, userId, playbook, sparkRequest,
             repoUrl, githubToken, skipRoles, costCeilingUsd, callbackUrl
         );
-        arbiterPipelineService.submitPipeline(request);
-        log.info("Submitted pipeline run {} for spark {} (playbook={})", run.getId(), sparkId, playbook);
+        SubmitPipelineResponse response = arbiterPipelineService.submitPipeline(request);
+        log.info("Submitted pipeline run {} for spark {} (playbook={}) — arbiterPipelineId={}",
+                 run.getId(), sparkId, playbook, response.arbiterPipelineId());
+
+        if (response.arbiterPipelineId() != null) {
+            run.setArbiterPipelineId(response.arbiterPipelineId());
+            pipelineRunRepository.save(run);
+        }
 
         spark.setPipelineRunId(run.getId());
         sparkRepository.save(spark);
@@ -79,6 +85,10 @@ public class PdlcV2Service {
             pipelineRunId, PageRequest.of(page, size));
     }
 
+    /**
+     * Checkpoint resolution is local-only — we update our state so the SSE stream reflects it.
+     * The arbiter handles its own internal checkpoint flow; there is no resolveCheckpoint RPC.
+     */
     public void resolveCheckpoint(String userId, String sparkId, String checkpointId,
                                   CheckpointDecision decision, String feedback) {
         PipelineRun run = pipelineRunRepository.findBySparkIdAndUserId(sparkId, userId)
@@ -90,10 +100,6 @@ public class PdlcV2Service {
 
         checkpoint.resolve(decision, feedback);
         pipelineCheckpointRepository.save(checkpoint);
-
-        arbiterPipelineService.resolveCheckpoint(new ResolveCheckpointRequest(
-            run.getId(), checkpointId, decision.name(), feedback
-        ));
         log.info("Resolved checkpoint {} for run {} with decision {}", checkpointId, run.getId(), decision);
     }
 
@@ -102,7 +108,11 @@ public class PdlcV2Service {
                 .orElseThrow(() -> new IllegalArgumentException("Pipeline run not found for spark: " + sparkId));
         run.markCancelled();
         pipelineRunRepository.save(run);
-        arbiterPipelineService.cancelPipeline(run.getId());
-        log.info("Cancelled pipeline run {} for spark {}", run.getId(), sparkId);
+
+        if (run.getArbiterPipelineId() != null) {
+            arbiterPipelineService.cancelPipeline(run.getArbiterPipelineId());
+        }
+        log.info("Cancelled pipeline run {} for spark {} (arbiterPipelineId={})",
+                 run.getId(), sparkId, run.getArbiterPipelineId());
     }
 }

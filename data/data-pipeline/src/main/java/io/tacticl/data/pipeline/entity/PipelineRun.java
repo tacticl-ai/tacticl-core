@@ -22,6 +22,7 @@ public class PipelineRun {
     private List<String> skipRoles;
     private double costCeilingUsd;
     private double totalCostUsd;
+    private String arbiterPipelineId;
     private String currentCheckpointId;
     private String failureReason;
     private Map<String, PhaseState> phases;
@@ -104,6 +105,7 @@ public class PipelineRun {
     public List<String> getSkipRoles() { return skipRoles; }
     public double getCostCeilingUsd() { return costCeilingUsd; }
     public double getTotalCostUsd() { return totalCostUsd; }
+    public String getArbiterPipelineId() { return arbiterPipelineId; }
     public String getCurrentCheckpointId() { return currentCheckpointId; }
     public String getFailureReason() { return failureReason; }
     public Map<String, PhaseState> getPhases() { return phases; }
@@ -122,6 +124,7 @@ public class PipelineRun {
     public void setSkipRoles(List<String> skipRoles) { this.skipRoles = skipRoles; }
     public void setCostCeilingUsd(double costCeilingUsd) { this.costCeilingUsd = costCeilingUsd; }
     public void setTotalCostUsd(double totalCostUsd) { this.totalCostUsd = totalCostUsd; }
+    public void setArbiterPipelineId(String arbiterPipelineId) { this.arbiterPipelineId = arbiterPipelineId; }
     public void setCurrentCheckpointId(String currentCheckpointId) { this.currentCheckpointId = currentCheckpointId; }
     public void setFailureReason(String failureReason) { this.failureReason = failureReason; }
     public void setPhases(Map<String, PhaseState> phases) { this.phases = phases; }

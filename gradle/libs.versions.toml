@@ -12,6 +12,10 @@ springdoc = "3.0.2"
 resilience4j = "2.2.0"
 playwright = "1.49.0"
 
+# gRPC + Protobuf (for client-ai-arbiter)
+grpc = "1.68.1"
+protobuf = "4.28.3"
+
 # Testing (versions managed by Spring Boot BOM)
 
 [libraries]
@@ -54,6 +58,13 @@ springdoc-openapi = { module = "org.springdoc:springdoc-openapi-starter-webmvc-u
 jackson-databind = { module = "tools.jackson.core:jackson-databind" }
 httpclient = { module = "org.apache.httpcomponents:httpclient", version = "4.5.14" }
 playwright = { module = "com.microsoft.playwright:playwright", version.ref = "playwright" }
+javax-annotation-api = { module = "javax.annotation:javax.annotation-api", version = "1.3.2" }
+
+# gRPC + Protobuf
+grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc" }
+grpc-protobuf = { module = "io.grpc:grpc-protobuf", version.ref = "grpc" }
+grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
+protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
 
 # Testing
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter-api" }
@@ -62,3 +73,4 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
 spring-dependency-management = { id = "io.spring.dependency-management", version = "1.1.7" }
+protobuf = { id = "com.google.protobuf", version = "0.9.4" }

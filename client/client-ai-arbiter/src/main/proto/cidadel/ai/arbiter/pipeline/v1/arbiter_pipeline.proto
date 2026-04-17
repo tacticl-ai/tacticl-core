@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package cidadel.ai.arbiter.pipeline.v1;
+
+option java_package = "cidadel.ai.arbiter.pipeline.v1";
+option java_multiple_files = true;
+option java_outer_classname = "ArbiterPipelineProto";
+
+service ArbiterPipelineService {
+  rpc SubmitPipeline(SubmitPipelineRequest) returns (SubmitPipelineResponse);
+  rpc StreamPipelineProgress(PipelineProgressRequest) returns (stream PipelineProgressEvent);
+  rpc CancelPipeline(CancelPipelineRequest) returns (CancelPipelineResponse);
+  rpc GetPipelineResult(GetPipelineResultRequest) returns (GetPipelineResultResponse);
+}
+
+message SubmitPipelineRequest {
+  string product = 1;
+  string pipeline_name = 2;
+  string request_context_json = 3;
+  string registry_base_path = 4;
+  string callback_url = 5;
+}
+
+message SubmitPipelineResponse {
+  string pipeline_id = 1;
+  string status = 2;
+}
+
+message PipelineProgressRequest {
+  string pipeline_id = 1;
+}
+
+message PipelineProgressEvent {
+  string pipeline_id = 1;
+  string agent_type = 2;
+  string status = 3;
+  int32 progress_pct = 4;
+  string message = 5;
+  int64 timestamp_ms = 6;
+}
+
+message CancelPipelineRequest {
+  string pipeline_id = 1;
+}
+
+message CancelPipelineResponse {
+  bool cancelled = 1;
+}
+
+message GetPipelineResultRequest {
+  string pipeline_id = 1;
+}
+
+message GetPipelineResultResponse {
+  string pipeline_id = 1;
+  string status = 2;
+  string result_json = 3;
+  string error_message = 4;
+  int64 duration_ms = 5;
+  int32 total_tokens = 6;
+  double estimated_cost_usd = 7;
+}
