@@ -38,4 +38,8 @@ include(":service:service-pipeline")
 include(":data:data-conversation")
 include(":service:service-conversation")
 
+include(":data:data-profile")
+include(":business:business-profile")
+include(":service:service-profile")
+
 // Version catalog auto-discovered from gradle/libs.versions.toml

@@ -13,6 +13,7 @@ dependencies {
     implementation(project(":service:service-connections"))
     implementation(project(":service:service-pipeline"))
     implementation(project(":service:service-conversation"))
+    implementation(project(":service:service-profile"))
 
     // Business layer
     implementation(project(":business:business-agent"))
