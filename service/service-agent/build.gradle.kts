@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":business:business-sparks"))
     implementation(project(":business:business-pipeline"))
     implementation(project(":data:data-sparks"))
+    implementation(project(":data:data-pipeline"))
 
     // Cidadel shared infrastructure (module-specific, beyond parent)
     implementation(libs.cidadel.service.framework.base)

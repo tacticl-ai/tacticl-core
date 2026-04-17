@@ -65,13 +65,20 @@ class PdlcV2ServiceTest {
     }
 
     @Test
-    void submitPipeline_sparkNotFound_throwsIllegalArgument() {
+    void submitPipeline_sparkNotInMongo_succeedsWithoutSparkUpdate() {
+        // Spark absent from MongoDB (e.g. created via legacy Firestore path) — pipeline still submits
         when(sparkRepository.findByIdAndUserId("bad-spark", "user-1")).thenReturn(Optional.empty());
+        when(arbiterPipelineService.submitPipeline(any())).thenReturn(
+            new SubmitPipelineResponse("run-1", "arbiter-xyz", "PENDING")
+        );
+        when(pipelineRunRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        assertThatThrownBy(() -> service.submitPipeline(
+        PipelineRun run = service.submitPipeline(
             "user-1", "bad-spark", "req", "url", "BUG_FIX", List.of(), "token", 10.0
-        )).isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("bad-spark");
+        );
+
+        assertThat(run.getSparkId()).isEqualTo("bad-spark");
+        verify(sparkRepository, never()).save(any());
     }
 
     @Test

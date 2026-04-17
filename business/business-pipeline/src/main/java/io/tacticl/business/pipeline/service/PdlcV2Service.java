@@ -46,9 +46,6 @@ public class PdlcV2Service {
     public PipelineRun submitPipeline(String userId, String sparkId, String sparkRequest,
                                       String repoUrl, String playbook, List<String> skipRoles,
                                       String githubToken, double costCeilingUsd) {
-        Spark spark = sparkRepository.findByIdAndUserId(sparkId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("Spark not found: " + sparkId));
-
         PipelineRun run = PipelineRun.create(userId, sparkId, sparkRequest, repoUrl,
                                              playbook, skipRoles, costCeilingUsd);
         pipelineRunRepository.save(run);
@@ -66,8 +63,11 @@ public class PdlcV2Service {
             pipelineRunRepository.save(run);
         }
 
-        spark.setPipelineRunId(run.getId());
-        sparkRepository.save(spark);
+        // Back-reference on MongoDB Spark when it exists (sparks may be Firestore-backed via legacy path)
+        sparkRepository.findByIdAndUserId(sparkId, userId).ifPresent(spark -> {
+            spark.setPipelineRunId(run.getId());
+            sparkRepository.save(spark);
+        });
 
         return run;
     }

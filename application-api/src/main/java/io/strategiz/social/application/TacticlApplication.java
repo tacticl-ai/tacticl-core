@@ -13,8 +13,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 		"io.cidadel.client.anthropic",
 		"io.cidadel.client.openai",
 		"io.cidadel.client.grok",
-		"io.cidadel.framework.ai.engine",
-		"io.cidadel.business.ai.engine",
 		"io.cidadel.data"
 })
 @EnableMongoRepositories(basePackages = {"io.tacticl", "io.cidadel.data"})

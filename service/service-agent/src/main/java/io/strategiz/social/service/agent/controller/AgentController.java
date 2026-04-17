@@ -6,6 +6,7 @@ import io.cidadel.client.base.llm.model.LlmResponse;
 import io.cidadel.framework.authorization.annotation.AuthUser;
 import io.cidadel.framework.authorization.annotation.RequireAuth;
 import io.cidadel.framework.authorization.context.AuthenticatedUser;
+import io.tacticl.business.pipeline.router.PdlcRouter;
 import io.tacticl.business.sparks.service.SparkClassifierService;
 import io.tacticl.business.sparks.service.SparkService;
 import io.tacticl.data.sparks.entity.Spark;
@@ -42,13 +43,16 @@ public class AgentController {
     private final SparkService sparkService;
     private final SparkClassifierService sparkClassifierService;
     private final AnthropicDirectClient anthropicClient;
+    private final PdlcRouter pdlcRouter;
 
     public AgentController(SparkService sparkService,
                            SparkClassifierService sparkClassifierService,
-                           AnthropicDirectClient anthropicClient) {
+                           AnthropicDirectClient anthropicClient,
+                           PdlcRouter pdlcRouter) {
         this.sparkService = sparkService;
         this.sparkClassifierService = sparkClassifierService;
         this.anthropicClient = anthropicClient;
+        this.pdlcRouter = pdlcRouter;
     }
 
     @PostMapping("/command")
@@ -61,12 +65,24 @@ public class AgentController {
         log.info("Agent command from user {}: {}", userId,
                 text.length() > 100 ? text.substring(0, 100) + "..." : text);
 
-        // Create spark
+        // Create and classify spark
         Spark spark = sparkService.create(userId, text);
-
-        // Classify spark type
         SparkType type = sparkClassifierService.classify(text);
         spark = sparkService.classify(spark.getId(), userId, type);
+
+        // Route CODE/DEVOPS sparks to PDLC v2 (arbiter gRPC) when enabled
+        if (type == SparkType.CODE || type == SparkType.DEVOPS) {
+            var runOpt = pdlcRouter.route(userId, spark.getId(), text, null, type, List.of(), null, 50.0);
+            if (runOpt.isPresent()) {
+                var run = runOpt.get();
+                sparkService.markExecuting(spark.getId(), userId, SparkRoute.CLOUD, null);
+                log.info("[PDLC-V2] Routed spark={} type={} to pipeline run={}", spark.getId(), type, run.getId());
+                return ResponseEntity.ok(AgentCommandResponse.pipeline(
+                        spark.getId(), run.getId(), "FULL_PDLC", "FULL_PDLC", List.of()));
+            }
+        }
+
+        // Simple cloud path (non-PDLC types, or v2 disabled)
         spark = sparkService.markExecuting(spark.getId(), userId, SparkRoute.CLOUD, null);
 
         try {
