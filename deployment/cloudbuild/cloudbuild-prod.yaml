@@ -4,8 +4,8 @@ availableSecrets:
       env: 'GITHUB_TOKEN'
 
 steps:
-  # Step 0: Build with Gradle (toolchain auto-provisions Java 25)
-  - name: 'eclipse-temurin:21-jdk-noble'
+  # Step 0: Build with Gradle using Java 25 JDK
+  - name: 'eclipse-temurin:25-jdk-noble'
     entrypoint: 'bash'
     args:
       - '-c'
