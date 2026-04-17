@@ -35,4 +35,8 @@ include(":client:client-ai-arbiter")
 include(":business:business-pipeline")
 include(":service:service-pipeline")
 
+include(":data:data-profile")
+include(":business:business-profile")
+include(":service:service-profile")
+
 // Version catalog auto-discovered from gradle/libs.versions.toml
