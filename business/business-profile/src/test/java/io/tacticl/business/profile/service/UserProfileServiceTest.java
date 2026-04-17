@@ -1,6 +1,7 @@
 package io.tacticl.business.profile.service;
 
 import io.cidadel.framework.authorization.context.AuthenticatedUser;
+import io.cidadel.framework.exception.CidadelException;
 import io.tacticl.data.profile.entity.UserProfile;
 import io.tacticl.data.profile.repository.UserProfileRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -78,21 +79,21 @@ class UserProfileServiceTest {
         var nullIdUser = mock(AuthenticatedUser.class);
         when(nullIdUser.getUserId()).thenReturn(null);
         assertThatThrownBy(() -> userProfileService.getOrCreate(nullIdUser))
-            .isInstanceOf(IllegalArgumentException.class)
+            .isInstanceOf(CidadelException.class)
             .hasMessageContaining("userId");
     }
 
     @Test
     void getOrCreate_throws_whenNameIsNull() {
         assertThatThrownBy(() -> userProfileService.getOrCreate(user("u4", null, "e@example.com")))
-            .isInstanceOf(IllegalArgumentException.class)
+            .isInstanceOf(CidadelException.class)
             .hasMessageContaining("name");
     }
 
     @Test
     void getOrCreate_throws_whenEmailIsNull() {
         assertThatThrownBy(() -> userProfileService.getOrCreate(user("u5", "Name", null)))
-            .isInstanceOf(IllegalArgumentException.class)
+            .isInstanceOf(CidadelException.class)
             .hasMessageContaining("email");
     }
 }

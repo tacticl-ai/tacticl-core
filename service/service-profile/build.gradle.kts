@@ -10,6 +10,5 @@ dependencies {
     implementation(libs.cidadel.service.framework.base)   // BaseController
     implementation(libs.cidadel.framework.api.docs)       // OpenAPI/Swagger
 
-    testImplementation(project(":data:data-profile"))
     testRuntimeOnly(libs.junit.platform.launcher)
 }
