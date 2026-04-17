@@ -1,0 +1,7 @@
+package io.tacticl.data.pipeline.entity;
+
+public enum PdlcRole {
+    PM, RESEARCHER, ARCHITECT, DESIGNER, PLANNER,
+    IMPLEMENTER, REVIEWER, TESTER, SECURITY_ANALYST,
+    TECHNICAL_WRITER, DEVOPS, RETRO_ANALYST
+}
