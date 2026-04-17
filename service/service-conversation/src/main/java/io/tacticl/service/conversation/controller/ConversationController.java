@@ -3,6 +3,7 @@ package io.tacticl.service.conversation.controller;
 import io.cidadel.framework.authorization.annotation.AuthUser;
 import io.cidadel.framework.authorization.annotation.RequireAuth;
 import io.cidadel.framework.authorization.context.AuthenticatedUser;
+import io.cidadel.service.base.controller.BaseController;
 import io.tacticl.data.conversation.entity.ConversationSession;
 import io.tacticl.service.conversation.dto.ConversationResponse;
 import io.tacticl.service.conversation.dto.CreateConversationRequest;
@@ -16,13 +17,16 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/v1/conversations")
-public class ConversationController {
+public class ConversationController extends BaseController {
 
     private final ConversationService conversationService;
 
     public ConversationController(ConversationService conversationService) {
         this.conversationService = conversationService;
     }
+
+    @Override
+    protected String getModuleName() { return "conversation"; }
 
     @PostMapping
     @RequireAuth
