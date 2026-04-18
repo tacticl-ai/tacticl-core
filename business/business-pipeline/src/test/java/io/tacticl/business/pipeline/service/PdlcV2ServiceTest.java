@@ -40,6 +40,8 @@ class PdlcV2ServiceTest {
             pipelineRunRepository, pipelineEventRepository,
             pipelineCheckpointRepository, sparkRepository, arbiterPipelineService,
             pipelineEventEmitter,
+            new RoleIdentityLoader(),
+            new PlaybookSpecResolver(),
             "https://api.tacticl.ai/v1/internal/pipeline/callback"
         );
     }

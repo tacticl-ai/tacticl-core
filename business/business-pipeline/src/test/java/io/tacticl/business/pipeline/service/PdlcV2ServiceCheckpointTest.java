@@ -34,6 +34,8 @@ class PdlcV2ServiceCheckpointTest {
             pipelineRunRepository, pipelineEventRepository,
             pipelineCheckpointRepository, sparkRepository,
             arbiterPipelineService, pipelineEventEmitter,
+            new RoleIdentityLoader(),
+            new PlaybookSpecResolver(),
             "https://callback.url"
         );
     }

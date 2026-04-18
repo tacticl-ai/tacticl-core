@@ -33,6 +33,8 @@ public class PdlcV2Service {
     private final SparkRepository sparkRepository;
     private final ArbiterPipelineService arbiterPipelineService;
     private final PipelineEventEmitter pipelineEventEmitter;
+    private final RoleIdentityLoader roleIdentityLoader;
+    private final PlaybookSpecResolver playbookSpecResolver;
     private final String callbackUrl;
 
     public PdlcV2Service(PipelineRunRepository pipelineRunRepository,
@@ -41,6 +43,8 @@ public class PdlcV2Service {
                          SparkRepository sparkRepository,
                          ArbiterPipelineService arbiterPipelineService,
                          PipelineEventEmitter pipelineEventEmitter,
+                         RoleIdentityLoader roleIdentityLoader,
+                         PlaybookSpecResolver playbookSpecResolver,
                          @Value("${pdlc.v2.callback-url:https://api.tacticl.ai/v1/internal/pipeline/callback}")
                          String callbackUrl) {
         this.pipelineRunRepository = pipelineRunRepository;
@@ -49,6 +53,8 @@ public class PdlcV2Service {
         this.sparkRepository = sparkRepository;
         this.arbiterPipelineService = arbiterPipelineService;
         this.pipelineEventEmitter = pipelineEventEmitter;
+        this.roleIdentityLoader = roleIdentityLoader;
+        this.playbookSpecResolver = playbookSpecResolver;
         this.callbackUrl = callbackUrl;
     }
 
@@ -62,7 +68,10 @@ public class PdlcV2Service {
         SubmitPipelineRequest request = new SubmitPipelineRequest(
             run.getId(), sparkId, userId, playbook, sparkRequest,
             repoUrl, githubToken, skipRoles, costCeilingUsd, callbackUrl,
-            null, null, null, null
+            roleIdentityLoader.loadAll(),
+            playbookSpecResolver.resolve(playbook),
+            "tacticl-" + userId,
+            null
         );
         SubmitPipelineResponse response = arbiterPipelineService.submitPipeline(request);
         log.info("Submitted pipeline run {} for spark {} (playbook={}) — arbiterPipelineId={}",
