@@ -61,7 +61,8 @@ public class PdlcV2Service {
 
         SubmitPipelineRequest request = new SubmitPipelineRequest(
             run.getId(), sparkId, userId, playbook, sparkRequest,
-            repoUrl, githubToken, skipRoles, costCeilingUsd, callbackUrl
+            repoUrl, githubToken, skipRoles, costCeilingUsd, callbackUrl,
+            null, null, null, null
         );
         SubmitPipelineResponse response = arbiterPipelineService.submitPipeline(request);
         log.info("Submitted pipeline run {} for spark {} (playbook={}) — arbiterPipelineId={}",

@@ -20,6 +20,13 @@ message SubmitPipelineRequest {
   string request_context_json = 3;
   string registry_base_path = 4;
   string callback_url = 5;
+  map<string, string> role_identities = 6;
+  string playbook_config_json = 7;
+  string github_token = 8;
+  string user_id = 9;
+  string knowledge_namespace = 10;
+  string repo_url = 11;
+  map<string, int32> role_ttl_seconds = 12;
 }
 
 message SubmitPipelineResponse {

@@ -17,7 +17,8 @@ class ArbiterPipelineServiceStubTest {
         SubmitPipelineRequest request = new SubmitPipelineRequest(
             "run-1", "spark-1", "user-1", "FULL_PDLC",
             "Add auth flow", "github.com/user/repo", "gh-token",
-            List.of(), 50.0, "https://api.tacticl.ai/v1/internal/pipeline/callback"
+            List.of(), 50.0, "https://api.tacticl.ai/v1/internal/pipeline/callback",
+            null, null, null, null
         );
         SubmitPipelineResponse response = stub.submitPipeline(request);
         assertThat(response.pipelineRunId()).isEqualTo("run-1");

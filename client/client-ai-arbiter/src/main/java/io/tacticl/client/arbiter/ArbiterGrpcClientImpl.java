@@ -43,14 +43,28 @@ public class ArbiterGrpcClientImpl implements ArbiterPipelineService {
     @Override
     public SubmitPipelineResponse submitPipeline(SubmitPipelineRequest request) {
         String contextJson = buildContextJson(request);
-        cidadel.ai.arbiter.pipeline.v1.SubmitPipelineRequest protoReq =
+
+        cidadel.ai.arbiter.pipeline.v1.SubmitPipelineRequest.Builder builder =
             cidadel.ai.arbiter.pipeline.v1.SubmitPipelineRequest.newBuilder()
                 .setProduct(PRODUCT)
                 .setPipelineName(request.playbook())
                 .setRequestContextJson(contextJson)
                 .setRegistryBasePath(registryBasePath)
                 .setCallbackUrl(request.callbackUrl())
-                .build();
+                .setGithubToken(request.githubToken() != null ? request.githubToken() : "")
+                .setUserId(request.userId() != null ? request.userId() : "")
+                .setRepoUrl(request.repoUrl() != null ? request.repoUrl() : "")
+                .setKnowledgeNamespace(request.knowledgeNamespace() != null ? request.knowledgeNamespace() : "")
+                .setPlaybookConfigJson(request.playbookConfigJson() != null ? request.playbookConfigJson() : "");
+
+        if (request.roleIdentities() != null) {
+            builder.putAllRoleIdentities(request.roleIdentities());
+        }
+        if (request.roleTtlSeconds() != null) {
+            builder.putAllRoleTtlSeconds(request.roleTtlSeconds());
+        }
+
+        cidadel.ai.arbiter.pipeline.v1.SubmitPipelineRequest protoReq = builder.build();
 
         log.info("Submitting pipeline to arbiter: runId={} playbook={}", request.pipelineRunId(), request.playbook());
         cidadel.ai.arbiter.pipeline.v1.SubmitPipelineResponse protoResp =
@@ -104,10 +118,7 @@ public class ArbiterGrpcClientImpl implements ArbiterPipelineService {
         Map<String, Object> context = new HashMap<>();
         context.put("pipelineRunId", request.pipelineRunId());
         context.put("sparkId", request.sparkId());
-        context.put("userId", request.userId());
         context.put("sparkRequest", request.sparkRequest());
-        context.put("repoUrl", request.repoUrl() != null ? request.repoUrl() : "");
-        context.put("githubToken", request.githubToken() != null ? request.githubToken() : "");
         context.put("skipRoles", request.skipRoles() != null ? request.skipRoles() : List.of());
         context.put("costCeilingUsd", request.costCeilingUsd());
         try {
