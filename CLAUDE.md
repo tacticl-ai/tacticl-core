@@ -1,5 +1,9 @@
 # CLAUDE.md — Tacticl
 
+## Ecosystem Context (AUTO-LOAD)
+
+At the start of every session, read `/Users/cuztomizer/Documents/GitHub/tacticl-docs/CLAUDE.md` for complete cross-repo ecosystem context (API contracts, deploy targets, architecture, conventions). This is the source of truth for all cross-cutting concerns.
+
 ## Ecosystem (MUST READ before cross-cutting changes)
 
 Tacticl has 4 repos in a VS Code multi-root workspace. Changes to API paths, auth, WebSocket messages, or Firestore schema affect multiple repos.
