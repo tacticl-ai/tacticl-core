@@ -13,6 +13,7 @@ import io.tacticl.data.sparks.repository.SparkRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
@@ -64,7 +65,12 @@ class PdlcV2ServiceTest {
         assertThat(run.getStatus()).isEqualTo(PipelineStatus.PENDING);
         assertThat(run.getSparkId()).isEqualTo("spark-1");
         assertThat(run.getPlaybook()).isEqualTo("FULL_PDLC");
-        verify(arbiterPipelineService).submitPipeline(any(SubmitPipelineRequest.class));
+        ArgumentCaptor<SubmitPipelineRequest> captor = ArgumentCaptor.forClass(SubmitPipelineRequest.class);
+        verify(arbiterPipelineService).submitPipeline(captor.capture());
+        SubmitPipelineRequest captured = captor.getValue();
+        assertThat(captured.roleIdentities()).containsKeys("IMPLEMENTER", "REVIEWER", "PM");
+        assertThat(captured.playbookConfigJson()).contains("FULL_PDLC");
+        assertThat(captured.knowledgeNamespace()).isEqualTo("tacticl-user-1");
         verify(sparkRepository).save(any());
     }
 

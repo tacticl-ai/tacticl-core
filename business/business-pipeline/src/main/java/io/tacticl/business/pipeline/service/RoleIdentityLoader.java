@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
@@ -18,6 +19,7 @@ public class RoleIdentityLoader {
 
     // Eager-loaded at construction to fail fast on missing resources
     private final Map<PdlcRole, String> identities;
+    private final Map<String, String> roleIdentitiesByName;
 
     public RoleIdentityLoader() {
         this.identities = new EnumMap<>(PdlcRole.class);
@@ -36,6 +38,9 @@ public class RoleIdentityLoader {
                 identities.put(role, defaultIdentity(role));
             }
         }
+        Map<String, String> byName = new LinkedHashMap<>();
+        identities.forEach((role, identity) -> byName.put(role.name(), identity));
+        this.roleIdentitiesByName = Map.copyOf(byName);
     }
 
     /**
@@ -43,9 +48,7 @@ public class RoleIdentityLoader {
      * Suitable for direct use as the roleIdentities field in SubmitPipelineRequest.
      */
     public Map<String, String> loadAll() {
-        Map<String, String> result = new java.util.LinkedHashMap<>();
-        identities.forEach((role, identity) -> result.put(role.name(), identity));
-        return result;
+        return roleIdentitiesByName;
     }
 
     /**

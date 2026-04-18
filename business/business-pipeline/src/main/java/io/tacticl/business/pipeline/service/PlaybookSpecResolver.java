@@ -1,5 +1,7 @@
 package io.tacticl.business.pipeline.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
@@ -10,6 +12,7 @@ import java.util.Map;
 @Service
 public class PlaybookSpecResolver {
 
+    private static final Logger log = LoggerFactory.getLogger(PlaybookSpecResolver.class);
     private static final JsonMapper JSON = new JsonMapper();
 
     private static final Map<String, List<String>> PLAYBOOK_ROLES = Map.of(
@@ -30,8 +33,11 @@ public class PlaybookSpecResolver {
      * Falls back to FULL_PDLC if the playbook name is unknown.
      */
     public String resolve(String playbookName) {
-        List<String> roles = PLAYBOOK_ROLES.getOrDefault(playbookName,
-            PLAYBOOK_ROLES.get("FULL_PDLC"));
+        List<String> roles = PLAYBOOK_ROLES.get(playbookName);
+        if (roles == null) {
+            log.warn("Unknown playbook '{}', falling back to FULL_PDLC", playbookName);
+            roles = PLAYBOOK_ROLES.get("FULL_PDLC");
+        }
         Map<String, Object> spec = Map.of(
             "name", playbookName,
             "roles", roles

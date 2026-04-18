@@ -26,6 +26,7 @@ public class PdlcV2Service {
 
     private static final Logger log = LoggerFactory.getLogger(PdlcV2Service.class);
     private static final JsonMapper JSON = new JsonMapper();
+    private static final String KNOWLEDGE_NAMESPACE_PREFIX = "tacticl-";
 
     private final PipelineRunRepository pipelineRunRepository;
     private final PipelineEventRepository pipelineEventRepository;
@@ -70,7 +71,7 @@ public class PdlcV2Service {
             repoUrl, githubToken, skipRoles, costCeilingUsd, callbackUrl,
             roleIdentityLoader.loadAll(),
             playbookSpecResolver.resolve(playbook),
-            "tacticl-" + userId,
+            KNOWLEDGE_NAMESPACE_PREFIX + userId,
             null
         );
         SubmitPipelineResponse response = arbiterPipelineService.submitPipeline(request);
