@@ -88,7 +88,7 @@ public class ArbiterGrpcClientImpl implements ArbiterPipelineService {
         GetPipelineResultRequest protoReq = GetPipelineResultRequest.newBuilder()
             .setPipelineId(arbiterPipelineId)
             .build();
-        GetPipelineResultResponse protoResp = stub.getPipelineResult(protoReq);
+        GetPipelineResultResponse protoResp = stub.withDeadlineAfter(10, TimeUnit.SECONDS).getPipelineResult(protoReq);
         return new PipelineResultResponse(
             protoResp.getPipelineId(),
             protoResp.getStatus(),
