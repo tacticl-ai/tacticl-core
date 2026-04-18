@@ -39,3 +39,9 @@ logs/
 .claude/worktrees/
 .claire/
 .superpowers/
+
+# Playwright / browser automation
+.playwright-mcp/
+
+# Test screenshots
+tacticl-*.png
