@@ -46,9 +46,11 @@ public record PipelineRunDto(
                         String roleName = entry.getKey();
                         RoleState roleState = entry.getValue();
                         activatedRoles.add(roleName);
+                        String normalizedStatus = "RUNNING".equals(roleState.getStatus())
+                            ? "EXECUTING" : roleState.getStatus();
                         roleResults.put(roleName, new RoleResultDto(
-                            roleState.getStatus(),
-                            roleState.getReworkCount(),
+                            normalizedStatus,
+                            roleState.getReworkCount() + 1,
                             roleState.getCostUsd()
                         ));
                         if ("RUNNING".equals(roleState.getStatus())) {
