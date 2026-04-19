@@ -10,7 +10,8 @@ set -e
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 
 ENV=${1:-both}
-HETZNER=root@178.156.141.55
+HETZNER="root@178.156.141.55"
+SSH_OPTS="-p 443"
 IMAGE=tacticl-api
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -34,7 +35,7 @@ if [[ "$ENV" == "prod" || "$ENV" == "both" ]]; then
 fi
 
 # Verify SSH access
-if ! ssh -o ConnectTimeout=5 "$HETZNER" "echo ok" &>/dev/null; then
+if ! ssh $SSH_OPTS -o ConnectTimeout=5 "$HETZNER" "echo ok" &>/dev/null; then
     echo -e "${RED}Error: Cannot reach Hetzner at $HETZNER${NC}"
     exit 1
 fi
@@ -52,18 +53,18 @@ docker build -t "${IMAGE}:latest" -f "$REPO_ROOT/Dockerfile" "$REPO_ROOT"
 
 # Step 3: Stream image to Hetzner
 echo -e "${YELLOW}Streaming image to Hetzner...${NC}"
-docker save "${IMAGE}:latest" | gzip | ssh "$HETZNER" "docker load"
+docker save "${IMAGE}:latest" | gzip | ssh $SSH_OPTS "$HETZNER" "docker load"
 
 # Step 4: Restart containers
 if [[ "$ENV" == "prod" || "$ENV" == "both" ]]; then
     echo -e "${YELLOW}Restarting tacticl-api-prod...${NC}"
-    ssh "$HETZNER" "cd /opt/cidadel && docker compose up -d --no-deps tacticl-api-prod"
+    ssh $SSH_OPTS "$HETZNER" "cd /opt/cidadel && docker compose up -d --no-deps tacticl-api-prod"
     echo -e "${GREEN}tacticl-api-prod restarted${NC}"
 fi
 
 if [[ "$ENV" == "qa" || "$ENV" == "both" ]]; then
     echo -e "${YELLOW}Restarting tacticl-api-qa...${NC}"
-    ssh "$HETZNER" "cd /opt/cidadel && docker compose up -d --no-deps tacticl-api-qa"
+    ssh $SSH_OPTS "$HETZNER" "cd /opt/cidadel && docker compose up -d --no-deps tacticl-api-qa"
     echo -e "${GREEN}tacticl-api-qa restarted${NC}"
 fi
 
