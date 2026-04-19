@@ -51,9 +51,20 @@ echo -e "${GREEN}Gradle build succeeded${NC}"
 echo -e "${YELLOW}Building Docker image...${NC}"
 docker build -t "${IMAGE}:latest" -f "$REPO_ROOT/Dockerfile" "$REPO_ROOT"
 
-# Step 3: Stream image to Hetzner
-echo -e "${YELLOW}Streaming image to Hetzner...${NC}"
-docker save "${IMAGE}:latest" | gzip | ssh $SSH_OPTS "$HETZNER" "docker load"
+# Step 3: Transfer JAR to Hetzner and build image there (avoids Docker dependency locally)
+echo -e "${YELLOW}Transferring JAR to Hetzner...${NC}"
+ssh $SSH_OPTS "$HETZNER" "mkdir -p /opt/cidadel/tacticl-core/application-api/build/libs"
+rsync -az --checksum -e "ssh $SSH_OPTS" \
+    "$REPO_ROOT/application-api/build/libs/application-api.jar" \
+    "$HETZNER:/opt/cidadel/tacticl-core/application-api/build/libs/application-api.jar"
+
+# Sync Dockerfile in case it changed
+rsync -az --checksum -e "ssh $SSH_OPTS" \
+    "$REPO_ROOT/Dockerfile" \
+    "$HETZNER:/opt/cidadel/tacticl-core/Dockerfile"
+
+echo -e "${YELLOW}Building Docker image on Hetzner...${NC}"
+ssh $SSH_OPTS "$HETZNER" "cd /opt/cidadel/tacticl-core && docker build --no-cache -t tacticl-api:latest ."
 
 # Step 4: Restart containers
 if [[ "$ENV" == "prod" || "$ENV" == "both" ]]; then
