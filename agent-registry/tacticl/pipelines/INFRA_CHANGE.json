@@ -4,7 +4,7 @@
   "agents": [
     { "type": "architect", "parallel": false, "resource_class": "heavy", "skip_when": "in_skip_roles" },
     { "type": "planner", "parallel": false, "resource_class": "heavy" },
-    { "type": "devops", "parallel": false, "resource_class": "medium", "skip_when": "in_skip_roles" },
+    { "type": "devops", "parallel": false, "resource_class": "medium" },
     { "type": "reviewer", "parallel": false, "resource_class": "heavy", "skip_when": "in_skip_roles" },
     { "type": "retro_analyst", "parallel": false, "resource_class": "light", "skip_when": "in_skip_roles" }
   ]
