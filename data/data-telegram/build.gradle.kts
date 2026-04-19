@@ -5,7 +5,7 @@ plugins {
 
 dependencies {
     // MongoDB starter inherited from data/build.gradle.kts parent
-    implementation(project(":data:data-connections"))  // for BaseMongoEntity
+    api(project(":data:data-connections"))  // for BaseMongoEntity — exposed to consumers
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly(rootProject.libs.junit.platform.launcher)
 }
