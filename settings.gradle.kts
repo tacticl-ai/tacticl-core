@@ -42,4 +42,9 @@ include(":data:data-profile")
 include(":business:business-profile")
 include(":service:service-profile")
 
+include(":client:client-telegram")
+include(":data:data-telegram")
+include(":business:business-telegram")
+include(":service:service-telegram")
+
 // Version catalog auto-discovered from gradle/libs.versions.toml
