@@ -2,11 +2,11 @@
   "pipeline": "SMALL_FEATURE",
   "product": "tacticl",
   "agents": [
-    { "type": "pm", "parallel": false, "resource_class": "heavy" },
+    { "type": "pm", "parallel": false, "resource_class": "heavy", "skip_when": "in_skip_roles" },
     { "type": "planner", "parallel": false, "resource_class": "heavy" },
     { "type": "implementer", "parallel": false, "resource_class": "medium" },
-    { "type": "reviewer", "parallel": false, "resource_class": "heavy" },
-    { "type": "tester", "parallel": false, "resource_class": "medium" },
-    { "type": "retro_analyst", "parallel": false, "resource_class": "light" }
+    { "type": "reviewer", "parallel": false, "resource_class": "heavy", "skip_when": "in_skip_roles" },
+    { "type": "tester", "parallel": false, "resource_class": "medium", "skip_when": "in_skip_roles" },
+    { "type": "retro_analyst", "parallel": false, "resource_class": "light", "skip_when": "in_skip_roles" }
   ]
 }
