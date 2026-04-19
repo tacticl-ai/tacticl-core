@@ -1,12 +1,14 @@
 package io.tacticl.business.telegram;
 
 import io.tacticl.client.telegram.config.TelegramConfig;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 
 @Component
+@ConditionalOnProperty(name = "tacticl.telegram.enabled", havingValue = "true")
 public class TelegramWebhookSecurity {
 
     private final TelegramConfig config;

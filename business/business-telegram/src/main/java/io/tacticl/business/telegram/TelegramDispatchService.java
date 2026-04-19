@@ -6,9 +6,11 @@ import io.tacticl.client.telegram.dto.SendMessageRequest;
 import io.tacticl.client.telegram.dto.Update;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 @Service
+@ConditionalOnProperty(name = "tacticl.telegram.enabled", havingValue = "true")
 public class TelegramDispatchService {
 
     private static final Logger logger = LoggerFactory.getLogger(TelegramDispatchService.class);

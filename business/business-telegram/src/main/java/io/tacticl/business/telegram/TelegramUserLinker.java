@@ -5,6 +5,7 @@ import io.tacticl.data.telegram.entity.TelegramLink;
 import io.tacticl.data.telegram.entity.TelegramLinkToken;
 import io.tacticl.data.telegram.repository.TelegramLinkRepository;
 import io.tacticl.data.telegram.repository.TelegramLinkTokenRepository;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@ConditionalOnProperty(name = "tacticl.telegram.enabled", havingValue = "true")
 public class TelegramUserLinker {
 
     public record IssuedLink(String token, String botDeepLinkUrl) {}
