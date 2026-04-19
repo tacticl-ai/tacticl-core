@@ -152,7 +152,15 @@ public class PdlcV2Service {
             log.warn("No PipelineRun found for arbiterPipelineId={}", arbiterPipelineId);
             return;
         }
-        String pipelineRunId = runOpt.get().getId();
+        PipelineRun run = runOpt.get();
+        String pipelineRunId = run.getId();
+
+        // Ensure run transitions from PENDING to RUNNING on the first agent event.
+        // Terminal callbacks (status != null) will call markCompleted/markFailed themselves.
+        if (status == null && run.getStatus() == io.tacticl.data.pipeline.entity.PipelineStatus.PENDING) {
+            run.markRunning();
+            pipelineRunRepository.save(run);
+        }
 
         PipelineCallbackEvent callbackEvent = translateArbiterEvent(
             pipelineRunId, event, agentName, message, status, errorMessage);
@@ -185,11 +193,11 @@ public class PdlcV2Service {
             String role = extractRoleFromAgentName(agentName);
             return switch (event) {
                 case "progress" -> new PipelineCallbackEvent(
-                    pipelineRunId, "ROLE_STARTED", role, null, null);
+                    pipelineRunId, "ROLE_STARTED", role, role, null);
                 case "agent_completed" -> new PipelineCallbackEvent(
-                    pipelineRunId, "ROLE_COMPLETED", role, null, "{\"costUsd\":0}");
+                    pipelineRunId, "ROLE_COMPLETED", role, role, "{\"costUsd\":0}");
                 case "blocked" -> new PipelineCallbackEvent(
-                    pipelineRunId, "CHECKPOINT_REQUESTED", role, null,
+                    pipelineRunId, "CHECKPOINT_REQUESTED", role, role,
                     "{\"type\":\"ROLE_BLOCKED\",\"artifactPaths\":{}}");
                 default -> null;
             };
