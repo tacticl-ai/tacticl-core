@@ -10,4 +10,6 @@ public interface CheckpointRepository extends MongoRepository<Checkpoint, String
     List<Checkpoint> findBySparkIdAndUserId(String sparkId, String userId);
     Optional<Checkpoint> findByIdAndSparkIdAndUserId(String id, String sparkId, String userId);
     List<Checkpoint> findBySparkIdAndStatus(String sparkId, CheckpointStatus status);
+    List<Checkpoint> findByUserId(String userId);
+    Optional<Checkpoint> findByIdAndUserId(String id, String userId);
 }

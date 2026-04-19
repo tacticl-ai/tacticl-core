@@ -4,6 +4,9 @@ import io.tacticl.data.sparks.entity.*;
 import io.tacticl.data.sparks.repository.CheckpointRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Optional;
+
 @Service
 public class CheckpointService {
 
@@ -24,5 +27,13 @@ public class CheckpointService {
                 .orElseThrow(() -> new IllegalArgumentException("Checkpoint not found: " + checkpointId));
         checkpoint.resolve(decision, instructions);
         return checkpointRepository.save(checkpoint);
+    }
+
+    public List<Checkpoint> listByUser(String userId) {
+        return checkpointRepository.findByUserId(userId);
+    }
+
+    public Optional<Checkpoint> findByUser(String id, String userId) {
+        return checkpointRepository.findByIdAndUserId(id, userId);
     }
 }
