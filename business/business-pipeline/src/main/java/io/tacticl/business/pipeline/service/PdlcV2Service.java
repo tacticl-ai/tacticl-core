@@ -144,6 +144,14 @@ public class PdlcV2Service {
                  run.getId(), sparkId, run.getArbiterPipelineId());
     }
 
+    public PipelineRun updateSkipRoles(String userId, String sparkId, List<String> skipRoles) {
+        PipelineRun run = pipelineRunRepository.findBySparkIdAndUserId(sparkId, userId)
+                .orElseThrow(() -> new IllegalStateException(
+                    "Pipeline run not found for spark: " + sparkId));
+        run.setSkipRoles(skipRoles);
+        return pipelineRunRepository.save(run);
+    }
+
     public void handleArbiterCallback(String arbiterPipelineId, String event,
                                        String agentName, String message,
                                        String status, String errorMessage) {

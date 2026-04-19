@@ -45,4 +45,16 @@ public class UserProfileService {
                 ));
         }
     }
+
+    public UserProfile updateSettings(String userId, int maxConcurrentSparks, double spendingLimit,
+                                       java.util.List<String> domainAllowlist, java.util.List<String> domainBlocklist) {
+        UserProfile profile = userProfileRepository.findByCidadelUserIdAndIsActiveTrue(userId)
+            .orElseThrow(() -> new CidadelException(ProfileErrorCode.INVALID_TOKEN_CLAIMS, MODULE_NAME,
+                "UserProfile not found for userId: " + userId));
+        profile.setMaxConcurrentSparks(maxConcurrentSparks);
+        profile.setSpendingLimit(spendingLimit);
+        profile.setDomainAllowlist(domainAllowlist != null ? domainAllowlist : new java.util.ArrayList<>());
+        profile.setDomainBlocklist(domainBlocklist != null ? domainBlocklist : new java.util.ArrayList<>());
+        return userProfileRepository.save(profile);
+    }
 }

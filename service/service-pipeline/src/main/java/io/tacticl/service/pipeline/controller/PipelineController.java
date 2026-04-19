@@ -10,6 +10,7 @@ import io.tacticl.data.pipeline.entity.PipelineRun;
 import io.tacticl.service.pipeline.dto.PipelineEventDto;
 import io.tacticl.service.pipeline.dto.PipelineRunDto;
 import io.tacticl.service.pipeline.dto.ResolveCheckpointDto;
+import io.tacticl.service.pipeline.dto.RoleArtifactDto;
 import io.tacticl.service.pipeline.dto.SubmitPipelineDto;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -91,6 +93,46 @@ public class PipelineController extends BaseController {
             body.feedback()
         );
         return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/skip-roles")
+    public ResponseEntity<PipelineRunDto> updateSkipRoles(
+            @AuthUser AuthenticatedUser user,
+            @PathVariable String sparkId,
+            @RequestBody java.util.List<String> skipRoles) {
+        try {
+            return ResponseEntity.ok(PipelineRunDto.from(
+                pdlcV2Service.updateSkipRoles(user.getUserId(), sparkId, skipRoles)));
+        } catch (IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+        }
+    }
+
+    @GetMapping("/artifacts/{role}")
+    public ResponseEntity<RoleArtifactDto> getArtifact(
+            @AuthUser AuthenticatedUser user,
+            @PathVariable String sparkId,
+            @PathVariable String role) {
+        PipelineRun run = pdlcV2Service.getStatus(user.getUserId(), sparkId)
+                .orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Pipeline run not found for spark: " + sparkId));
+        if (run.getArtifacts() == null || run.getArtifacts().isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        // Find artifact by role (key format: "phase_role" or just "role")
+        String artifactPath = null;
+        for (var entry : run.getArtifacts().entrySet()) {
+            if (entry.getKey().endsWith("_" + role) || entry.getKey().equals(role)) {
+                artifactPath = entry.getValue();
+                break;
+            }
+        }
+        if (artifactPath == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(new RoleArtifactDto(
+            role, "text",
+            java.util.Map.of("artifactPath", artifactPath),
+            1
+        ));
     }
 
     @GetMapping("/events/history")
