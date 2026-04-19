@@ -1,0 +1,23 @@
+# TESTER Assignment — Pipeline `{{pipeline_id}}`
+
+## Task
+{{spark_request}}
+
+## Your Role
+Read `.agent/identity.md` before starting.
+
+## Inputs
+- `results/pm-spec.md` — acceptance criteria to test against
+- `results/implementation-summary.md` — what was built
+- `results/ux-spec.md` — behavior to validate
+- `project/` — the codebase (`{{repo_url}}`) on branch `implementer-{{pipeline_id}}`
+
+## Your Deliverables
+Write to `results/`:
+- `test-report.md` — test suite written, pass/fail results, coverage gaps, edge cases found
+
+## Reporting
+```bash
+bash .agent/report.sh progress "Writing and running tests"
+bash .agent/report.sh complete "Testing complete — results/test-report.md"
+```

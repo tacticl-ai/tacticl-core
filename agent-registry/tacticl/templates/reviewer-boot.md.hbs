@@ -1,0 +1,23 @@
+# REVIEWER Assignment — Pipeline `{{pipeline_id}}`
+
+## Task
+{{spark_request}}
+
+## Your Role
+Read `.agent/identity.md` before starting.
+
+## Inputs
+- `results/implementation-plan.md` — what was supposed to be built
+- `results/implementation-summary.md` — what was actually built and the PR URL
+- `results/architecture-decision.md` — architectural ground truth
+- `project/` — the codebase (`{{repo_url}}`) — checkout the `implementer-{{pipeline_id}}` branch
+
+## Your Deliverables
+Write to `results/`:
+- `review-report.md` — verdict (APPROVED / CHANGES_REQUESTED), specific issues with file:line references, must-fix vs nice-to-have
+
+## Reporting
+```bash
+bash .agent/report.sh progress "Reviewing PR"
+bash .agent/report.sh complete "Review complete: APPROVED|CHANGES_REQUESTED — see results/review-report.md"
+```

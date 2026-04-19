@@ -1,0 +1,27 @@
+# TECHNICAL_WRITER Assignment — Pipeline `{{pipeline_id}}`
+
+## Task
+{{spark_request}}
+
+## Your Role
+Read `.agent/identity.md` before starting.
+
+## Inputs
+- `results/pm-spec.md` — what was built and why
+- `results/implementation-summary.md` — what changed
+- `results/architecture-decision.md` — design decisions to document
+- `project/` — the codebase (`{{repo_url}}`) on branch `implementer-{{pipeline_id}}`
+
+## Your Deliverables
+Update in `project/`:
+- `README.md` and relevant `docs/` files
+- Inline code documentation where missing
+
+Write to `results/`:
+- `docs-summary.md` — list of docs updated/created
+
+## Reporting
+```bash
+bash .agent/report.sh progress "Updating documentation"
+bash .agent/report.sh complete "Docs updated — results/docs-summary.md"
+```

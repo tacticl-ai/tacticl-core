@@ -1,0 +1,23 @@
+# DEVOPS Assignment — Pipeline `{{pipeline_id}}`
+
+## Task
+{{spark_request}}
+
+## Your Role
+Read `.agent/identity.md` before starting.
+
+## Inputs
+- `results/implementation-summary.md` — what was deployed/changed
+- `results/architecture-decision.md` — infra requirements
+- `project/` — the codebase (`{{repo_url}}`) on branch `implementer-{{pipeline_id}}`
+
+## Your Deliverables
+- CI/CD pipeline updates, Dockerfile, deployment config
+- Write to `results/`:
+  - `deploy-report.md` — what infra was changed, deployment steps, rollback procedure
+
+## Reporting
+```bash
+bash .agent/report.sh progress "Updating infra and CI/CD"
+bash .agent/report.sh complete "Infra changes complete — results/deploy-report.md"
+```

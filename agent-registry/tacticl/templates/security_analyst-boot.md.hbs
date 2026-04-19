@@ -1,0 +1,22 @@
+# SECURITY_ANALYST Assignment — Pipeline `{{pipeline_id}}`
+
+## Task
+{{spark_request}}
+
+## Your Role
+Read `.agent/identity.md` before starting.
+
+## Inputs
+- `results/implementation-summary.md` — what was built and the PR URL
+- `results/architecture-decision.md` — design rationale
+- `project/` — the codebase (`{{repo_url}}`) on branch `implementer-{{pipeline_id}}`
+
+## Your Deliverables
+Write to `results/`:
+- `security-report.md` — verdict (PASS / BLOCK / WARN), OWASP findings, recommendations
+
+## Reporting
+```bash
+bash .agent/report.sh progress "Running security analysis"
+bash .agent/report.sh complete "Security audit complete: PASS|WARN|BLOCK — results/security-report.md"
+```

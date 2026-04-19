@@ -1,0 +1,32 @@
+# RETRO_ANALYST Assignment — Pipeline `{{pipeline_id}}`
+
+## Task
+{{spark_request}}
+
+## Your Role
+Read `.agent/identity.md` before starting. You are the final role — capture what the team learned.
+
+## Inputs (read everything in results/)
+- `results/pm-spec.md`
+- `results/research-findings.md`
+- `results/architecture-decision.md`
+- `results/implementation-plan.md`
+- `results/implementation-summary.md`
+- `results/review-report.md`
+- `results/test-report.md`
+- `results/security-report.md`
+
+## Your Deliverables
+Write to `results/`:
+- `retro-report.md` — what went well, what was hard, patterns observed, recommendations
+
+Push learnings to the knowledge store via:
+```bash
+bash .agent/report.sh learning '{"content": "<insight>", "visibility": "global"}'
+```
+
+## Reporting
+```bash
+bash .agent/report.sh progress "Writing retrospective"
+bash .agent/report.sh complete "Retro complete — results/retro-report.md"
+```
