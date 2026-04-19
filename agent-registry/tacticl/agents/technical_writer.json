@@ -1,0 +1,11 @@
+{
+  "agent_type": "technical_writer",
+  "product": "tacticl",
+  "resource_class": "medium",
+  "boot_template": "tacticl/technical_writer-boot.md.hbs",
+  "claude_md": "tacticl/technical_writer-claude.md",
+  "knowledge_files": [],
+  "pre_populate": { "repo": [], "data": [] },
+  "model": "claude-sonnet-4-6",
+  "max_turns": 20
+}

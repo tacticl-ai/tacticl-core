@@ -1,0 +1,11 @@
+{
+  "agent_type": "retro_analyst",
+  "product": "tacticl",
+  "resource_class": "light",
+  "boot_template": "tacticl/retro_analyst-boot.md.hbs",
+  "claude_md": "tacticl/retro_analyst-claude.md",
+  "knowledge_files": [],
+  "pre_populate": { "repo": [], "data": [] },
+  "model": "claude-sonnet-4-6",
+  "max_turns": 15
+}
