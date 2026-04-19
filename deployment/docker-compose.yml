@@ -1,0 +1,300 @@
+services:
+  # === REVERSE PROXY ===
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "8443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+      - ./auth-frontend:/opt/cidadel/auth-frontend:ro
+      - ./console-frontend:/opt/cidadel/console-frontend:ro
+      - ./web-frontend:/opt/cidadel/web-frontend:ro
+      - ./strategiz-console-frontend:/opt/cidadel/strategiz-console-frontend:ro
+      - ./pointstax-landing:/opt/cidadel/pointstax-landing:ro
+      - ./tacticl-frontend:/opt/cidadel/tacticl-frontend:ro
+
+  # ==========================================
+  # CIDADEL
+  # ==========================================
+  cidadel-api-prod:
+    image: cidadel-api:latest
+    container_name: cidadel-api-prod
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - VAULT_ADDR=http://vault:8200
+      - STRATEGIZ_VAULT_ADDRESS=http://vault:8200
+      - VAULT_TOKEN=${VAULT_TOKEN}
+      - PORT=8080
+      - JAVA_OPTS=-Xmx512m -Xms256m -Duser.timezone=UTC
+
+  cidadel-api-qa:
+    image: cidadel-api:latest
+    container_name: cidadel-api-qa
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - VAULT_ADDR=http://vault:8200
+      - STRATEGIZ_VAULT_ADDRESS=http://vault:8200
+      - VAULT_TOKEN=${VAULT_TOKEN}
+      - PORT=8081
+      - JAVA_OPTS=-Xmx384m -Xms256m -Duser.timezone=UTC
+
+  cidadel-arbiter-prod:
+    image: cidadel-arbiter:latest
+    container_name: cidadel-arbiter-prod
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_TOKEN}
+      - VAULT_CONTEXT=strategiz
+      - GRPC_PORT=50051
+      - WORKSPACE_BASE_DIR=/agent-workspaces
+      - WORKSPACE_HOST_BASE=/opt/cidadel/agent-workspaces
+      - WORKSPACE_ARCHIVE_PATH=/agent-workspaces
+      - AGENT_REGISTRY_PATH=/agent-registry
+      - DOCKER_NETWORK=platform-net
+      - AGENT_IMAGE=cidadel-agent:latest
+      - REGISTRY_MONGO_URI=mongodb://admin:C1d4d3l_Adm1n_2026%21@mongodb:27017/strategiz?authSource=admin&directConnection=true
+    group_add:
+      - '110'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/cidadel/agent-workspaces:/agent-workspaces
+      - /opt/cidadel/agent-registry:/agent-registry:ro
+
+  cidadel-arbiter-qa:
+    image: cidadel-arbiter:latest
+    container_name: cidadel-arbiter-qa
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_TOKEN}
+      - VAULT_CONTEXT=strategiz-qa
+      - GRPC_PORT=50052
+      - WORKSPACE_BASE_DIR=/agent-workspaces
+      - WORKSPACE_HOST_BASE=/opt/cidadel/agent-workspaces
+      - WORKSPACE_ARCHIVE_PATH=/agent-workspaces
+      - AGENT_REGISTRY_PATH=/agent-registry
+      - DOCKER_NETWORK=platform-net
+      - AGENT_IMAGE=cidadel-agent:latest
+      - REGISTRY_MONGO_URI=mongodb://admin:C1d4d3l_Adm1n_2026%21@mongodb:27017/strategiz?authSource=admin&directConnection=true
+    group_add:
+      - '110'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/cidadel/agent-workspaces:/agent-workspaces
+      - /opt/cidadel/agent-registry:/agent-registry:ro
+
+  # ==========================================
+  # STRATEGIZ
+  # ==========================================
+  strategiz-api-prod:
+    image: strategiz-api:latest
+    container_name: strategiz-api-prod
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod,scheduler
+      - VAULT_ADDR=http://vault:8200
+      - STRATEGIZ_VAULT_ADDRESS=http://vault:8200
+      - VAULT_TOKEN=${VAULT_TOKEN}
+      - PORT=8082
+      - OTEL_JAVAAGENT_ENABLED=false
+      - STRATEGIZ_FMP_ENABLED=true
+      - STRATEGIZ_NEO4J_BOLT_URI=bolt://neo4j:7687
+    deploy:
+      resources:
+        limits:
+          memory: 3g
+
+  strategiz-api-qa:
+    image: strategiz-api:latest
+    container_name: strategiz-api-qa
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod,scheduler
+      - VAULT_ADDR=http://vault:8200
+      - STRATEGIZ_VAULT_ADDRESS=http://vault:8200
+      - VAULT_TOKEN=${VAULT_TOKEN}
+      - PORT=8083
+      - OTEL_JAVAAGENT_ENABLED=false
+      - STRATEGIZ_NEO4J_BOLT_URI=bolt://neo4j:7687
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+  strategiz-console-prod:
+    image: strategiz-console-api:latest
+    container_name: strategiz-console-prod
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod,scheduler
+      - VAULT_ADDR=http://vault:8200
+      - STRATEGIZ_VAULT_ADDRESS=http://vault:8200
+      - VAULT_TOKEN=${VAULT_TOKEN}
+      - PORT=8084
+      - NEO4J_ENABLED=true
+      - REFERENCE_INTELLIGENCE_ENABLED=true
+      - OTEL_JAVAAGENT_ENABLED=false
+      - JAVA_OPTS=-Duser.timezone=UTC -Xmx1536m -Xms512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+  strategiz-execution-prod:
+    image: strategiz-execution:latest
+    container_name: strategiz-execution-prod
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=production
+      - GRPC_PORT=50053
+      - MAX_WORKERS=20
+      - MAX_TIMEOUT_SECONDS=30
+      - MAX_MEMORY_MB=512
+      - LOG_LEVEL=INFO
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import grpc; ch=grpc.insecure_channel('localhost:50053'); grpc.channel_ready_future(ch).result(timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  strategiz-execution-qa:
+    image: strategiz-execution:latest
+    container_name: strategiz-execution-qa
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=qa
+      - GRPC_PORT=50054
+      - MAX_WORKERS=10
+      - MAX_TIMEOUT_SECONDS=30
+      - MAX_MEMORY_MB=256
+      - LOG_LEVEL=DEBUG
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import grpc; ch=grpc.insecure_channel('localhost:50054'); grpc.channel_ready_future(ch).result(timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  # ==========================================
+  # TACTICL
+  # ==========================================
+  tacticl-api-prod:
+    image: tacticl-api:latest
+    container_name: tacticl-api-prod
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_TOKEN}
+      - SPRING_MONGODB_URI=mongodb://tacticl_user:T4ct1cl_Db_2026%21@mongodb:27017/tacticl
+      - PDLC_CALLBACK_SECRET=${PDLC_CALLBACK_SECRET}
+      - OTEL_JAVAAGENT_ENABLED=false
+      - JAVA_TOOL_OPTIONS=-Xmx1g -Xms256m -Duser.timezone=UTC
+    deploy:
+      resources:
+        limits:
+          memory: 1536m
+
+  tacticl-api-qa:
+    image: tacticl-api:latest
+    container_name: tacticl-api-qa
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_TOKEN}
+      - PORT=8086
+      - SPRING_MONGODB_URI=mongodb://tacticl_user:T4ct1cl_Db_2026%21@mongodb:27017/tacticl
+      - PDLC_V2_ARBITER_PORT=50052
+      - PDLC_CALLBACK_SECRET=${PDLC_CALLBACK_SECRET:-}
+      - OTEL_JAVAAGENT_ENABLED=false
+      - JAVA_TOOL_OPTIONS=-Xmx512m -Xms256m -Duser.timezone=UTC
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  # ==========================================
+  # POINTSTAX
+  # ==========================================
+  pointstax-api-prod:
+    image: pointstax-api:latest
+    container_name: pointstax-api-prod
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - VAULT_ADDR=http://vault:8200
+      - STRATEGIZ_VAULT_ADDRESS=http://vault:8200
+      - VAULT_TOKEN=${VAULT_TOKEN}
+      - SPRING_DATA_MONGODB_URI=mongodb://admin:C1d4d3l_Adm1n_2026%21@mongodb:27017/pointstax?authSource=admin&directConnection=true
+      - PORT=8087
+      - CIDADEL_ARBITER_ADDRESS=cidadel-arbiter-prod:50051
+      - OTEL_JAVAAGENT_ENABLED=false
+      - JAVA_OPTS=-Xmx512m -Xms256m -Duser.timezone=UTC
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  pointstax-api-qa:
+    image: pointstax-api:latest
+    container_name: pointstax-api-qa
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - VAULT_ADDR=http://vault:8200
+      - STRATEGIZ_VAULT_ADDRESS=http://vault:8200
+      - VAULT_TOKEN=${VAULT_TOKEN}
+      - SPRING_DATA_MONGODB_URI=mongodb://admin:C1d4d3l_Adm1n_2026%21@mongodb:27017/pointstax?authSource=admin&directConnection=true
+      - PORT=8088
+      - CIDADEL_ARBITER_ADDRESS=cidadel-arbiter-qa:50052
+      - OTEL_JAVAAGENT_ENABLED=false
+      - JAVA_OPTS=-Xmx384m -Xms256m -Duser.timezone=UTC
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+
+  vault:
+    image: hashicorp/vault:1.15.6
+    container_name: vault
+    restart: unless-stopped
+    ports:
+      - "8200:8200"
+    environment:
+      - VAULT_ADDR=http://127.0.0.1:8200
+      - SKIP_CHOWN=true
+      - SKIP_SETCAP=true
+    volumes:
+      - /opt/vault/data:/vault/data
+      - /opt/vault/config:/vault/config
+    cap_add:
+      - IPC_LOCK
+    command: vault server -config=/vault/config/vault.hcl
+
+volumes:
+  caddy-data:
+  caddy-config:
+
+
+networks:
+  default:
+    name: platform-net
+    external: true
