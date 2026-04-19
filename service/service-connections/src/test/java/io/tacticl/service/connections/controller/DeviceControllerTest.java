@@ -1,5 +1,6 @@
 package io.tacticl.service.connections.controller;
 
+import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.tacticl.business.connections.service.DeviceRegistryService;
 import io.tacticl.service.connections.dto.DeviceSummaryDto;
 import io.tacticl.service.connections.dto.PairingTokenResponseDto;
@@ -21,13 +22,19 @@ class DeviceControllerTest {
     @Mock DeviceRegistryService deviceRegistryService;
     @InjectMocks DeviceController controller;
 
+    private AuthenticatedUser user(String id) {
+        AuthenticatedUser u = mock(AuthenticatedUser.class);
+        when(u.getUserId()).thenReturn(id);
+        return u;
+    }
+
     @Test
     void postPair_returns200WithToken() {
         var result = new DeviceRegistryService.PairingTokenResult(
             "tctl_pair_v1_abc", Instant.now().plusSeconds(900));
         when(deviceRegistryService.generatePairingToken("user1")).thenReturn(result);
 
-        ResponseEntity<PairingTokenResponseDto> response = controller.generatePairingToken("user1");
+        ResponseEntity<PairingTokenResponseDto> response = controller.generatePairingToken(user("user1"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().token()).isEqualTo("tctl_pair_v1_abc");
@@ -37,7 +44,7 @@ class DeviceControllerTest {
     void getDevices_returns200() {
         when(deviceRegistryService.listDevices("user1")).thenReturn(List.of());
 
-        ResponseEntity<List<DeviceSummaryDto>> response = controller.listDevices("user1");
+        ResponseEntity<List<DeviceSummaryDto>> response = controller.listDevices(user("user1"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
@@ -46,7 +53,7 @@ class DeviceControllerTest {
 
     @Test
     void deleteDevice_returns204() {
-        ResponseEntity<Void> response = controller.unpair("dev-1", "user1");
+        ResponseEntity<Void> response = controller.unpair("dev-1", user("user1"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         verify(deviceRegistryService).unpair("user1", "dev-1");

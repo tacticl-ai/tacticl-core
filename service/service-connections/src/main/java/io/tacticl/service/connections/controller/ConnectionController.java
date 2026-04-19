@@ -1,7 +1,12 @@
 package io.tacticl.service.connections.controller;
 
+import io.cidadel.framework.authorization.annotation.AuthUser;
+import io.cidadel.framework.authorization.annotation.RequireAuth;
+import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.cidadel.service.base.controller.BaseController;
 import io.tacticl.business.connections.service.ConnectionRegistryService;
+import io.tacticl.data.connections.entity.Connection;
+import io.tacticl.data.connections.entity.ConnectionStatus;
 import io.tacticl.service.connections.dto.ConnectionSummaryDto;
 import io.tacticl.service.connections.dto.OAuthCallbackRequestDto;
 import io.tacticl.service.connections.dto.OAuthUrlResponseDto;
@@ -26,56 +31,71 @@ public class ConnectionController extends BaseController {
     }
 
     @GetMapping
+    @RequireAuth
     public ResponseEntity<List<ConnectionSummaryDto>> listConnections(
-            @RequestHeader("X-User-Id") String userId) {
+            @AuthUser AuthenticatedUser user) {
+        String userId = user.getUserId();
         var connections = connectionRegistryService.listConnections(userId).stream()
-            .map(c -> new ConnectionSummaryDto(
-                c.getId(), c.getProvider(), c.getStatus().name(),
-                c.getAccountIdentity(),
-                c.getLastRefreshedAt() != null ? c.getLastRefreshedAt().toString() : null))
+            .map(this::toDto)
             .toList();
         return ResponseEntity.ok(connections);
     }
 
     @GetMapping("/oauth/{provider}/url")
+    @RequireAuth
     public ResponseEntity<OAuthUrlResponseDto> generateAuthUrl(
             @PathVariable String provider,
             @RequestParam String redirectUri,
-            @RequestHeader("X-User-Id") String userId) {
+            @AuthUser AuthenticatedUser user) {
+        String userId = user.getUserId();
         var state = UUID.randomUUID().toString();
         var url = connectionRegistryService.generateAuthUrl(provider, state, redirectUri);
         return ResponseEntity.ok(new OAuthUrlResponseDto(url, state));
     }
 
     @PostMapping("/oauth/{provider}/callback")
+    @RequireAuth
     public ResponseEntity<ConnectionSummaryDto> handleCallback(
             @PathVariable String provider,
             @RequestBody OAuthCallbackRequestDto request,
-            @RequestHeader("X-User-Id") String userId) {
+            @AuthUser AuthenticatedUser user) {
+        String userId = user.getUserId();
         var connection = connectionRegistryService.handleCallback(
             userId, provider, request.code(), request.redirectUri());
-        return ResponseEntity.ok(new ConnectionSummaryDto(
-            connection.getId(), connection.getProvider(), connection.getStatus().name(),
-            connection.getAccountIdentity(), null));
+        return ResponseEntity.ok(toDto(connection));
     }
 
     @GetMapping("/{connectionId}")
+    @RequireAuth
     public ResponseEntity<ConnectionSummaryDto> getConnection(
             @PathVariable String connectionId,
-            @RequestHeader("X-User-Id") String userId) {
+            @AuthUser AuthenticatedUser user) {
+        String userId = user.getUserId();
         return connectionRegistryService.getConnection(userId, connectionId)
-            .map(c -> ResponseEntity.ok(new ConnectionSummaryDto(
-                c.getId(), c.getProvider(), c.getStatus().name(),
-                c.getAccountIdentity(),
-                c.getLastRefreshedAt() != null ? c.getLastRefreshedAt().toString() : null)))
+            .map(c -> ResponseEntity.ok(toDto(c)))
             .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{connectionId}")
+    @RequireAuth
     public ResponseEntity<Void> disconnect(
             @PathVariable String connectionId,
-            @RequestHeader("X-User-Id") String userId) {
+            @AuthUser AuthenticatedUser user) {
+        String userId = user.getUserId();
         connectionRegistryService.disconnect(userId, connectionId);
         return ResponseEntity.noContent().build();
+    }
+
+    private ConnectionSummaryDto toDto(Connection c) {
+        return new ConnectionSummaryDto(
+            c.getId(),
+            c.getProvider(),
+            c.getAccountIdentity(),
+            null,
+            c.getStatus() == ConnectionStatus.ERROR,
+            c.getStatus() == ConnectionStatus.EXPIRED,
+            c.getTokenExpiresAt() != null ? c.getTokenExpiresAt().toString() : null,
+            c.getCreatedAt() != null ? c.getCreatedAt().toString() : null
+        );
     }
 }

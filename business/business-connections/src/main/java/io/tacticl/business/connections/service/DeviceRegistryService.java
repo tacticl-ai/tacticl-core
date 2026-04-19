@@ -7,6 +7,7 @@ import io.tacticl.data.connections.repository.PairingTokenRepository;
 import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -48,6 +49,16 @@ public class DeviceRegistryService {
 
     public List<Device> listDevices(String userId) {
         return deviceRepository.findByUserId(userId);
+    }
+
+    public Optional<Device> getDevice(String userId, String deviceId) {
+        return deviceRepository.findById(deviceId)
+            .filter(d -> {
+                if (!d.getUserId().equals(userId)) {
+                    throw new SecurityException("Device does not belong to user");
+                }
+                return true;
+            });
     }
 
     public void unpair(String userId, String deviceId) {
