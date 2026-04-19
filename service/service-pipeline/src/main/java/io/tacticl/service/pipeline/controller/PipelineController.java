@@ -10,6 +10,7 @@ import io.tacticl.data.pipeline.entity.PipelineRun;
 import io.tacticl.service.pipeline.dto.PipelineEventDto;
 import io.tacticl.service.pipeline.dto.PipelineRunDto;
 import io.tacticl.service.pipeline.dto.ResolveCheckpointDto;
+import io.tacticl.service.pipeline.dto.SubmitPipelineDto;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -48,6 +49,23 @@ public class PipelineController extends BaseController {
         return pdlcV2Service.getStatus(user.getUserId(), sparkId)
                 .map(run -> ResponseEntity.ok(PipelineRunDto.from(run)))
                 .orElse(ResponseEntity.<PipelineRunDto>notFound().build());
+    }
+
+    @PostMapping
+    public ResponseEntity<PipelineRunDto> submitPipeline(
+            @AuthUser AuthenticatedUser user,
+            @PathVariable String sparkId,
+            @RequestBody SubmitPipelineDto body) {
+        PipelineRun run = pdlcV2Service.submitPipeline(
+            user.getUserId(), sparkId,
+            body.sparkRequest() != null ? body.sparkRequest() : "",
+            body.repoUrl(),
+            body.playbook() != null ? body.playbook() : "FULL_PDLC",
+            body.skipRoles() != null ? body.skipRoles() : java.util.List.of(),
+            body.githubToken(),
+            body.costCeilingUsd() > 0 ? body.costCeilingUsd() : 50.0
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(PipelineRunDto.from(run));
     }
 
     @GetMapping(value = "/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

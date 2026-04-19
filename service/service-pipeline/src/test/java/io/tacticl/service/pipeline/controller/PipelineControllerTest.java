@@ -6,7 +6,9 @@ import io.tacticl.business.pipeline.service.PipelineEventEmitter;
 import io.tacticl.data.pipeline.entity.PipelineRun;
 import io.tacticl.data.pipeline.entity.PipelineStatus;
 import io.tacticl.service.pipeline.dto.PipelineEventDto;
+import io.tacticl.service.pipeline.dto.PipelineRunDto;
 import io.tacticl.service.pipeline.dto.ResolveCheckpointDto;
+import io.tacticl.service.pipeline.dto.SubmitPipelineDto;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -19,6 +21,7 @@ import java.util.List;
 import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -90,6 +93,29 @@ class PipelineControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         verify(pdlcV2Service).getEvents(run.getId(), 0, 50);
+    }
+
+    @Test
+    void givenValidSubmit_thenReturns201WithPipelineRunDto() {
+        PipelineRun run = PipelineRun.create("user-1", "spark-1", "req", "https://github.com/foo/bar",
+                "FULL_PDLC", List.of(), 50.0);
+        when(pdlcV2Service.submitPipeline(
+                eq("user-1"), eq("spark-1"), eq("req"), eq("https://github.com/foo/bar"),
+                eq("FULL_PDLC"), eq(List.of()), eq("gh-token"), anyDouble()))
+                .thenReturn(run);
+
+        SubmitPipelineDto body = new SubmitPipelineDto(
+                "req", "https://github.com/foo/bar", "FULL_PDLC",
+                List.of(), "gh-token", 0.0);
+
+        ResponseEntity<PipelineRunDto> response =
+                controller.submitPipeline(user("user-1"), "spark-1", body);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody()).isNotNull();
+        verify(pdlcV2Service).submitPipeline(
+                eq("user-1"), eq("spark-1"), eq("req"), eq("https://github.com/foo/bar"),
+                eq("FULL_PDLC"), eq(List.of()), eq("gh-token"), eq(50.0));
     }
 
     @Test
