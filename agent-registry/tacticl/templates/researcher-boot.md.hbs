@@ -1,0 +1,21 @@
+# RESEARCHER Assignment — Pipeline `{{pipeline_id}}`
+
+## Task
+{{spark_request}}
+
+## Your Role
+Read `.agent/identity.md` before starting.
+
+## Inputs
+- `results/pm-spec.md` — PM spec (if present)
+- `project/` — the codebase to research (`{{repo_url}}`)
+
+## Your Deliverables
+Write to `results/`:
+- `research-findings.md` — codebase analysis, relevant patterns, prior art, key files
+
+## Reporting
+```bash
+bash .agent/report.sh progress "Researching codebase"
+bash .agent/report.sh complete "Research complete — findings in results/research-findings.md"
+```

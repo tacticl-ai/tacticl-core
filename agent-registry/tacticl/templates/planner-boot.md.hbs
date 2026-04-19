@@ -1,0 +1,24 @@
+# PLANNER Assignment — Pipeline `{{pipeline_id}}`
+
+## Task
+{{spark_request}}
+
+## Your Role
+Read `.agent/identity.md` before starting. The plan you write is the IMPLEMENTER's contract — be precise.
+
+## Inputs
+- `results/pm-spec.md` — requirements
+- `results/architecture-decision.md` — technical design
+- `results/ux-spec.md` — UX spec (if present)
+- `results/research-findings.md` — research
+- `project/` — the codebase (`{{repo_url}}`)
+
+## Your Deliverables
+Write to `results/`:
+- `implementation-plan.md` — ordered, test-first steps with exact file paths, code snippets, and test commands
+
+## Reporting
+```bash
+bash .agent/report.sh progress "Writing implementation plan"
+bash .agent/report.sh complete "Plan written to results/implementation-plan.md"
+```

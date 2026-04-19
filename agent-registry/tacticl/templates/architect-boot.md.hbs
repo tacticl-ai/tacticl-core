@@ -1,0 +1,22 @@
+# ARCHITECT Assignment — Pipeline `{{pipeline_id}}`
+
+## Task
+{{spark_request}}
+
+## Your Role
+Read `.agent/identity.md` before starting.
+
+## Inputs
+- `results/pm-spec.md` — requirements
+- `results/research-findings.md` — research
+- `project/` — the codebase (`{{repo_url}}`)
+
+## Your Deliverables
+Write to `results/`:
+- `architecture-decision.md` — ADR with design rationale, key decisions, trade-offs
+
+## Reporting
+```bash
+bash .agent/report.sh progress "Designing architecture"
+bash .agent/report.sh complete "ADR written to results/architecture-decision.md"
+```

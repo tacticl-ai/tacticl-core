@@ -1,0 +1,23 @@
+# PM Assignment — Pipeline `{{pipeline_id}}`
+
+## Task
+{{spark_request}}
+
+## Your Role
+Read `.agent/identity.md` for your full protocol before doing anything else.
+
+## Working Directory
+- `project/` — the cloned repository (`{{repo_url}}`)
+- `results/` — write your output here
+- `.agent/` — workspace scaffolding (read-only except `report.sh`)
+
+## Your Deliverables
+Write to `results/`:
+- `pm-spec.md` — product requirements, user stories, acceptance criteria
+- `ux-requirements.md` — user experience goals and constraints
+
+## Reporting
+```bash
+bash .agent/report.sh progress "Starting PM — reading codebase and requirements"
+bash .agent/report.sh complete "PM spec written to results/pm-spec.md"
+```
