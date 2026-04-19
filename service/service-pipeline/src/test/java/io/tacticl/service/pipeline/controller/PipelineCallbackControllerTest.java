@@ -1,7 +1,7 @@
 package io.tacticl.service.pipeline.controller;
 
-import io.tacticl.business.pipeline.dto.PipelineCallbackEvent;
 import io.tacticl.business.pipeline.service.PdlcV2Service;
+import io.tacticl.service.pipeline.dto.ArbiterCallbackDto;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -13,50 +13,65 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class PipelineCallbackControllerTest {
 
-    private static final PipelineCallbackEvent EVENT =
-        new PipelineCallbackEvent("run-1", "ROLE_COMPLETED", "PM", "PRODUCT", "{}");
-
     @Test
-    void handleCallback_noSecretConfigured_delegates() {
+    void givenCompletedCallback_thenCallsHandleArbiterCallbackWithCorrectArgs() {
         PdlcV2Service service = mock(PdlcV2Service.class);
         var controller = new PipelineCallbackController(service, "");
 
-        ResponseEntity<Void> resp = controller.handleCallback(null, EVENT);
+        ArbiterCallbackDto body = new ArbiterCallbackDto(
+            "arb-uuid-1", null, null, null, "COMPLETED", "{}", null, 1234L);
+
+        ResponseEntity<Void> resp = controller.handleCallback(null, body);
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
-        verify(service).handleCallbackEvent(EVENT);
+        verify(service).handleArbiterCallback(
+            "arb-uuid-1", null, null, null, "COMPLETED", null);
     }
 
     @Test
-    void handleCallback_correctSecret_delegates() {
+    void givenAgentCompletedCallback_thenCallsHandleArbiterCallback() {
         PdlcV2Service service = mock(PdlcV2Service.class);
-        var controller = new PipelineCallbackController(service, "super-secret");
+        var controller = new PipelineCallbackController(service, "");
 
-        ResponseEntity<Void> resp = controller.handleCallback("super-secret", EVENT);
+        ArbiterCallbackDto body = new ArbiterCallbackDto(
+            "arb-uuid-2", "agent_completed", "pm-abc12345-ff01", "done",
+            null, null, null, null);
+
+        ResponseEntity<Void> resp = controller.handleCallback(null, body);
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
-        verify(service).handleCallbackEvent(EVENT);
+        verify(service).handleArbiterCallback(
+            "arb-uuid-2", "agent_completed", "pm-abc12345-ff01", "done", null, null);
     }
 
     @Test
-    void handleCallback_wrongSecret_returns401() {
+    void givenWrongSecret_thenReturns401() {
         PdlcV2Service service = mock(PdlcV2Service.class);
         var controller = new PipelineCallbackController(service, "super-secret");
 
-        ResponseEntity<Void> resp = controller.handleCallback("wrong", EVENT);
+        ArbiterCallbackDto body = new ArbiterCallbackDto(
+            "arb-uuid-3", "progress", "researcher-abcd1234-ee02", null,
+            null, null, null, null);
+
+        ResponseEntity<Void> resp = controller.handleCallback("wrong", body);
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         verifyNoInteractions(service);
     }
 
     @Test
-    void handleCallback_secretConfigured_missingHeader_returns401() {
+    void givenBlankSecret_thenAllowsRequest() {
         PdlcV2Service service = mock(PdlcV2Service.class);
-        var controller = new PipelineCallbackController(service, "super-secret");
+        var controller = new PipelineCallbackController(service, "");
 
-        ResponseEntity<Void> resp = controller.handleCallback(null, EVENT);
+        ArbiterCallbackDto body = new ArbiterCallbackDto(
+            "arb-uuid-4", "progress", "pm-abcd1234-aa01", null,
+            null, null, null, null);
 
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        verifyNoInteractions(service);
+        ResponseEntity<Void> resp = controller.handleCallback(null, body);
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        verify(service).handleArbiterCallback(
+            "arb-uuid-4", "progress", "pm-abcd1234-aa01", null, null, null);
     }
 }

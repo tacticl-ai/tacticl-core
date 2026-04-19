@@ -144,6 +144,64 @@ public class PdlcV2Service {
                  run.getId(), sparkId, run.getArbiterPipelineId());
     }
 
+    public void handleArbiterCallback(String arbiterPipelineId, String event,
+                                       String agentName, String message,
+                                       String status, String errorMessage) {
+        Optional<PipelineRun> runOpt = pipelineRunRepository.findByArbiterPipelineId(arbiterPipelineId);
+        if (runOpt.isEmpty()) {
+            log.warn("No PipelineRun found for arbiterPipelineId={}", arbiterPipelineId);
+            return;
+        }
+        String pipelineRunId = runOpt.get().getId();
+
+        PipelineCallbackEvent callbackEvent = translateArbiterEvent(
+            pipelineRunId, event, agentName, message, status, errorMessage);
+        if (callbackEvent != null) {
+            handleCallbackEvent(callbackEvent);
+        }
+    }
+
+    private PipelineCallbackEvent translateArbiterEvent(String pipelineRunId, String event,
+                                                         String agentName, String message,
+                                                         String status, String errorMessage) {
+        // Terminal pipeline events
+        if (status != null) {
+            return switch (status) {
+                case "COMPLETED" -> new PipelineCallbackEvent(
+                    pipelineRunId, "PIPELINE_COMPLETED", null, null, null);
+                case "FAILED" -> {
+                    String payload = errorMessage != null
+                        ? "{\"reason\":\"" + errorMessage.replace("\"", "\\\"") + "\"}"
+                        : null;
+                    yield new PipelineCallbackEvent(
+                        pipelineRunId, "PIPELINE_FAILED", null, null, payload);
+                }
+                default -> null;
+            };
+        }
+
+        // Agent-level events
+        if (event != null && agentName != null) {
+            String role = extractRoleFromAgentName(agentName);
+            return switch (event) {
+                case "progress" -> new PipelineCallbackEvent(
+                    pipelineRunId, "ROLE_STARTED", role, null, null);
+                case "agent_completed" -> new PipelineCallbackEvent(
+                    pipelineRunId, "ROLE_COMPLETED", role, null, "{\"costUsd\":0}");
+                case "blocked" -> new PipelineCallbackEvent(
+                    pipelineRunId, "CHECKPOINT_REQUESTED", role, null,
+                    "{\"type\":\"ROLE_BLOCKED\",\"artifactPaths\":{}}");
+                default -> null;
+            };
+        }
+        return null;
+    }
+
+    private String extractRoleFromAgentName(String agentName) {
+        // agentName format: "{type}-{pipelineId.slice(0,8)}-{nonce}" e.g., "pm-abc12345-ff01"
+        return agentName.split("-")[0].toUpperCase();
+    }
+
     @Async("pipelineCallbackExecutor")
     public void handleCallbackEvent(PipelineCallbackEvent event) {
         // 1) Always persist the event, regardless of whether the run exists.

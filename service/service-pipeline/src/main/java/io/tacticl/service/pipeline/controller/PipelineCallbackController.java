@@ -1,8 +1,8 @@
 package io.tacticl.service.pipeline.controller;
 
 import io.cidadel.service.base.controller.BaseController;
-import io.tacticl.business.pipeline.dto.PipelineCallbackEvent;
 import io.tacticl.business.pipeline.service.PdlcV2Service;
+import io.tacticl.service.pipeline.dto.ArbiterCallbackDto;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,11 +37,14 @@ public class PipelineCallbackController extends BaseController {
     @PostMapping("/callback")
     public ResponseEntity<Void> handleCallback(
             @RequestHeader(value = "X-Arbiter-Secret", required = false) String incomingSecret,
-            @RequestBody PipelineCallbackEvent event) {
+            @RequestBody ArbiterCallbackDto body) {
         if (!callbackSecret.isBlank() && !callbackSecret.equals(incomingSecret)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        pdlcV2Service.handleCallbackEvent(event);
+        pdlcV2Service.handleArbiterCallback(
+            body.pipelineId(), body.event(), body.agentName(), body.message(),
+            body.status(), body.errorMessage()
+        );
         return ResponseEntity.ok().build();
     }
 }
