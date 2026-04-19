@@ -11,15 +11,21 @@ dependencies {
     implementation(project(":service:service-pipeline"))
     implementation(project(":service:service-conversation"))
     implementation(project(":service:service-profile"))
+    implementation(project(":service:service-telegram"))
 
     // Business layer
     implementation(project(":business:business-agent"))
+    implementation(project(":business:business-telegram"))
 
     // Client layer
     implementation(project(":client:client-google"))
     implementation(project(":client:client-github"))
     implementation(project(":client:client-brave-search"))
     implementation(project(":client:client-jina"))
+    implementation(project(":client:client-telegram"))
+
+    // Data layer
+    implementation(project(":data:data-telegram"))
 
     // Cidadel shared infrastructure
     implementation(libs.cidadel.framework.authorization)
