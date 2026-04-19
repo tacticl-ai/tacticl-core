@@ -217,7 +217,7 @@ services:
     container_name: tacticl-api-qa
     restart: unless-stopped
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_PROFILES_ACTIVE=qa
       - VAULT_ADDR=http://vault:8200
       - VAULT_TOKEN=${VAULT_TOKEN}
       - PORT=8086
