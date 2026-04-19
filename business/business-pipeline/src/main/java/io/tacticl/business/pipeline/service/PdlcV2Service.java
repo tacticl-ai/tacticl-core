@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -143,10 +144,7 @@ public class PdlcV2Service {
                  run.getId(), sparkId, run.getArbiterPipelineId());
     }
 
-    /**
-     * Handle an arbiter callback event: persist the event, update run state based on
-     * event type, create checkpoints on demand, and fan out to SSE subscribers.
-     */
+    @Async("pipelineCallbackExecutor")
     public void handleCallbackEvent(PipelineCallbackEvent event) {
         // 1) Always persist the event, regardless of whether the run exists.
         pipelineEventRepository.save(PipelineEvent.create(
@@ -175,7 +173,7 @@ public class PdlcV2Service {
     }
 
     private void processRunEvent(PipelineRun run, PipelineCallbackEvent event) {
-        JsonNode payload = parsePayload(event.payloadJson());
+        JsonNode payload = parsePayload(event.payloadJson(), event.pipelineRunId(), event.eventType());
         switch (event.eventType()) {
             case "PIPELINE_STARTED" -> {
                 run.markRunning();
@@ -234,14 +232,15 @@ public class PdlcV2Service {
         pipelineRunRepository.save(run);
     }
 
-    private JsonNode parsePayload(String payloadJson) {
+    private JsonNode parsePayload(String payloadJson, String pipelineRunId, String eventType) {
         if (payloadJson == null || payloadJson.isBlank()) {
             return JSON.nullNode();
         }
         try {
             return JSON.readTree(payloadJson);
         } catch (JacksonException e) {
-            log.warn("Failed to parse callback payload JSON: {}", e.getMessage());
+            log.error("Failed to parse callback payload JSON: runId={} eventType={} error={}",
+                      pipelineRunId, eventType, e.getMessage());
             return JSON.nullNode();
         }
     }

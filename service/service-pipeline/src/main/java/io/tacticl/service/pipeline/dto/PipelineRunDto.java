@@ -1,5 +1,6 @@
 package io.tacticl.service.pipeline.dto;
 
+import io.tacticl.data.pipeline.entity.PdlcRole;
 import io.tacticl.data.pipeline.entity.PhaseState;
 import io.tacticl.data.pipeline.entity.PipelineRun;
 import io.tacticl.data.pipeline.entity.PipelineStatus;
@@ -28,11 +29,8 @@ public record PipelineRunDto(
     Instant updatedAt,
     Instant completedAt
 ) {
-    private static final List<String> CANONICAL_ROLE_ORDER = Arrays.asList(
-        "PM", "RESEARCHER", "ARCHITECT", "DESIGNER", "PLANNER",
-        "IMPLEMENTER", "REVIEWER", "TESTER", "SECURITY_ANALYST",
-        "TECHNICAL_WRITER", "DEVOPS", "RETRO_ANALYST"
-    );
+    private static final List<String> CANONICAL_ROLE_ORDER =
+        Arrays.stream(PdlcRole.values()).map(Enum::name).toList();
 
     public static PipelineRunDto from(PipelineRun run) {
         List<String> activatedRoles = new ArrayList<>();
