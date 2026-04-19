@@ -1,0 +1,18 @@
+{
+  "pipeline": "FULL_PDLC",
+  "product": "tacticl",
+  "agents": [
+    { "type": "pm", "parallel": false, "resource_class": "heavy" },
+    { "type": "researcher", "parallel": false, "resource_class": "medium" },
+    { "type": "architect", "parallel": false, "resource_class": "heavy" },
+    { "type": "designer", "parallel": false, "resource_class": "heavy" },
+    { "type": "planner", "parallel": false, "resource_class": "heavy" },
+    { "type": "implementer", "parallel": false, "resource_class": "medium" },
+    { "type": "reviewer", "parallel": false, "resource_class": "heavy" },
+    { "type": "tester", "parallel": false, "resource_class": "medium" },
+    { "type": "security_analyst", "parallel": false, "resource_class": "heavy" },
+    { "type": "technical_writer", "parallel": false, "resource_class": "medium" },
+    { "type": "devops", "parallel": false, "resource_class": "medium" },
+    { "type": "retro_analyst", "parallel": false, "resource_class": "light" }
+  ]
+}

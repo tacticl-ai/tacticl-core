@@ -1,0 +1,11 @@
+{
+  "pipeline": "BUG_FIX",
+  "product": "tacticl",
+  "agents": [
+    { "type": "researcher", "parallel": false, "resource_class": "medium" },
+    { "type": "implementer", "parallel": false, "resource_class": "medium" },
+    { "type": "reviewer", "parallel": false, "resource_class": "heavy" },
+    { "type": "tester", "parallel": false, "resource_class": "medium" },
+    { "type": "retro_analyst", "parallel": false, "resource_class": "light" }
+  ]
+}
