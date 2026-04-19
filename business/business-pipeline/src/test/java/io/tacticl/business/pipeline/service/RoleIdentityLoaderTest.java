@@ -15,15 +15,15 @@ class RoleIdentityLoaderTest {
     void loadAll_returnsAllTwelveRoles() {
         Map<String, String> all = loader.loadAll();
         assertThat(all).hasSize(12);
-        assertThat(all).containsKeys("IMPLEMENTER", "REVIEWER", "PM", "RESEARCHER",
-            "PLANNER", "ARCHITECT", "DESIGNER", "TESTER",
-            "SECURITY_ANALYST", "TECHNICAL_WRITER", "DEVOPS", "RETRO_ANALYST");
+        assertThat(all).containsKeys("implementer", "reviewer", "pm", "researcher",
+            "planner", "architect", "designer", "tester",
+            "security_analyst", "technical_writer", "devops", "retro_analyst");
     }
 
     @Test
     void loadAll_implementerContainsKeyContent() {
         Map<String, String> all = loader.loadAll();
-        assertThat(all.get("IMPLEMENTER"))
+        assertThat(all.get("implementer"))
             .contains("# IMPLEMENTER")
             .contains("report.sh");
     }

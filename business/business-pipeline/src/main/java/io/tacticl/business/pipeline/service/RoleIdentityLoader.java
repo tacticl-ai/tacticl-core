@@ -38,8 +38,9 @@ public class RoleIdentityLoader {
                 identities.put(role, defaultIdentity(role));
             }
         }
+        // Keys are lowercase to match arbiter agent type convention ("pm", not "PM")
         Map<String, String> byName = new LinkedHashMap<>();
-        identities.forEach((role, identity) -> byName.put(role.name(), identity));
+        identities.forEach((role, identity) -> byName.put(role.name().toLowerCase(), identity));
         this.roleIdentitiesByName = Map.copyOf(byName);
     }
 

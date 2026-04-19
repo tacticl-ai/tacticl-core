@@ -68,7 +68,7 @@ class PdlcV2ServiceTest {
         ArgumentCaptor<SubmitPipelineRequest> captor = ArgumentCaptor.forClass(SubmitPipelineRequest.class);
         verify(arbiterPipelineService).submitPipeline(captor.capture());
         SubmitPipelineRequest captured = captor.getValue();
-        assertThat(captured.roleIdentities()).containsKeys("IMPLEMENTER", "REVIEWER", "PM");
+        assertThat(captured.roleIdentities()).containsKeys("implementer", "reviewer", "pm");
         assertThat(captured.playbookConfigJson()).contains("FULL_PDLC");
         assertThat(captured.knowledgeNamespace()).isEqualTo("tacticl-user-1");
         verify(sparkRepository).save(any());
