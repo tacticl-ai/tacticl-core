@@ -71,13 +71,16 @@ TELEGRAM_BOT_USERNAME=tacticl_qa_bot
 
 ## 5. Deploy
 
+Deploy is Hetzner-based (no more Cloud Build):
+
 ```bash
-# QA
-gcloud builds submit --config deployment/cloudbuild/cloudbuild-qa.yaml .
+./scripts/deploy.sh qa      # QA only
+./scripts/deploy.sh prod    # prod only (asks for confirmation)
+./scripts/deploy.sh both    # both
 ```
 
 On boot, `TelegramWebhookRegistrar` calls Telegram's `setWebhook`
-with the public URL + secret. Look for:
+with the public URL + secret. Look for (`ssh -p 443 root@178.156.141.55 'docker logs tacticl-api-qa | grep -i telegram'`):
 
 ```
 INFO  io.tacticl.business.telegram.TelegramWebhookRegistrar — Telegram webhook registered at https://api-qa.tacticl.ai/v1/telegram/webhook
@@ -94,11 +97,12 @@ and `"has_custom_certificate": false`.
 
 ## 7. Rotation
 
-Rotate either secret with a single `vault kv put` and pod restart:
+Rotate either secret with a single `vault kv put` and container restart:
 
 ```bash
 vault kv patch secret/tacticl-qa/telegram webhook-secret="<new-hex>"
-# then restart Cloud Run revision — webhook is re-registered with the new secret
+# then restart the Hetzner container so the webhook is re-registered with the new secret:
+ssh -p 443 root@178.156.141.55 'docker restart tacticl-api-qa'
 ```
 
 Bot-token rotation requires BotFather's `/revoke` + a fresh token.
@@ -108,6 +112,6 @@ Bot-token rotation requires BotFather's `/revoke` + a fresh token.
 | Symptom | Cause | Fix |
 |---|---|---|
 | App logs `Telegram bot token missing — skipping webhook registration` | Vault keys absent or context wrong | Re-check `cidadel.vault.context` + key path |
-| App logs `setWebhook returned ok=false` | Public URL not reachable from Telegram, or URL mismatch | Check Cloud Run ingress allows public traffic |
+| App logs `setWebhook returned ok=false` | Public URL not reachable from Telegram, or URL mismatch | Check Hetzner ingress / DNS for the `api-qa.tacticl.ai` host |
 | Webhook posts return 401 | Secret mismatch between BotFather/Vault and `setWebhook` call | Re-run setWebhook or rotate secret via step 7 |
-| `pending_update_count` grows | App not 2xx-ing webhook calls | Check Cloud Run logs for exceptions in `TelegramWebhookController` |
+| `pending_update_count` grows | App not 2xx-ing webhook calls | Check container logs for exceptions in `TelegramWebhookController` |

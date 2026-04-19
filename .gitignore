@@ -45,3 +45,6 @@ logs/
 
 # Test screenshots
 tacticl-*.png
+
+# Local dev properties (may contain credentials)
+application-api/src/main/resources/application-local.properties
