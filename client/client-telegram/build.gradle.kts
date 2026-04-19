@@ -6,4 +6,6 @@ plugins {
 dependencies {
     implementation(libs.httpclient)
     implementation(libs.bucket4j.core)
+
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
