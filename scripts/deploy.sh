@@ -47,11 +47,7 @@ chmod +x "$REPO_ROOT/gradlew"
 "$REPO_ROOT/gradlew" -p "$REPO_ROOT" clean :application-api:bootJar -x test --no-daemon
 echo -e "${GREEN}Gradle build succeeded${NC}"
 
-# Step 2: Build Docker image (JAR already built — just COPY)
-echo -e "${YELLOW}Building Docker image...${NC}"
-docker build -t "${IMAGE}:latest" -f "$REPO_ROOT/Dockerfile" "$REPO_ROOT"
-
-# Step 3: Transfer JAR to Hetzner and build image there (avoids Docker dependency locally)
+# Step 2: Transfer JAR to Hetzner and build image there (avoids Docker dependency locally)
 echo -e "${YELLOW}Transferring JAR to Hetzner...${NC}"
 ssh $SSH_OPTS "$HETZNER" "mkdir -p /opt/cidadel/tacticl-core/application-api/build/libs"
 rsync -az --checksum -e "ssh $SSH_OPTS" \
