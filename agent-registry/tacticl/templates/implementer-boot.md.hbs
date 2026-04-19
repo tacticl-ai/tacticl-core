@@ -22,5 +22,6 @@ Create branch `implementer-{{pipeline_id}}` from the default branch before makin
 ## Reporting
 ```bash
 bash .agent/report.sh progress "Starting IMPLEMENTER — reading plan"
+bash .agent/report.sh blocked "Step N: <reason cannot proceed without human input>"
 bash .agent/report.sh complete "PR opened: <url>"
 ```
