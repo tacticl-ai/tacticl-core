@@ -1,0 +1,11 @@
+{
+  "agent_type": "implementer",
+  "product": "tacticl",
+  "resource_class": "heavy",
+  "boot_template": "tacticl/implementer-boot.md.hbs",
+  "claude_md": "tacticl/implementer-claude.md",
+  "knowledge_files": [],
+  "pre_populate": { "repo": [], "data": [] },
+  "model": "claude-sonnet-4-6",
+  "max_turns": 50
+}

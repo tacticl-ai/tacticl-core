@@ -1,0 +1,11 @@
+{
+  "agent_type": "designer",
+  "product": "tacticl",
+  "resource_class": "heavy",
+  "boot_template": "tacticl/designer-boot.md.hbs",
+  "claude_md": "tacticl/designer-claude.md",
+  "knowledge_files": [],
+  "pre_populate": { "repo": [], "data": [] },
+  "model": "claude-opus-4-7",
+  "max_turns": 20
+}
