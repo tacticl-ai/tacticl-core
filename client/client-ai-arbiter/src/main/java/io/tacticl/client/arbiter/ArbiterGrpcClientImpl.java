@@ -116,11 +116,12 @@ public class ArbiterGrpcClientImpl implements ArbiterPipelineService {
 
     private String buildContextJson(SubmitPipelineRequest request) {
         Map<String, Object> context = new HashMap<>();
-        context.put("pipelineRunId", request.pipelineRunId());
-        context.put("sparkId", request.sparkId());
-        context.put("sparkRequest", request.sparkRequest());
-        context.put("skipRoles", request.skipRoles() != null ? request.skipRoles() : List.of());
-        context.put("costCeilingUsd", request.costCeilingUsd());
+        // Keys use snake_case to match Handlebars template variables ({{spark_request}}, etc.)
+        context.put("pipeline_run_id", request.pipelineRunId());
+        context.put("spark_id", request.sparkId());
+        context.put("spark_request", request.sparkRequest());
+        context.put("skip_roles", request.skipRoles() != null ? request.skipRoles() : List.of());
+        context.put("cost_ceiling_usd", request.costCeilingUsd());
         try {
             return mapper.writeValueAsString(context);
         } catch (JacksonException e) {
