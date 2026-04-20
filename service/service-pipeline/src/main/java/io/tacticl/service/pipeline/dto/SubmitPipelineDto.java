@@ -10,5 +10,5 @@ public record SubmitPipelineDto(
     String playbook,
     List<String> skipRoles,
     String githubToken,
-    double costCeilingUsd
+    Double costCeilingUsd
 ) {}
