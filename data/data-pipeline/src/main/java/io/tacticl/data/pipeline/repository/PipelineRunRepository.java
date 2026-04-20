@@ -9,6 +9,7 @@ import java.util.Optional;
 public interface PipelineRunRepository extends MongoRepository<PipelineRun, String> {
     Optional<PipelineRun> findByIdAndUserId(String id, String userId);
     Optional<PipelineRun> findBySparkIdAndUserId(String sparkId, String userId);
+    Optional<PipelineRun> findFirstBySparkIdAndUserIdOrderByCreatedAtDesc(String sparkId, String userId);
     Optional<PipelineRun> findByArbiterPipelineId(String arbiterPipelineId);
     List<PipelineRun> findByUserIdOrderByCreatedAtDesc(String userId);
     List<PipelineRun> findByStatus(PipelineStatus status);

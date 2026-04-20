@@ -94,7 +94,7 @@ public class PdlcV2Service {
     }
 
     public Optional<PipelineRun> getStatus(String userId, String sparkId) {
-        return pipelineRunRepository.findBySparkIdAndUserId(sparkId, userId);
+        return pipelineRunRepository.findFirstBySparkIdAndUserIdOrderByCreatedAtDesc(sparkId, userId);
     }
 
     public Optional<PipelineRun> getStatusByRunId(String userId, String pipelineRunId) {
@@ -108,7 +108,7 @@ public class PdlcV2Service {
 
     public void resolveCheckpoint(String userId, String sparkId, String checkpointId,
                                   CheckpointDecision decision, String feedback) {
-        PipelineRun run = pipelineRunRepository.findBySparkIdAndUserId(sparkId, userId)
+        PipelineRun run = pipelineRunRepository.findFirstBySparkIdAndUserIdOrderByCreatedAtDesc(sparkId, userId)
                 .orElseThrow(() -> new IllegalArgumentException(
                     "Pipeline run not found for spark: " + sparkId));
 
@@ -132,7 +132,7 @@ public class PdlcV2Service {
     }
 
     public void cancelPipeline(String userId, String sparkId) {
-        PipelineRun run = pipelineRunRepository.findBySparkIdAndUserId(sparkId, userId)
+        PipelineRun run = pipelineRunRepository.findFirstBySparkIdAndUserIdOrderByCreatedAtDesc(sparkId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Pipeline run not found for spark: " + sparkId));
         run.markCancelled();
         pipelineRunRepository.save(run);
@@ -145,7 +145,7 @@ public class PdlcV2Service {
     }
 
     public PipelineRun updateSkipRoles(String userId, String sparkId, List<String> skipRoles) {
-        PipelineRun run = pipelineRunRepository.findBySparkIdAndUserId(sparkId, userId)
+        PipelineRun run = pipelineRunRepository.findFirstBySparkIdAndUserIdOrderByCreatedAtDesc(sparkId, userId)
                 .orElseThrow(() -> new IllegalStateException(
                     "Pipeline run not found for spark: " + sparkId));
         run.setSkipRoles(skipRoles);

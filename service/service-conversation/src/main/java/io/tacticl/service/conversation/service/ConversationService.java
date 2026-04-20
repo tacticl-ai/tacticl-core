@@ -148,7 +148,7 @@ public class ConversationService {
     private String buildSystemPrompt(ConversationSession session) {
         if (session.getStatus() == SessionStatus.ACTIVE && session.getSparkId() != null) {
             String status = pipelineRunRepository
-                    .findBySparkIdAndUserId(session.getSparkId(), session.getUserId())
+                    .findFirstBySparkIdAndUserIdOrderByCreatedAtDesc(session.getSparkId(), session.getUserId())
                     .map(run -> run.getStatus().name())
                     .orElse("UNKNOWN");
             return ACTIVE_SYSTEM_PROMPT_TEMPLATE.formatted(
