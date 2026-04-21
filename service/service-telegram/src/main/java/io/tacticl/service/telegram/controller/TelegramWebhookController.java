@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.databind.ObjectMapper;
 
 @RestController
 @RequestMapping("/v1/telegram/webhook")
@@ -23,12 +24,15 @@ public class TelegramWebhookController extends BaseController {
 
     private final TelegramWebhookSecurity security;
     private final TelegramDispatchService dispatch;
+    private final ObjectMapper objectMapper;
 
     public TelegramWebhookController(
             TelegramWebhookSecurity security,
-            TelegramDispatchService dispatch) {
+            TelegramDispatchService dispatch,
+            ObjectMapper objectMapper) {
         this.security = security;
         this.dispatch = dispatch;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -39,15 +43,19 @@ public class TelegramWebhookController extends BaseController {
     @PostMapping
     public ResponseEntity<Void> webhook(
             @RequestHeader(value = "X-Telegram-Bot-Api-Secret-Token", required = false) String secret,
-            @RequestBody Update update) {
+            @RequestBody(required = false) byte[] body) {
         if (!security.isValidSignature(secret)) {
             logger.warn("Rejected Telegram webhook with invalid signature");
             return ResponseEntity.status(401).build();
         }
+        if (body == null || body.length == 0) {
+            return ResponseEntity.ok().build();
+        }
         try {
+            Update update = objectMapper.readValue(body, Update.class);
             dispatch.handle(update);
         } catch (Exception e) {
-            logger.error("Telegram dispatch failed for update_id={}", update.update_id(), e);
+            logger.error("Telegram dispatch failed", e);
         }
         return ResponseEntity.ok().build();
     }
