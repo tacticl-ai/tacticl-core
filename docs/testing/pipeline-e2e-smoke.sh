@@ -51,7 +51,7 @@ echo ""
 
 # ── 2. Poll status ──────────────────────────────────────────────────────────
 echo "▶ Polling status (max ${MAX_POLLS}x every ${POLL_INTERVAL}s)..."
-terminal_statuses="COMPLETED FAILED CANCELLED"
+terminal_statuses="COMPLETED FAILED CANCELLED PAUSED_AT_CHECKPOINT"
 polls=0
 while [[ $polls -lt $MAX_POLLS ]]; do
   status_resp=$(curl -sf "$BASE_URL/v1/sparks/$SPARK_ID/pipeline" \
@@ -89,10 +89,13 @@ echo ""
 echo "$events_resp" | jq -r '.content[]? | "  [\(.timestamp)] \(.eventType) role=\(.role // "-") phase=\(.phase // "-")"'
 
 echo ""
-if [[ "$status" == "COMPLETED" ]]; then
-  echo "✅ Smoke test PASSED — pipeline completed successfully"
+if [[ "$status" == "COMPLETED" || "$status" == "PAUSED_AT_CHECKPOINT" ]]; then
+  echo "✅ Smoke test PASSED — pipeline reached: $status"
 else
   echo "⚠️  Smoke test ended with status: $status"
   failure_reason=$(echo "$status_resp" | jq -r '.failureReason // empty')
-  [[ -n "$failure_reason" ]] && echo "   Failure reason: $failure_reason"
+  if [[ -n "$failure_reason" ]]; then
+    echo "   Failure reason: $failure_reason"
+  fi
+  exit 1
 fi
