@@ -17,6 +17,8 @@ public class Spark {
     private SparkRoute route;
     private String deviceId;
     private String pipelineRunId;
+    private SparkInitiatorSource initiatorSource;
+    private String initiatorUserId;
     private int tokenCost;
     private String modelUsed;
     private Instant createdAt;
@@ -81,4 +83,8 @@ public class Spark {
     public Instant getStartedAt() { return startedAt; }
     public Instant getCompletedAt() { return completedAt; }
     public void setPipelineRunId(String pipelineRunId) { this.pipelineRunId = pipelineRunId; }
+    public SparkInitiatorSource getInitiatorSource() { return initiatorSource; }
+    public void setInitiatorSource(SparkInitiatorSource initiatorSource) { this.initiatorSource = initiatorSource; }
+    public String getInitiatorUserId() { return initiatorUserId; }
+    public void setInitiatorUserId(String initiatorUserId) { this.initiatorUserId = initiatorUserId; }
 }
