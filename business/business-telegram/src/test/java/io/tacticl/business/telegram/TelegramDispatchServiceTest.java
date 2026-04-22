@@ -30,7 +30,8 @@ class TelegramDispatchServiceTest {
         Message msg = new Message(1L, 0L,
                 new Chat(42L, "private", "alice", "Alice"),
                 new User(42L, false, "alice", "Alice"),
-                "/start abc");
+                "/start abc",
+                null, null, null, null, null, null, null, false, null);
 
         svc.handle(new Update(1L, msg, null));
 
@@ -49,7 +50,8 @@ class TelegramDispatchServiceTest {
         Message msg = new Message(1L, 0L,
                 new Chat(42L, "private", "alice", "Alice"),
                 new User(42L, false, "alice", "Alice"),
-                "/start bad");
+                "/start bad",
+                null, null, null, null, null, null, null, false, null);
 
         svc.handle(new Update(1L, msg, null));
 
@@ -66,7 +68,8 @@ class TelegramDispatchServiceTest {
         Message msg = new Message(1L, 0L,
                 new Chat(42L, "private", "alice", "Alice"),
                 new User(42L, false, "alice", "Alice"),
-                "/start");
+                "/start",
+                null, null, null, null, null, null, null, false, null);
         svc.handle(new Update(1L, msg, null));
         verify(bot).sendMessage(argThat(r -> r.text().toLowerCase().contains("welcome")));
     }
@@ -79,7 +82,8 @@ class TelegramDispatchServiceTest {
         Message msg = new Message(1L, 0L,
                 new Chat(42L, "private", "alice", "Alice"),
                 new User(42L, false, "alice", "Alice"),
-                "hello there");
+                "hello there",
+                null, null, null, null, null, null, null, false, null);
         svc.handle(new Update(1L, msg, null));
         verify(bot).sendMessage(any(SendMessageRequest.class));
     }
