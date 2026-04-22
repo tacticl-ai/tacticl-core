@@ -6,7 +6,7 @@ plugins {
 dependencies {
     // MongoDB starter inherited from data/build.gradle.kts parent
     api(project(":data:data-connections"))  // for BaseMongoEntity — exposed to consumers
-    implementation(project(":data:data-pipeline"))
+    api(project(":data:data-pipeline"))  // PdlcRole appears on TelegramProjectLink's public API
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-data-mongodb-test")  // @DataMongoTest
     testImplementation("de.flapdoodle.embed:de.flapdoodle.embed.mongo:4.20.0") {
