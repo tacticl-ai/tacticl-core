@@ -95,7 +95,7 @@ public class CallbackQueryHandler {
 
         TelegramCheckpointResolver.Result result;
         try {
-            result = checkpointResolver.resolve(tacticlUserId, parsed.checkpointId, parsed.action);
+            result = checkpointResolver.resolve(chatId, tacticlUserId, parsed.checkpointId, parsed.action);
         } catch (RuntimeException e) {
             logger.warn("Checkpoint resolve threw for chat={} checkpoint={} action={}: {}",
                         chatId, parsed.checkpointId, parsed.action, e.getMessage());

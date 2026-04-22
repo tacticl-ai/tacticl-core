@@ -181,12 +181,12 @@ class CallbackQueryHandlerTest {
         stubActiveProject();
         when(permissions.require(CHAT_ID, TACTICL_USER_ID, MemberRole.RUNNER))
             .thenReturn(PermissionCheck.allow(MemberRole.RUNNER));
-        when(checkpointResolver.resolve(TACTICL_USER_ID, CHECKPOINT_ID, "approve"))
+        when(checkpointResolver.resolve(CHAT_ID, TACTICL_USER_ID, CHECKPOINT_ID, "approve"))
             .thenReturn(TelegramCheckpointResolver.Result.success(CheckpointDecision.APPROVED, "spark-1"));
 
         handler.handle(cb);
 
-        verify(checkpointResolver).resolve(TACTICL_USER_ID, CHECKPOINT_ID, "approve");
+        verify(checkpointResolver).resolve(CHAT_ID, TACTICL_USER_ID, CHECKPOINT_ID, "approve");
 
         verify(bot).answerCallbackQuery(CALLBACK_ID, "Working…");
         verify(bot, times(1)).answerCallbackQuery(anyString(), anyString());
@@ -204,7 +204,7 @@ class CallbackQueryHandlerTest {
         stubActiveProject();
         when(permissions.require(CHAT_ID, TACTICL_USER_ID, MemberRole.RUNNER))
             .thenReturn(PermissionCheck.allow(MemberRole.OWNER));
-        when(checkpointResolver.resolve(TACTICL_USER_ID, CHECKPOINT_ID, "changes"))
+        when(checkpointResolver.resolve(CHAT_ID, TACTICL_USER_ID, CHECKPOINT_ID, "changes"))
             .thenReturn(TelegramCheckpointResolver.Result.success(CheckpointDecision.REWORK, "spark-1"));
 
         handler.handle(cb);
@@ -224,7 +224,7 @@ class CallbackQueryHandlerTest {
         stubActiveProject();
         when(permissions.require(CHAT_ID, TACTICL_USER_ID, MemberRole.RUNNER))
             .thenReturn(PermissionCheck.allow(MemberRole.RUNNER));
-        when(checkpointResolver.resolve(TACTICL_USER_ID, CHECKPOINT_ID, "approve"))
+        when(checkpointResolver.resolve(CHAT_ID, TACTICL_USER_ID, CHECKPOINT_ID, "approve"))
             .thenReturn(TelegramCheckpointResolver.Result.failure(
                 TelegramCheckpointResolver.ResultCode.NOT_FOUND, "Checkpoint no longer pending"));
 
@@ -246,7 +246,7 @@ class CallbackQueryHandlerTest {
         when(permissions.require(CHAT_ID, TACTICL_USER_ID, MemberRole.RUNNER))
             .thenReturn(PermissionCheck.allow(MemberRole.RUNNER));
         doThrow(new RuntimeException("arbiter timeout"))
-            .when(checkpointResolver).resolve(TACTICL_USER_ID, CHECKPOINT_ID, "approve");
+            .when(checkpointResolver).resolve(CHAT_ID, TACTICL_USER_ID, CHECKPOINT_ID, "approve");
 
         handler.handle(cb);
 
