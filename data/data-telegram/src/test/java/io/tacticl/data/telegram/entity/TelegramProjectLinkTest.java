@@ -60,6 +60,19 @@ class TelegramProjectLinkTest {
     }
 
     @Test
+    void migrateToRemapsChatIdAndClearsTopicsAndPinnedMessage() {
+        var link = TelegramProjectLink.create("p", -100L, "u", "t");
+        link.setForumTopics(Map.of(PdlcRole.IMPLEMENTER, 5L));
+        link.setPinnedStatusMessageId(42L);
+
+        link.migrateTo(-1001L);
+
+        assertEquals(-1001L, link.getChatId());
+        assertNull(link.getForumTopics());
+        assertNull(link.getPinnedStatusMessageId());
+    }
+
+    @Test
     void createRejectsNullArgs() {
         assertThrows(NullPointerException.class,
             () -> TelegramProjectLink.create(null, 1L, "u", "t"));

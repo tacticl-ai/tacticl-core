@@ -54,6 +54,17 @@ public class TelegramProjectLink extends BaseMongoEntity {
     public void orphan()  { setStatus(ProjectStatus.ORPHANED); }
     public void reactivate() { setStatus(ProjectStatus.ACTIVE); }
 
+    /**
+     * Remap this link to a new chat id (e.g., group → supergroup migration).
+     * Forum topics and the pinned status message do not survive the migration,
+     * so both are cleared.
+     */
+    public void migrateTo(long newChatId) {
+        this.chatId = newChatId;
+        this.forumTopics = null;
+        this.pinnedStatusMessageId = null;
+    }
+
     private void setStatus(ProjectStatus s) {
         this.status = s;
         this.statusChangedAt = Instant.now();
