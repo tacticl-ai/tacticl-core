@@ -133,7 +133,8 @@ class PdlcV2ServiceCallbackTest {
     void handleCallbackEvent_alwaysEmitsToSse() {
         PipelineRun run = pendingRun("run-1");
         when(pipelineRunRepository.findById("run-1")).thenReturn(Optional.of(run));
-        service.handleCallbackEvent(new PipelineCallbackEvent("run-1","ROLE_STARTED","PM","PRODUCT","{}"));
-        verify(pipelineEventEmitter).emit("run-1","ROLE_STARTED","{}");
+        PipelineCallbackEvent evt = new PipelineCallbackEvent("run-1","ROLE_STARTED","PM","PRODUCT","{}");
+        service.handleCallbackEvent(evt);
+        verify(pipelineEventEmitter).emit(evt);
     }
 }

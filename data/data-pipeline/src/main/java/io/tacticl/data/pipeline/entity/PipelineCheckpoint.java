@@ -1,6 +1,7 @@
 package io.tacticl.data.pipeline.entity;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.Instant;
@@ -22,6 +23,11 @@ public class PipelineCheckpoint {
     private String feedback;
     private Instant createdAt;
     private Instant resolvedAt;
+
+    // Optimistic lock — double-tap race on Telegram inline buttons would otherwise allow
+    // two concurrent decisions (e.g. APPROVE + REWORK) to both commit, leaving the pipeline
+    // in an inconsistent state and double-calling the arbiter resume RPC.
+    @Version private Long version;
 
     protected PipelineCheckpoint() {}
 

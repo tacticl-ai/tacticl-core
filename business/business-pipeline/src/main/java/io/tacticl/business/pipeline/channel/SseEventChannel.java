@@ -1,5 +1,6 @@
 package io.tacticl.business.pipeline.channel;
 
+import io.tacticl.business.pipeline.dto.PipelineCallbackEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -12,7 +13,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 // Preserves the original in-process SSE fan-out so existing REST subscribers
 // (PipelineController /v1/pipelines/{id}/events) continue to work after the
-// channel refactor.
+// channel refactor. SSE payload shape is byte-for-byte identical to the
+// pre-refactor contract: name = event.eventType(), data = event.payloadJson().
 @Component
 public class SseEventChannel implements PipelineEventChannel {
 
@@ -37,7 +39,10 @@ public class SseEventChannel implements PipelineEventChannel {
     }
 
     @Override
-    public void emit(String pipelineRunId, String eventName, Object payload) {
+    public void emit(PipelineCallbackEvent event) {
+        String pipelineRunId = event.pipelineRunId();
+        String eventName = event.eventType();
+        Object payload = event.payloadJson();
         Set<SseEmitter> set = emitters.getOrDefault(pipelineRunId, Collections.emptySet());
         Set<SseEmitter> failed = Collections.newSetFromMap(new ConcurrentHashMap<>());
         for (SseEmitter emitter : set) {

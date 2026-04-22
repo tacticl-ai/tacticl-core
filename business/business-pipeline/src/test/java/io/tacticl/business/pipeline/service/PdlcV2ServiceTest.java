@@ -94,7 +94,7 @@ class PdlcV2ServiceTest {
     @Test
     void getStatus_returnsRunForUserAndSpark() {
         PipelineRun run = PipelineRun.create("user-1", "spark-1", "req", "url", "BUG_FIX", List.of(), 10.0);
-        when(pipelineRunRepository.findBySparkIdAndUserId("spark-1", "user-1")).thenReturn(Optional.of(run));
+        when(pipelineRunRepository.findFirstBySparkIdAndUserIdOrderByCreatedAtDesc("spark-1", "user-1")).thenReturn(Optional.of(run));
 
         Optional<PipelineRun> result = service.getStatus("user-1", "spark-1");
 
@@ -104,7 +104,7 @@ class PdlcV2ServiceTest {
 
     @Test
     void getStatus_notFound_returnsEmpty() {
-        when(pipelineRunRepository.findBySparkIdAndUserId("spark-1", "user-1")).thenReturn(Optional.empty());
+        when(pipelineRunRepository.findFirstBySparkIdAndUserIdOrderByCreatedAtDesc("spark-1", "user-1")).thenReturn(Optional.empty());
         assertThat(service.getStatus("user-1", "spark-1")).isEmpty();
     }
 
@@ -112,7 +112,7 @@ class PdlcV2ServiceTest {
     void cancelPipeline_marksRunCancelled_callsArbiterWhenIdKnown() {
         PipelineRun run = PipelineRun.create("user-1", "spark-1", "req", "url", "BUG_FIX", List.of(), 10.0);
         run.setArbiterPipelineId("arbiter-abc");
-        when(pipelineRunRepository.findBySparkIdAndUserId("spark-1", "user-1")).thenReturn(Optional.of(run));
+        when(pipelineRunRepository.findFirstBySparkIdAndUserIdOrderByCreatedAtDesc("spark-1", "user-1")).thenReturn(Optional.of(run));
         when(pipelineRunRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         doNothing().when(arbiterPipelineService).cancelPipeline(any());
 
@@ -127,7 +127,7 @@ class PdlcV2ServiceTest {
     void cancelPipeline_skipsArbiterWhenNoArbiterPipelineId() {
         PipelineRun run = PipelineRun.create("user-1", "spark-1", "req", "url", "BUG_FIX", List.of(), 10.0);
         // arbiterPipelineId is null (e.g. stub was used, no real arbiter)
-        when(pipelineRunRepository.findBySparkIdAndUserId("spark-1", "user-1")).thenReturn(Optional.of(run));
+        when(pipelineRunRepository.findFirstBySparkIdAndUserIdOrderByCreatedAtDesc("spark-1", "user-1")).thenReturn(Optional.of(run));
         when(pipelineRunRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         service.cancelPipeline("user-1", "spark-1");
@@ -138,7 +138,7 @@ class PdlcV2ServiceTest {
 
     @Test
     void resolveCheckpoint_sparkNotFound_throwsIllegalArgument() {
-        when(pipelineRunRepository.findBySparkIdAndUserId("bad-spark", "user-1")).thenReturn(Optional.empty());
+        when(pipelineRunRepository.findFirstBySparkIdAndUserIdOrderByCreatedAtDesc("bad-spark", "user-1")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.resolveCheckpoint(
             "user-1", "bad-spark", "cp-1",

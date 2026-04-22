@@ -117,6 +117,18 @@ public class PdlcV2Service {
                 .orElseThrow(() -> new IllegalArgumentException(
                     "Checkpoint not found: " + checkpointId));
 
+        // Idempotency fast-path: a Telegram double-tap or stale inline keyboard press can
+        // re-fire resolveCheckpoint for an already-RESOLVED checkpoint. Short-circuit here
+        // so we don't double-invoke the arbiter resume RPC or overwrite the stored decision.
+        // Interleaved concurrent saves are caught by @Version on PipelineCheckpoint — Mongo
+        // throws OptimisticLockingFailureException for the second writer, which propagates
+        // to the caller as "Another user resolved this first".
+        if (!"PENDING".equals(checkpoint.getStatus())) {
+            log.info("Checkpoint {} for run {} already resolved (status={}); ignoring duplicate decision {}",
+                     checkpointId, run.getId(), checkpoint.getStatus(), decision);
+            return;
+        }
+
         checkpoint.resolve(decision, feedback);
         pipelineCheckpointRepository.save(checkpoint);
 
@@ -234,8 +246,10 @@ public class PdlcV2Service {
             processRunEvent(runOpt.get(), event);
         }
 
-        // 3) Fan out to SSE subscribers.
-        pipelineEventEmitter.emit(event.pipelineRunId(), event.eventType(), event.payloadJson());
+        // 3) Fan out to all registered channels (SSE, Telegram, …). The full event is passed
+        //    so channels can read role/phase/pipelineRunId as first-class fields rather than
+        //    re-parsing payloadJson.
+        pipelineEventEmitter.emit(event);
 
         // 4) On terminal events, close all SSE emitters for this run.
         String type = event.eventType();

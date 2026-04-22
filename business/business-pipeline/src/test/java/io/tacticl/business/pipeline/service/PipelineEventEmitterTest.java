@@ -2,6 +2,7 @@ package io.tacticl.business.pipeline.service;
 
 import io.tacticl.business.pipeline.channel.PipelineEventChannel;
 import io.tacticl.business.pipeline.channel.SseEventChannel;
+import io.tacticl.business.pipeline.dto.PipelineCallbackEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -23,6 +24,10 @@ class PipelineEventEmitterTest {
         emitter = new PipelineEventEmitter(List.of(sseChannel), sseChannel);
     }
 
+    private PipelineCallbackEvent event(String runId, String type) {
+        return new PipelineCallbackEvent(runId, type, "REVIEWER", "BUILD", "{}");
+    }
+
     @Test
     void register_addsEmitterToSet() {
         SseEmitter sse = new SseEmitter();
@@ -40,7 +45,7 @@ class PipelineEventEmitterTest {
 
     @Test
     void emit_toEmptySet_doesNotThrow() {
-        assertThatCode(() -> emitter.emit("run-1", "ROLE_COMPLETED", "{}"))
+        assertThatCode(() -> emitter.emit(event("run-1", "ROLE_COMPLETED")))
             .doesNotThrowAnyException();
     }
 
@@ -59,14 +64,12 @@ class PipelineEventEmitterTest {
         RecordingChannel c = new RecordingChannel();
         PipelineEventEmitter fanOut = new PipelineEventEmitter(List.of(a, b, c), sseChannel);
 
-        fanOut.emit("run-7", "ROLE_COMPLETED", "{\"role\":\"REVIEWER\"}");
+        PipelineCallbackEvent evt = event("run-7", "ROLE_COMPLETED");
+        fanOut.emit(evt);
 
-        assertThat(a.emitCalls).hasSize(1);
-        assertThat(b.emitCalls).hasSize(1);
-        assertThat(c.emitCalls).hasSize(1);
-        assertThat(a.emitCalls.get(0)).isEqualTo(new EmitCall("run-7", "ROLE_COMPLETED", "{\"role\":\"REVIEWER\"}"));
-        assertThat(b.emitCalls.get(0)).isEqualTo(new EmitCall("run-7", "ROLE_COMPLETED", "{\"role\":\"REVIEWER\"}"));
-        assertThat(c.emitCalls.get(0)).isEqualTo(new EmitCall("run-7", "ROLE_COMPLETED", "{\"role\":\"REVIEWER\"}"));
+        assertThat(a.emitCalls).containsExactly(evt);
+        assertThat(b.emitCalls).containsExactly(evt);
+        assertThat(c.emitCalls).containsExactly(evt);
     }
 
     @Test
@@ -81,20 +84,74 @@ class PipelineEventEmitterTest {
         assertThat(b.completeCalls).containsExactly("run-9");
     }
 
-    private record EmitCall(String runId, String eventName, Object payload) {}
+    @Test
+    void emit_channelThrows_laterChannelsStillReceive() {
+        // Telegram outage must not halt SSE fan-out.
+        ThrowingChannel first = new ThrowingChannel();
+        RecordingChannel second = new RecordingChannel();
+        PipelineEventEmitter fanOut = new PipelineEventEmitter(List.of(first, second), sseChannel);
+
+        PipelineCallbackEvent evt = event("run-10", "ROLE_COMPLETED");
+        assertThatCode(() -> fanOut.emit(evt)).doesNotThrowAnyException();
+
+        assertThat(second.emitCalls).containsExactly(evt);
+    }
+
+    @Test
+    void completeAll_channelThrows_laterChannelsStillReceive() {
+        ThrowingChannel first = new ThrowingChannel();
+        RecordingChannel second = new RecordingChannel();
+        PipelineEventEmitter fanOut = new PipelineEventEmitter(List.of(first, second), sseChannel);
+
+        assertThatCode(() -> fanOut.completeAll("run-11")).doesNotThrowAnyException();
+        assertThat(second.completeCalls).containsExactly("run-11");
+    }
+
+    @Test
+    void emit_channelThrowsError_isStillIsolated() {
+        // Error (e.g. OutOfMemoryError from a buggy channel) must also be caught so
+        // sibling channels continue. Using Throwable in the try/catch guarantees this.
+        ErrorChannel first = new ErrorChannel();
+        RecordingChannel second = new RecordingChannel();
+        PipelineEventEmitter fanOut = new PipelineEventEmitter(List.of(first, second), sseChannel);
+
+        PipelineCallbackEvent evt = event("run-12", "ROLE_COMPLETED");
+        assertThatCode(() -> fanOut.emit(evt)).doesNotThrowAnyException();
+
+        assertThat(second.emitCalls).containsExactly(evt);
+    }
 
     private static final class RecordingChannel implements PipelineEventChannel {
-        final List<EmitCall> emitCalls = new ArrayList<>();
+        final List<PipelineCallbackEvent> emitCalls = new ArrayList<>();
         final List<String> completeCalls = new ArrayList<>();
 
         @Override
-        public void emit(String pipelineRunId, String eventName, Object payload) {
-            emitCalls.add(new EmitCall(pipelineRunId, eventName, payload));
+        public void emit(PipelineCallbackEvent event) {
+            emitCalls.add(event);
         }
 
         @Override
         public void complete(String pipelineRunId) {
             completeCalls.add(pipelineRunId);
+        }
+    }
+
+    private static final class ThrowingChannel implements PipelineEventChannel {
+        @Override
+        public void emit(PipelineCallbackEvent event) {
+            throw new RuntimeException("telegram down");
+        }
+
+        @Override
+        public void complete(String pipelineRunId) {
+            throw new RuntimeException("telegram down");
+        }
+    }
+
+    private static final class ErrorChannel implements PipelineEventChannel {
+        @Override
+        public void emit(PipelineCallbackEvent event) {
+            throw new AssertionError("unchecked framework bug");
         }
     }
 }

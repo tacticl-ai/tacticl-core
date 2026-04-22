@@ -9,11 +9,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.OptimisticLockingFailureException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -61,7 +63,7 @@ class PdlcV2ServiceCheckpointTest {
     void resolveCheckpoint_approved_callsArbiterAndResumesRun() {
         PipelineRun run = pausedRun();
         PipelineCheckpoint cp = pendingCheckpoint();
-        when(pipelineRunRepository.findBySparkIdAndUserId("spark-1", "user-1"))
+        when(pipelineRunRepository.findFirstBySparkIdAndUserIdOrderByCreatedAtDesc("spark-1", "user-1"))
             .thenReturn(Optional.of(run));
         when(pipelineCheckpointRepository.findByIdAndPipelineRunId("cp-1", "run-1"))
             .thenReturn(Optional.of(cp));
@@ -81,7 +83,7 @@ class PdlcV2ServiceCheckpointTest {
     void resolveCheckpoint_rework_callsArbiterWithFeedback() {
         PipelineRun run = pausedRun();
         PipelineCheckpoint cp = pendingCheckpoint();
-        when(pipelineRunRepository.findBySparkIdAndUserId("spark-1", "user-1"))
+        when(pipelineRunRepository.findFirstBySparkIdAndUserIdOrderByCreatedAtDesc("spark-1", "user-1"))
             .thenReturn(Optional.of(run));
         when(pipelineCheckpointRepository.findByIdAndPipelineRunId("cp-1", "run-1"))
             .thenReturn(Optional.of(cp));
@@ -98,7 +100,7 @@ class PdlcV2ServiceCheckpointTest {
         PipelineRun run = pausedRun();
         run.setArbiterPipelineId(null);
         PipelineCheckpoint cp = pendingCheckpoint();
-        when(pipelineRunRepository.findBySparkIdAndUserId("spark-1", "user-1"))
+        when(pipelineRunRepository.findFirstBySparkIdAndUserIdOrderByCreatedAtDesc("spark-1", "user-1"))
             .thenReturn(Optional.of(run));
         when(pipelineCheckpointRepository.findByIdAndPipelineRunId("cp-1", "run-1"))
             .thenReturn(Optional.of(cp));
@@ -109,8 +111,51 @@ class PdlcV2ServiceCheckpointTest {
     }
 
     @Test
+    void resolveCheckpoint_alreadyResolved_isNoOp() {
+        // Double-tap: user hits Approve twice. The second call must not re-invoke the
+        // arbiter or mutate run state.
+        PipelineRun run = pausedRun();
+        PipelineCheckpoint cp = pendingCheckpoint();
+        cp.setStatus("RESOLVED");
+        cp.setDecision("APPROVED");
+        when(pipelineRunRepository.findFirstBySparkIdAndUserIdOrderByCreatedAtDesc("spark-1", "user-1"))
+            .thenReturn(Optional.of(run));
+        when(pipelineCheckpointRepository.findByIdAndPipelineRunId("cp-1", "run-1"))
+            .thenReturn(Optional.of(cp));
+
+        service.resolveCheckpoint("user-1", "spark-1", "cp-1", CheckpointDecision.REWORK, "late");
+
+        assertThat(cp.getDecision()).isEqualTo("APPROVED");
+        verify(pipelineCheckpointRepository, never()).save(any());
+        verifyNoInteractions(arbiterPipelineService);
+        verify(pipelineRunRepository, never()).save(run);
+    }
+
+    @Test
+    void resolveCheckpoint_concurrentSave_propagatesOptimisticLockFailure() {
+        // Two near-simultaneous taps both pass the PENDING guard, then Mongo's @Version
+        // lock rejects the second save. The exception must propagate so the caller can
+        // surface "Another user resolved this first".
+        PipelineRun run = pausedRun();
+        PipelineCheckpoint cp = pendingCheckpoint();
+        when(pipelineRunRepository.findFirstBySparkIdAndUserIdOrderByCreatedAtDesc("spark-1", "user-1"))
+            .thenReturn(Optional.of(run));
+        when(pipelineCheckpointRepository.findByIdAndPipelineRunId("cp-1", "run-1"))
+            .thenReturn(Optional.of(cp));
+        when(pipelineCheckpointRepository.save(any()))
+            .thenThrow(new OptimisticLockingFailureException("concurrent resolve"));
+
+        assertThatThrownBy(() ->
+            service.resolveCheckpoint("user-1", "spark-1", "cp-1", CheckpointDecision.APPROVED, null)
+        ).isInstanceOf(OptimisticLockingFailureException.class);
+
+        verifyNoInteractions(arbiterPipelineService);
+        verify(pipelineRunRepository, never()).save(run);
+    }
+
+    @Test
     void resolveCheckpoint_unknownSpark_throws() {
-        when(pipelineRunRepository.findBySparkIdAndUserId("spark-x", "user-1"))
+        when(pipelineRunRepository.findFirstBySparkIdAndUserIdOrderByCreatedAtDesc("spark-x", "user-1"))
             .thenReturn(Optional.empty());
 
         assertThatThrownBy(() ->
