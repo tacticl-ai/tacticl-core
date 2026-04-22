@@ -11,6 +11,9 @@ import io.tacticl.client.telegram.dto.Message;
 import io.tacticl.client.telegram.dto.User;
 import io.tacticl.data.pipeline.entity.CheckpointDecision;
 import io.tacticl.data.telegram.entity.MemberRole;
+import io.tacticl.data.telegram.entity.ProjectStatus;
+import io.tacticl.data.telegram.entity.TelegramProjectLink;
+import io.tacticl.data.telegram.repository.TelegramProjectLinkRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -23,8 +26,10 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -41,6 +46,7 @@ class CallbackQueryHandlerTest {
     private TelegramIdentityResolver identity;
     private MemberPermissionService permissions;
     private TelegramCheckpointResolver checkpointResolver;
+    private TelegramProjectLinkRepository projectLinks;
     private TelegramBotClient bot;
     private CallbackQueryHandler handler;
 
@@ -49,8 +55,9 @@ class CallbackQueryHandlerTest {
         identity = mock(TelegramIdentityResolver.class);
         permissions = mock(MemberPermissionService.class);
         checkpointResolver = mock(TelegramCheckpointResolver.class);
+        projectLinks = mock(TelegramProjectLinkRepository.class);
         bot = mock(TelegramBotClient.class);
-        handler = new CallbackQueryHandler(identity, permissions, checkpointResolver, bot);
+        handler = new CallbackQueryHandler(identity, permissions, checkpointResolver, projectLinks, bot);
     }
 
     @Test
@@ -60,7 +67,9 @@ class CallbackQueryHandlerTest {
         handler.handle(cb);
 
         verify(bot).answerCallbackQuery(CALLBACK_ID, "Invalid action");
-        verifyNoInteractions(identity, permissions, checkpointResolver);
+        verify(bot, times(1)).answerCallbackQuery(anyString(), anyString());
+        verify(bot, never()).editMessageText(anyLong(), anyLong(), anyString(), any());
+        verifyNoInteractions(identity, permissions, checkpointResolver, projectLinks);
     }
 
     @Test
@@ -70,38 +79,106 @@ class CallbackQueryHandlerTest {
         handler.handle(cb);
 
         verify(bot).answerCallbackQuery(CALLBACK_ID, "Invalid action");
-        verifyNoInteractions(identity, permissions, checkpointResolver);
+        verify(bot, times(1)).answerCallbackQuery(anyString(), anyString());
+        verifyNoInteractions(identity, permissions, checkpointResolver, projectLinks);
     }
 
     @Test
-    void unlinkedUserReplysLinkYourAccount() {
+    void unlinkedUserAnswersWorkingThenEditsErrorBody() {
         CallbackQuery cb = callback("cp:approve:" + CHECKPOINT_ID);
         when(identity.resolveByChatId(TELEGRAM_USER_ID)).thenReturn(Optional.empty());
 
         handler.handle(cb);
 
-        verify(bot).answerCallbackQuery(CALLBACK_ID, "Link your Tacticl account first");
+        // Exactly one answerCallbackQuery — the early "Working…" toast. Error surfaced via editMessageText.
+        verify(bot).answerCallbackQuery(CALLBACK_ID, "Working…");
+        verify(bot, times(1)).answerCallbackQuery(anyString(), anyString());
+
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        verify(bot).editMessageText(eq(CHAT_ID), eq(MESSAGE_ID), body.capture(), isNull());
+        assertThat(body.getValue()).contains("Link your Tacticl account");
+
         verifyNoInteractions(permissions, checkpointResolver);
     }
 
     @Test
-    void insufficientRoleReplysNeedRunnerPermission() {
+    void archivedProjectBlocksResolveAndEditsErrorBody() {
         CallbackQuery cb = callback("cp:approve:" + CHECKPOINT_ID);
         when(identity.resolveByChatId(TELEGRAM_USER_ID)).thenReturn(Optional.of(TACTICL_USER_ID));
+        TelegramProjectLink archived = mock(TelegramProjectLink.class);
+        when(archived.getStatus()).thenReturn(ProjectStatus.ARCHIVED);
+        when(projectLinks.findByChatIdAndIsActiveTrue(CHAT_ID)).thenReturn(Optional.of(archived));
+
+        handler.handle(cb);
+
+        verify(bot).answerCallbackQuery(CALLBACK_ID, "Working…");
+        verify(bot, times(1)).answerCallbackQuery(anyString(), anyString());
+
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        verify(bot).editMessageText(eq(CHAT_ID), eq(MESSAGE_ID), body.capture(), isNull());
+        assertThat(body.getValue()).contains("archived");
+
+        verifyNoInteractions(permissions, checkpointResolver);
+    }
+
+    @Test
+    void missingProjectLinkBlocksResolveAndEditsErrorBody() {
+        CallbackQuery cb = callback("cp:approve:" + CHECKPOINT_ID);
+        when(identity.resolveByChatId(TELEGRAM_USER_ID)).thenReturn(Optional.of(TACTICL_USER_ID));
+        when(projectLinks.findByChatIdAndIsActiveTrue(CHAT_ID)).thenReturn(Optional.empty());
+
+        handler.handle(cb);
+
+        verify(bot).answerCallbackQuery(CALLBACK_ID, "Working…");
+        verify(bot, times(1)).answerCallbackQuery(anyString(), anyString());
+
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        verify(bot).editMessageText(eq(CHAT_ID), eq(MESSAGE_ID), body.capture(), isNull());
+        assertThat(body.getValue()).contains("archived");
+
+        verifyNoInteractions(permissions, checkpointResolver);
+    }
+
+    @Test
+    void orphanedProjectBlocksResolve() {
+        CallbackQuery cb = callback("cp:approve:" + CHECKPOINT_ID);
+        when(identity.resolveByChatId(TELEGRAM_USER_ID)).thenReturn(Optional.of(TACTICL_USER_ID));
+        TelegramProjectLink orphaned = mock(TelegramProjectLink.class);
+        when(orphaned.getStatus()).thenReturn(ProjectStatus.ORPHANED);
+        when(projectLinks.findByChatIdAndIsActiveTrue(CHAT_ID)).thenReturn(Optional.of(orphaned));
+
+        handler.handle(cb);
+
+        verify(bot).answerCallbackQuery(CALLBACK_ID, "Working…");
+        verify(bot).editMessageText(eq(CHAT_ID), eq(MESSAGE_ID), anyString(), isNull());
+        verifyNoInteractions(permissions, checkpointResolver);
+    }
+
+    @Test
+    void insufficientRoleEditsErrorBody() {
+        CallbackQuery cb = callback("cp:approve:" + CHECKPOINT_ID);
+        when(identity.resolveByChatId(TELEGRAM_USER_ID)).thenReturn(Optional.of(TACTICL_USER_ID));
+        stubActiveProject();
         when(permissions.require(CHAT_ID, TACTICL_USER_ID, MemberRole.RUNNER))
             .thenReturn(PermissionCheck.deny(MemberRole.OBSERVER, MemberRole.RUNNER, "too low"));
 
         handler.handle(cb);
 
-        verify(bot).answerCallbackQuery(CALLBACK_ID, "Need runner permission");
+        verify(bot).answerCallbackQuery(CALLBACK_ID, "Working…");
+        verify(bot, times(1)).answerCallbackQuery(anyString(), anyString());
+
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        verify(bot).editMessageText(eq(CHAT_ID), eq(MESSAGE_ID), body.capture(), isNull());
+        assertThat(body.getValue()).contains("runner permission");
+
         verifyNoInteractions(checkpointResolver);
-        verify(bot, never()).editMessageText(anyLong(), anyLong(), anyString(), any());
     }
 
     @Test
-    void happyPathInvokesResolverAnswersAndStripsKeyboard() {
+    void happyPathAnswersWorkingThenStripsKeyboardWithSuccessBody() {
         CallbackQuery cb = callback("cp:approve:" + CHECKPOINT_ID);
         when(identity.resolveByChatId(TELEGRAM_USER_ID)).thenReturn(Optional.of(TACTICL_USER_ID));
+        stubActiveProject();
         when(permissions.require(CHAT_ID, TACTICL_USER_ID, MemberRole.RUNNER))
             .thenReturn(PermissionCheck.allow(MemberRole.RUNNER));
         when(checkpointResolver.resolve(TACTICL_USER_ID, CHECKPOINT_ID, "approve"))
@@ -111,9 +188,8 @@ class CallbackQueryHandlerTest {
 
         verify(checkpointResolver).resolve(TACTICL_USER_ID, CHECKPOINT_ID, "approve");
 
-        ArgumentCaptor<String> toast = ArgumentCaptor.forClass(String.class);
-        verify(bot).answerCallbackQuery(eq(CALLBACK_ID), toast.capture());
-        assertThat(toast.getValue()).contains("Approved");
+        verify(bot).answerCallbackQuery(CALLBACK_ID, "Working…");
+        verify(bot, times(1)).answerCallbackQuery(anyString(), anyString());
 
         ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
         // Null markup strips the inline keyboard so the same checkpoint cannot be re-tapped.
@@ -122,9 +198,10 @@ class CallbackQueryHandlerTest {
     }
 
     @Test
-    void changesActionSurfacesReworkToast() {
+    void changesActionEditsReworkBody() {
         CallbackQuery cb = callback("cp:changes:" + CHECKPOINT_ID);
         when(identity.resolveByChatId(TELEGRAM_USER_ID)).thenReturn(Optional.of(TACTICL_USER_ID));
+        stubActiveProject();
         when(permissions.require(CHAT_ID, TACTICL_USER_ID, MemberRole.RUNNER))
             .thenReturn(PermissionCheck.allow(MemberRole.OWNER));
         when(checkpointResolver.resolve(TACTICL_USER_ID, CHECKPOINT_ID, "changes"))
@@ -132,15 +209,19 @@ class CallbackQueryHandlerTest {
 
         handler.handle(cb);
 
-        ArgumentCaptor<String> toast = ArgumentCaptor.forClass(String.class);
-        verify(bot).answerCallbackQuery(eq(CALLBACK_ID), toast.capture());
-        assertThat(toast.getValue()).containsIgnoringCase("Changes");
+        verify(bot).answerCallbackQuery(CALLBACK_ID, "Working…");
+        verify(bot, times(1)).answerCallbackQuery(anyString(), anyString());
+
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        verify(bot).editMessageText(eq(CHAT_ID), eq(MESSAGE_ID), body.capture(), isNull());
+        assertThat(body.getValue()).containsIgnoringCase("Changes");
     }
 
     @Test
-    void unknownCheckpointDoesNotStripKeyboard() {
+    void unknownCheckpointEditsErrorBody() {
         CallbackQuery cb = callback("cp:approve:" + CHECKPOINT_ID);
         when(identity.resolveByChatId(TELEGRAM_USER_ID)).thenReturn(Optional.of(TACTICL_USER_ID));
+        stubActiveProject();
         when(permissions.require(CHAT_ID, TACTICL_USER_ID, MemberRole.RUNNER))
             .thenReturn(PermissionCheck.allow(MemberRole.RUNNER));
         when(checkpointResolver.resolve(TACTICL_USER_ID, CHECKPOINT_ID, "approve"))
@@ -149,14 +230,44 @@ class CallbackQueryHandlerTest {
 
         handler.handle(cb);
 
-        verify(bot).answerCallbackQuery(CALLBACK_ID, "Checkpoint no longer pending");
-        verify(bot, never()).editMessageText(anyLong(), anyLong(), anyString(), any());
+        verify(bot).answerCallbackQuery(CALLBACK_ID, "Working…");
+        verify(bot, times(1)).answerCallbackQuery(anyString(), anyString());
+
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        verify(bot).editMessageText(eq(CHAT_ID), eq(MESSAGE_ID), body.capture(), isNull());
+        assertThat(body.getValue()).contains("no longer pending");
+    }
+
+    @Test
+    void resolverExceptionEditsGenericErrorBody() {
+        CallbackQuery cb = callback("cp:approve:" + CHECKPOINT_ID);
+        when(identity.resolveByChatId(TELEGRAM_USER_ID)).thenReturn(Optional.of(TACTICL_USER_ID));
+        stubActiveProject();
+        when(permissions.require(CHAT_ID, TACTICL_USER_ID, MemberRole.RUNNER))
+            .thenReturn(PermissionCheck.allow(MemberRole.RUNNER));
+        doThrow(new RuntimeException("arbiter timeout"))
+            .when(checkpointResolver).resolve(TACTICL_USER_ID, CHECKPOINT_ID, "approve");
+
+        handler.handle(cb);
+
+        verify(bot).answerCallbackQuery(CALLBACK_ID, "Working…");
+        verify(bot, times(1)).answerCallbackQuery(anyString(), anyString());
+
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        verify(bot).editMessageText(eq(CHAT_ID), eq(MESSAGE_ID), body.capture(), isNull());
+        assertThat(body.getValue()).contains("Could not resolve checkpoint");
     }
 
     @Test
     void nullCallbackIsIgnored() {
         handler.handle(null);
-        verifyNoInteractions(bot, identity, permissions, checkpointResolver);
+        verifyNoInteractions(bot, identity, permissions, checkpointResolver, projectLinks);
+    }
+
+    private void stubActiveProject() {
+        TelegramProjectLink active = mock(TelegramProjectLink.class);
+        when(active.getStatus()).thenReturn(ProjectStatus.ACTIVE);
+        when(projectLinks.findByChatIdAndIsActiveTrue(CHAT_ID)).thenReturn(Optional.of(active));
     }
 
     private CallbackQuery callback(String data) {

@@ -8,6 +8,9 @@ import io.tacticl.client.telegram.TelegramBotClient;
 import io.tacticl.client.telegram.dto.CallbackQuery;
 import io.tacticl.data.pipeline.entity.CheckpointDecision;
 import io.tacticl.data.telegram.entity.MemberRole;
+import io.tacticl.data.telegram.entity.ProjectStatus;
+import io.tacticl.data.telegram.entity.TelegramProjectLink;
+import io.tacticl.data.telegram.repository.TelegramProjectLinkRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -31,15 +34,18 @@ public class CallbackQueryHandler {
     private final TelegramIdentityResolver identity;
     private final MemberPermissionService permissions;
     private final TelegramCheckpointResolver checkpointResolver;
+    private final TelegramProjectLinkRepository projectLinks;
     private final TelegramBotClient bot;
 
     public CallbackQueryHandler(TelegramIdentityResolver identity,
                                 MemberPermissionService permissions,
                                 TelegramCheckpointResolver checkpointResolver,
+                                TelegramProjectLinkRepository projectLinks,
                                 TelegramBotClient bot) {
         this.identity = identity;
         this.permissions = permissions;
         this.checkpointResolver = checkpointResolver;
+        this.projectLinks = projectLinks;
         this.bot = bot;
     }
 
@@ -49,6 +55,7 @@ public class CallbackQueryHandler {
 
         Parsed parsed = parse(callback.data());
         if (parsed == null) {
+            // Telegram requires exactly one answerCallbackQuery per query; nothing else to do for malformed input.
             answer(callbackId, "Invalid action");
             return;
         }
@@ -58,6 +65,9 @@ public class CallbackQueryHandler {
             return;
         }
 
+        // Answer early with a neutral toast so the button stops spinning and Telegram's 15s/30s windows don't lapse.
+        answer(callbackId, "Working…");
+
         long telegramUserId = callback.from().id();
         long chatId = callback.message().chat().id();
         long messageId = callback.message().message_id();
@@ -65,27 +75,40 @@ public class CallbackQueryHandler {
         // resolveByChatId works with telegramUserId because DM chat_id == user_id (Telegram invariant).
         Optional<String> tacticlUserIdOpt = identity.resolveByChatId(telegramUserId);
         if (tacticlUserIdOpt.isEmpty()) {
-            answer(callbackId, "Link your Tacticl account first");
+            editWithError(chatId, messageId, "⚠️ Link your Tacticl account first.");
             return;
         }
         String tacticlUserId = tacticlUserIdOpt.get();
 
+        // Archived-project gate: buttons survive /archive, bot kicks, and re-adds — must re-check link status each tap.
+        Optional<TelegramProjectLink> linkOpt = projectLinks.findByChatIdAndIsActiveTrue(chatId);
+        if (linkOpt.isEmpty() || linkOpt.get().getStatus() != ProjectStatus.ACTIVE) {
+            editWithError(chatId, messageId, "🗄️ Project is archived or unavailable.");
+            return;
+        }
+
         PermissionCheck check = permissions.require(chatId, tacticlUserId, MemberRole.RUNNER);
         if (!check.allowed()) {
-            answer(callbackId, "Need runner permission");
+            editWithError(chatId, messageId, "🚫 Need runner permission.");
             return;
         }
 
-        TelegramCheckpointResolver.Result result = checkpointResolver.resolve(
-            tacticlUserId, parsed.checkpointId, parsed.action);
+        TelegramCheckpointResolver.Result result;
+        try {
+            result = checkpointResolver.resolve(tacticlUserId, parsed.checkpointId, parsed.action);
+        } catch (RuntimeException e) {
+            logger.warn("Checkpoint resolve threw for chat={} checkpoint={} action={}: {}",
+                        chatId, parsed.checkpointId, parsed.action, e.getMessage());
+            editWithError(chatId, messageId, "⚠️ Could not resolve checkpoint. Try again.");
+            return;
+        }
 
         if (!result.isSuccess()) {
-            answer(callbackId, result.message());
+            editWithError(chatId, messageId, "⚠️ " + result.message());
             return;
         }
 
-        answer(callbackId, successToast(result.decision()));
-        // Strip the inline keyboard so the same checkpoint cannot be double-resolved from Telegram.
+        // Null markup strips the inline keyboard so the same checkpoint cannot be double-resolved from Telegram.
         try {
             bot.editMessageText(chatId, messageId, successBody(result.decision()), null);
         } catch (RuntimeException e) {
@@ -115,12 +138,13 @@ public class CallbackQueryHandler {
         }
     }
 
-    private String successToast(CheckpointDecision decision) {
-        return switch (decision) {
-            case APPROVED -> "✅ Approved";
-            case REWORK   -> "🔁 Changes requested";
-            case CANCEL   -> "🛑 Rejected";
-        };
+    private void editWithError(long chatId, long messageId, String body) {
+        try {
+            bot.editMessageText(chatId, messageId, body, null);
+        } catch (RuntimeException e) {
+            logger.warn("Failed to edit checkpoint error message chat={} message={}: {}",
+                        chatId, messageId, e.getMessage());
+        }
     }
 
     private String successBody(CheckpointDecision decision) {
