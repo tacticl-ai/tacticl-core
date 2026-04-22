@@ -28,7 +28,7 @@ class TelegramDispatchServiceTest {
 
         TelegramDispatchService svc = new TelegramDispatchService(linker, bot);
         Message msg = new Message(1L, 0L,
-                new Chat(42L, "private", "alice", "Alice"),
+                new Chat(42L, "private", "alice", "Alice", null),
                 new User(42L, false, "alice", "Alice"),
                 "/start abc",
                 null, null, null, null, null, null, null, false, null);
@@ -48,7 +48,7 @@ class TelegramDispatchServiceTest {
 
         TelegramDispatchService svc = new TelegramDispatchService(linker, bot);
         Message msg = new Message(1L, 0L,
-                new Chat(42L, "private", "alice", "Alice"),
+                new Chat(42L, "private", "alice", "Alice", null),
                 new User(42L, false, "alice", "Alice"),
                 "/start bad",
                 null, null, null, null, null, null, null, false, null);
@@ -66,7 +66,7 @@ class TelegramDispatchServiceTest {
         TelegramBotClient bot = mock(TelegramBotClient.class);
         TelegramDispatchService svc = new TelegramDispatchService(linker, bot);
         Message msg = new Message(1L, 0L,
-                new Chat(42L, "private", "alice", "Alice"),
+                new Chat(42L, "private", "alice", "Alice", null),
                 new User(42L, false, "alice", "Alice"),
                 "/start",
                 null, null, null, null, null, null, null, false, null);
@@ -80,7 +80,7 @@ class TelegramDispatchServiceTest {
         TelegramBotClient bot = mock(TelegramBotClient.class);
         TelegramDispatchService svc = new TelegramDispatchService(linker, bot);
         Message msg = new Message(1L, 0L,
-                new Chat(42L, "private", "alice", "Alice"),
+                new Chat(42L, "private", "alice", "Alice", null),
                 new User(42L, false, "alice", "Alice"),
                 "hello there",
                 null, null, null, null, null, null, null, false, null);

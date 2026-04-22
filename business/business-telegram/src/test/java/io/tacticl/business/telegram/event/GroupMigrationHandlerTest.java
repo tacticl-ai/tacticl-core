@@ -36,7 +36,7 @@ class GroupMigrationHandlerTest {
 
         var message = new Message(
             1L, 0L,
-            new Chat(oldChatId, "group", null, null),
+            new Chat(oldChatId, "group", null, null, null),
             null, null, null, null, null, null,
             newChatId, // migrate_to_chat_id
             null, null, null, null
@@ -56,7 +56,7 @@ class GroupMigrationHandlerTest {
     void nonMigrationMessageIgnored() {
         var message = new Message(
             1L, 0L,
-            new Chat(-100L, "group", null, null),
+            new Chat(-100L, "group", null, null, null),
             null, "hello", null, null, null, null,
             null, // no migrate_to_chat_id
             null, null, null, null
@@ -76,7 +76,7 @@ class GroupMigrationHandlerTest {
 
         var message = new Message(
             1L, 0L,
-            new Chat(oldChatId, "group", null, null),
+            new Chat(oldChatId, "group", null, null, null),
             null, null, null, null, null, null,
             newChatId,
             null, null, null, null
