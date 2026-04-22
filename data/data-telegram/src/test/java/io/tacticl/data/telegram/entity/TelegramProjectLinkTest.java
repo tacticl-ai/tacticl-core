@@ -41,4 +41,31 @@ class TelegramProjectLinkTest {
         link.setForumTopics(Map.of(PdlcRole.ARCHITECT, 42L));
         assertEquals(42L, link.getForumTopics().get(PdlcRole.ARCHITECT));
     }
+
+    @Test
+    void statusChangedAtAdvancesOnTransition() throws InterruptedException {
+        var link = TelegramProjectLink.create("p", 1L, "u", "t");
+        var before = link.getStatusChangedAt();
+        Thread.sleep(5);
+        link.archive();
+        assertTrue(link.getStatusChangedAt().isAfter(before));
+    }
+
+    @Test
+    void reactivateRestoresActiveStatus() {
+        var link = TelegramProjectLink.create("p", 1L, "u", "t");
+        link.archive();
+        link.reactivate();
+        assertEquals(ProjectStatus.ACTIVE, link.getStatus());
+    }
+
+    @Test
+    void createRejectsNullArgs() {
+        assertThrows(NullPointerException.class,
+            () -> TelegramProjectLink.create(null, 1L, "u", "t"));
+        assertThrows(NullPointerException.class,
+            () -> TelegramProjectLink.create("p", 1L, null, "t"));
+        assertThrows(NullPointerException.class,
+            () -> TelegramProjectLink.create("p", 1L, "u", null));
+    }
 }

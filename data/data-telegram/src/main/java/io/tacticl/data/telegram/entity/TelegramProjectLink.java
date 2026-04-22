@@ -2,16 +2,18 @@ package io.tacticl.data.telegram.entity;
 
 import io.tacticl.data.connections.base.BaseMongoEntity;
 import io.tacticl.data.pipeline.entity.PdlcRole;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 
 @Document("telegram_project_links")
 public class TelegramProjectLink extends BaseMongoEntity {
 
-    @Indexed(unique = true)
+    @Indexed(unique = true, partialFilter = "{ 'isActive': true }")
     private long chatId;
 
     @Indexed
@@ -21,13 +23,22 @@ public class TelegramProjectLink extends BaseMongoEntity {
     private String ownerUserId;
 
     private String groupTitle;
+
+    @Indexed
     private ProjectStatus status;
     private Map<PdlcRole, Long> forumTopics;
     private Long pinnedStatusMessageId;
+
+    @Version
+    private Long version;
+
     private Instant initializedAt;
     private Instant statusChangedAt;
 
     public static TelegramProjectLink create(String projectId, long chatId, String ownerUserId, String groupTitle) {
+        Objects.requireNonNull(projectId, "projectId");
+        Objects.requireNonNull(ownerUserId, "ownerUserId");
+        Objects.requireNonNull(groupTitle, "groupTitle");
         var link = new TelegramProjectLink();
         link.projectId = projectId;
         link.chatId = chatId;
@@ -61,6 +72,7 @@ public class TelegramProjectLink extends BaseMongoEntity {
     public void setForumTopics(Map<PdlcRole, Long> forumTopics) { this.forumTopics = forumTopics; }
     public Long getPinnedStatusMessageId() { return pinnedStatusMessageId; }
     public void setPinnedStatusMessageId(Long id) { this.pinnedStatusMessageId = id; }
+    public Long getVersion() { return version; }
     public Instant getInitializedAt() { return initializedAt; }
     public Instant getStatusChangedAt() { return statusChangedAt; }
 }
