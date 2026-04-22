@@ -10,8 +10,6 @@ import io.tacticl.data.telegram.entity.MemberRole;
 import io.tacticl.data.telegram.entity.TelegramMemberGrant;
 import io.tacticl.data.telegram.entity.TelegramProjectLink;
 import io.tacticl.data.telegram.repository.TelegramProjectLinkRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -26,8 +24,6 @@ import java.util.Optional;
 @Component
 @ConditionalOnProperty(name = "tacticl.telegram.enabled", havingValue = "true")
 public class MembersCommand implements CommandHandler {
-
-    private static final Logger logger = LoggerFactory.getLogger(MembersCommand.class);
 
     private static final int MAX_ROWS = 50;
 
@@ -67,7 +63,7 @@ public class MembersCommand implements CommandHandler {
         List<TelegramMemberGrant> grants = permissions.listGrants(link.getProjectId());
 
         StringBuilder sb = new StringBuilder();
-        sb.append("*Project members*\n");
+        sb.append("Project members\n\n");
         sb.append("• ").append(MemberRole.OWNER.name()).append(" — ").append(link.getOwnerUserId()).append('\n');
 
         int shown = Math.min(grants.size(), MAX_ROWS);
@@ -79,7 +75,6 @@ public class MembersCommand implements CommandHandler {
             sb.append("…and ").append(grants.size() - MAX_ROWS).append(" more");
         }
 
-        logger.debug("Listing {} grants + owner for project {}", grants.size(), link.getProjectId());
         reply(chatId, sb.toString());
     }
 

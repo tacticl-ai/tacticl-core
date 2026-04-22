@@ -103,7 +103,7 @@ public class TransferCommand implements CommandHandler {
 
         Optional<String> targetTacticlUserIdOpt = identity.resolveByChatId(targetTelegramUserId);
         if (targetTacticlUserIdOpt.isEmpty()) {
-            reply(chatId, "@" + usernameRaw + " is not linked to a Tacticl account.");
+            reply(chatId, "@" + usernameRaw + " must link their Tacticl account first.");
             return;
         }
         String targetTacticlUserId = targetTacticlUserIdOpt.get();
@@ -113,6 +113,8 @@ public class TransferCommand implements CommandHandler {
             return;
         }
 
+        // Defensive: could become empty if the project link is deleted concurrently
+        // between the permission check above and this read.
         Optional<TelegramProjectLink> linkOpt = projectRepo.findByChatIdAndIsActiveTrue(chatId);
         if (linkOpt.isEmpty()) {
             reply(chatId, "No active project in this group.");
@@ -123,15 +125,16 @@ public class TransferCommand implements CommandHandler {
         String formerOwnerTacticlUserId = link.getOwnerUserId();
         long formerOwnerTelegramUserId = ctx.telegramUserId();
 
+        // Mongo has no cross-doc txn here. Order is chosen so a mid-sequence crash
+        // leaves the safest partial state: save commits the ownership swap
+        // (pivotal) so authority transfers atomically, revoke clears any stale
+        // grant on the incoming owner (idempotent), grant then records the
+        // former owner's ADMIN role.
         link.setOwnerUserId(targetTacticlUserId);
         projectRepo.save(link);
 
-        // Drop the new owner's grant row (if any) — ownership is modelled on
-        // the link, so a redundant ADMIN grant row would diverge from truth.
         permissions.revoke(chatId, targetTacticlUserId);
 
-        // Downgrade former owner to ADMIN. `grantedBy` = former owner themselves
-        // since they authorized the rotation.
         permissions.grant(chatId, formerOwnerTacticlUserId, formerOwnerTelegramUserId,
                 MemberRole.ADMIN, formerOwnerTacticlUserId);
 

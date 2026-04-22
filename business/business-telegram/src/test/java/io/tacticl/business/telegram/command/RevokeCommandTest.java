@@ -122,7 +122,7 @@ class RevokeCommandTest {
 
         command.handle(groupCtx("/revoke @bob"));
 
-        assertThat(capturedReplyText()).contains("is not linked");
+        assertThat(capturedReplyText()).contains("must link their Tacticl account");
         verify(permissions, never()).revoke(anyLong(), anyString());
     }
 

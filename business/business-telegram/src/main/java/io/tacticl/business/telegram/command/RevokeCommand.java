@@ -97,7 +97,7 @@ public class RevokeCommand implements CommandHandler {
 
         Optional<String> targetTacticlUserIdOpt = identity.resolveByChatId(targetTelegramUserId);
         if (targetTacticlUserIdOpt.isEmpty()) {
-            reply(chatId, "@" + usernameRaw + " is not linked to a Tacticl account.");
+            reply(chatId, "@" + usernameRaw + " must link their Tacticl account first.");
             return;
         }
         String targetTacticlUserId = targetTacticlUserIdOpt.get();

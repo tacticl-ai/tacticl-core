@@ -127,7 +127,7 @@ class TransferCommandTest {
 
         command.handle(groupCtx("/transfer @bob"));
 
-        assertThat(capturedReplyText()).contains("is not linked");
+        assertThat(capturedReplyText()).contains("must link their Tacticl account");
         verify(projectRepo, never()).save(any());
     }
 
