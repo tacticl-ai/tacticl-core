@@ -1,5 +1,6 @@
 package io.tacticl.business.telegram;
 
+import io.tacticl.business.telegram.dedup.TelegramUpdateDedupCache;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.identity.TelegramUsernameCache;
 import io.tacticl.business.telegram.router.CommandContext;
@@ -31,6 +32,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -46,7 +48,9 @@ class TelegramDispatchServiceTest {
     private TelegramProjectLinkRepository projectRepo;
     private TelegramIdentityResolver identity;
     private TelegramConfig telegramConfig;
+    private TelegramUpdateDedupCache dedupCache;
     private TelegramDispatchService svc;
+    private long nextUpdateId;
 
     @BeforeEach
     void setUp() {
@@ -59,9 +63,17 @@ class TelegramDispatchServiceTest {
         identity = mock(TelegramIdentityResolver.class);
         telegramConfig = new TelegramConfig();
         telegramConfig.setBotUsername(BOT_USERNAME);
+        dedupCache = new TelegramUpdateDedupCache();
+        nextUpdateId = 1_000L;
 
         svc = new TelegramDispatchService(linker, bot, commandRouter, usernameCache,
-                sparkInitiator, projectRepo, identity, telegramConfig);
+                sparkInitiator, projectRepo, identity, telegramConfig, dedupCache);
+    }
+
+    // Each test that calls handle() gets a fresh update_id so the shared dedup
+    // cache never collides across scenarios in the same run.
+    private Update update(Message msg) {
+        return new Update(++nextUpdateId, msg, null, null, null, null);
     }
 
     private static Message privateMsg(long chatId, long userId, String username, String text) {
@@ -79,6 +91,15 @@ class TelegramDispatchServiceTest {
                 new User(userId, false, username, "First"),
                 text,
                 entities, null, null, null, null, null, null, false, replyTo);
+    }
+
+    private static Message supergroupMsg(long chatId, long userId, String username, String text,
+                                         List<MessageEntity> entities) {
+        return new Message(1L, 0L,
+                new Chat(chatId, "supergroup", null, null, "Supergroup"),
+                new User(userId, false, username, "First"),
+                text,
+                entities, null, null, null, null, null, null, false, null);
     }
 
     // ---- Preserved /start linking flow tests ------------------------------
@@ -239,5 +260,144 @@ class TelegramDispatchServiceTest {
 
         verify(bot).sendMessage(any(SendMessageRequest.class));
         verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+    }
+
+    // ---- Webhook dedup (Telegram retries on slow/non-2xx responses) --------
+
+    @Test
+    void duplicateUpdateIdProcessedOnlyOnce() {
+        when(commandRouter.dispatch(any())).thenReturn(true);
+
+        Message msg = groupMsg(-100L, 42L, "alice", "/grant @bob runner", null, null);
+        // Same update_id redelivered twice (e.g. timeout on first webhook call).
+        Update delivery = new Update(987_654L, msg, null, null, null, null);
+        svc.handle(delivery);
+        svc.handle(delivery);
+
+        verify(commandRouter, times(1)).dispatch(any());
+    }
+
+    @Test
+    void distinctUpdateIdsAllProcessed() {
+        when(commandRouter.dispatch(any())).thenReturn(true);
+
+        Message msg1 = groupMsg(-100L, 42L, "alice", "/grant @bob runner", null, null);
+        Message msg2 = groupMsg(-100L, 42L, "alice", "/grant @carol runner", null, null);
+        svc.handle(new Update(111L, msg1, null, null, null, null));
+        svc.handle(new Update(222L, msg2, null, null, null, null));
+
+        verify(commandRouter, times(2)).dispatch(any());
+    }
+
+    // ---- Reviewer-flagged coverage gaps ------------------------------------
+
+    @Test
+    void groupMentionWithBlankBotUsernameIsIgnored() {
+        // Safety: a misconfigured/missing bot username must not cause every
+        // group message that happens to contain "@..." to trigger a spark.
+        telegramConfig.setBotUsername("");
+
+        String text = "@tacticl_bot deploy";
+        List<MessageEntity> entities = List.of(new MessageEntity("mention", 0, 12));
+        Message msg = groupMsg(-100L, 42L, "alice", text, entities, null);
+
+        svc.handle(update(msg));
+
+        verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(bot, never()).sendMessage(any(SendMessageRequest.class));
+    }
+
+    @Test
+    void groupMentionWithNullBotUsernameIsIgnored() {
+        telegramConfig.setBotUsername(null);
+
+        String text = "@tacticl_bot deploy";
+        List<MessageEntity> entities = List.of(new MessageEntity("mention", 0, 12));
+        Message msg = groupMsg(-100L, 42L, "alice", text, entities, null);
+
+        svc.handle(update(msg));
+
+        verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(bot, never()).sendMessage(any(SendMessageRequest.class));
+    }
+
+    @Test
+    void midSentenceMentionStrippedFromInitiatorPayload() {
+        when(identity.resolveByChatId(42L)).thenReturn(Optional.of("user-alice"));
+        TelegramProjectLink link = TelegramProjectLink.create("proj-1", -100L, "user-alice", "Group");
+        when(projectRepo.findByChatIdAndIsActiveTrue(-100L)).thenReturn(Optional.of(link));
+
+        // "hey @tacticl_bot please deploy" — mention starts at offset 4, length 12.
+        String text = "hey @tacticl_bot please deploy";
+        List<MessageEntity> entities = List.of(new MessageEntity("mention", 4, 12));
+        Message msg = groupMsg(-100L, 42L, "alice", text, entities, null);
+
+        svc.handle(update(msg));
+
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(sparkInitiator).initiate(eq(-100L), eq("user-alice"),
+                payload.capture(), eq(link), isNull());
+        assertThat(payload.getValue()).isEqualTo("hey please deploy");
+    }
+
+    @Test
+    void onlyBotMentionStrippedWhenMultipleMentionsPresent() {
+        when(identity.resolveByChatId(42L)).thenReturn(Optional.of("user-alice"));
+        TelegramProjectLink link = TelegramProjectLink.create("proj-1", -100L, "user-alice", "Group");
+        when(projectRepo.findByChatIdAndIsActiveTrue(-100L)).thenReturn(Optional.of(link));
+
+        // "@tacticl_bot hey @bob deploy" — bot mention at 0/12, @bob at 17/4.
+        String text = "@tacticl_bot hey @bob deploy";
+        List<MessageEntity> entities = List.of(
+                new MessageEntity("mention", 0, 12),
+                new MessageEntity("mention", 17, 4));
+        Message msg = groupMsg(-100L, 42L, "alice", text, entities, null);
+
+        svc.handle(update(msg));
+
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(sparkInitiator).initiate(eq(-100L), eq("user-alice"),
+                payload.capture(), eq(link), isNull());
+        assertThat(payload.getValue()).isEqualTo("hey @bob deploy");
+    }
+
+    @Test
+    void supergroupMentionTriggersSparkInitiator() {
+        when(identity.resolveByChatId(42L)).thenReturn(Optional.of("user-alice"));
+        TelegramProjectLink link = TelegramProjectLink.create("proj-1", -100L, "user-alice", "Supergroup");
+        when(projectRepo.findByChatIdAndIsActiveTrue(-100L)).thenReturn(Optional.of(link));
+
+        String text = "@tacticl_bot ship it";
+        List<MessageEntity> entities = List.of(new MessageEntity("mention", 0, 12));
+        Message msg = supergroupMsg(-100L, 42L, "alice", text, entities);
+
+        svc.handle(update(msg));
+
+        verify(sparkInitiator).initiate(eq(-100L), eq("user-alice"),
+                eq("ship it"), eq(link), isNull());
+    }
+
+    @Test
+    void unicodeEmojiBeforeMentionDoesNotBreakOffsets() {
+        when(identity.resolveByChatId(42L)).thenReturn(Optional.of("user-alice"));
+        TelegramProjectLink link = TelegramProjectLink.create("proj-1", -100L, "user-alice", "Group");
+        when(projectRepo.findByChatIdAndIsActiveTrue(-100L)).thenReturn(Optional.of(link));
+
+        // 🚀 is a surrogate pair — 2 UTF-16 code units. Telegram's offset
+        // counts UTF-16 units, which is what String.substring also uses.
+        // text = "🚀 @tacticl_bot go" → "🚀".length() == 2, then " " at 2,
+        // "@tacticl_bot" at offset 3, length 12.
+        String text = "\uD83D\uDE80 @tacticl_bot go";
+        List<MessageEntity> entities = List.of(new MessageEntity("mention", 3, 12));
+        Message msg = groupMsg(-100L, 42L, "alice", text, entities, null);
+
+        svc.handle(update(msg));
+
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(sparkInitiator).initiate(eq(-100L), eq("user-alice"),
+                payload.capture(), eq(link), isNull());
+        // Rocket + single space collapses to rocket + "go" after the mention
+        // range is removed and surrounding whitespace is normalized.
+        assertThat(payload.getValue()).isEqualTo("\uD83D\uDE80 go");
     }
 }

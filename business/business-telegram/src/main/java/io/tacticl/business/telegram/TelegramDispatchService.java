@@ -1,5 +1,6 @@
 package io.tacticl.business.telegram;
 
+import io.tacticl.business.telegram.dedup.TelegramUpdateDedupCache;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.identity.TelegramUsernameCache;
 import io.tacticl.business.telegram.router.CommandContext;
@@ -49,6 +50,7 @@ public class TelegramDispatchService {
     private final TelegramProjectLinkRepository projectRepo;
     private final TelegramIdentityResolver identity;
     private final TelegramConfig telegramConfig;
+    private final TelegramUpdateDedupCache dedupCache;
 
     public TelegramDispatchService(TelegramUserLinker linker,
                                    TelegramBotClient bot,
@@ -57,7 +59,8 @@ public class TelegramDispatchService {
                                    TelegramSparkInitiator sparkInitiator,
                                    TelegramProjectLinkRepository projectRepo,
                                    TelegramIdentityResolver identity,
-                                   TelegramConfig telegramConfig) {
+                                   TelegramConfig telegramConfig,
+                                   TelegramUpdateDedupCache dedupCache) {
         this.linker = linker;
         this.bot = bot;
         this.commandRouter = commandRouter;
@@ -66,9 +69,16 @@ public class TelegramDispatchService {
         this.projectRepo = projectRepo;
         this.identity = identity;
         this.telegramConfig = telegramConfig;
+        this.dedupCache = dedupCache;
     }
 
     public void handle(Update update) {
+        // Telegram retries on non-2xx or slow webhooks — without this guard a
+        // redelivery would create duplicate Sparks / pipeline runs / replies.
+        if (!dedupCache.markIfAbsent(update.update_id())) {
+            logger.debug("Dropping duplicate Telegram update_id={}", update.update_id());
+            return;
+        }
         if (update.message() != null) {
             handleMessage(update.message());
         } else if (update.callback_query() != null) {
