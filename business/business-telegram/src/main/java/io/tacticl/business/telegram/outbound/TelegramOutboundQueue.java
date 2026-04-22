@@ -1,5 +1,6 @@
 package io.tacticl.business.telegram.outbound;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -17,7 +18,7 @@ public class TelegramOutboundQueue {
     private final ConcurrentMap<Long, ArrayBlockingQueue<OutboundMessage>> queues = new ConcurrentHashMap<>();
 
     public TelegramOutboundQueue(
-        @org.springframework.beans.factory.annotation.Value("${tacticl.telegram.outbound.capacity:200}")
+        @Value("${tacticl.telegram.outbound.capacity:200}")
         int perChatCapacity
     ) {
         this.perChatCapacity = perChatCapacity;
