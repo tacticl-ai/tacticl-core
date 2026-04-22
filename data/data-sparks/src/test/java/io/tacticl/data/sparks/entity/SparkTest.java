@@ -53,4 +53,12 @@ class SparkTest {
         spark.cancel();
         assertThat(spark.getStatus()).isEqualTo(SparkStatus.CANCELLED);
     }
+
+    @Test
+    void projectId_defaultsToNullAndIsMutable() {
+        Spark spark = Spark.create("user-1", "test");
+        assertThat(spark.getProjectId()).isNull();
+        spark.setProjectId("project-42");
+        assertThat(spark.getProjectId()).isEqualTo("project-42");
+    }
 }

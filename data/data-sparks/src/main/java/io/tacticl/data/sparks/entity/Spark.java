@@ -19,6 +19,7 @@ public class Spark {
     private String pipelineRunId;
     private SparkInitiatorSource initiatorSource;
     private String initiatorUserId;
+    @Indexed private String projectId;
     private int tokenCost;
     private String modelUsed;
     private Instant createdAt;
@@ -87,4 +88,6 @@ public class Spark {
     public void setInitiatorSource(SparkInitiatorSource initiatorSource) { this.initiatorSource = initiatorSource; }
     public String getInitiatorUserId() { return initiatorUserId; }
     public void setInitiatorUserId(String initiatorUserId) { this.initiatorUserId = initiatorUserId; }
+    public String getProjectId() { return projectId; }
+    public void setProjectId(String projectId) { this.projectId = projectId; }
 }
