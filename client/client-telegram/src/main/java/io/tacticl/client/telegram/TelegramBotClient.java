@@ -72,6 +72,10 @@ public class TelegramBotClient {
             return Boolean.TRUE.equals(ok);
         }
         catch (CidadelException e) {
+            if (e.getErrorDetails() == TelegramErrorDetails.BOT_API_ERROR) {
+                logger.warn("Telegram setWebhook returned ok=false");
+                return false;
+            }
             throw e;
         }
     }

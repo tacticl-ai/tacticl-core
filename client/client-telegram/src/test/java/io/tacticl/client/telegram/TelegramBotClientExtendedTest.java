@@ -17,6 +17,7 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -153,6 +154,40 @@ class TelegramBotClientExtendedTest {
 
         assertTrue(client.leaveChat(-1001L));
         server.verify();
+    }
+
+    @Test
+    void setWebhookReturnsTrueOnOkResponse() {
+        server.expect(requestTo(BASE_URL + "/bot" + TOKEN + "/setWebhook"))
+            .andExpect(method(HttpMethod.POST))
+            .andRespond(withSuccess(
+                "{\"ok\":true,\"result\":true}",
+                MediaType.APPLICATION_JSON));
+
+        assertTrue(client.setWebhook("https://example.com/hook", "secret"));
+        server.verify();
+    }
+
+    @Test
+    void setWebhookNonOkResponseReturnsFalse() {
+        server.expect(requestTo(BASE_URL + "/bot" + TOKEN + "/setWebhook"))
+            .andExpect(method(HttpMethod.POST))
+            .andRespond(withSuccess(
+                "{\"ok\":false,\"description\":\"Bad webhook: HTTPS url must be provided\"}",
+                MediaType.APPLICATION_JSON));
+
+        assertFalse(client.setWebhook("http://example.com/hook", "secret"));
+        server.verify();
+    }
+
+    @Test
+    void setWebhookTransportFailureThrows() {
+        server.expect(requestTo(BASE_URL + "/bot" + TOKEN + "/setWebhook"))
+            .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators
+                .withServerError());
+
+        assertThrows(CidadelException.class, () ->
+            client.setWebhook("https://example.com/hook", "secret"));
     }
 
     @Test
