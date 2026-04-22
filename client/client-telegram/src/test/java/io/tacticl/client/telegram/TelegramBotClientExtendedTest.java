@@ -191,6 +191,24 @@ class TelegramBotClientExtendedTest {
     }
 
     @Test
+    void setWebhookRegistersExtendedUpdateTypes() {
+        server.expect(requestTo(BASE_URL + "/bot" + TOKEN + "/setWebhook"))
+            .andExpect(method(HttpMethod.POST))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"message\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"edited_message\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"callback_query\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"my_chat_member\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"chat_member\"")))
+            .andRespond(withSuccess(
+                "{\"ok\":true,\"result\":true}",
+                MediaType.APPLICATION_JSON));
+
+        assertTrue(client.setWebhook("https://example.com/hook", "secret"));
+        server.verify();
+    }
+
+    @Test
     void setMyCommandsSucceeds() {
         server.expect(requestTo(BASE_URL + "/bot" + TOKEN + "/setMyCommands"))
             .andExpect(method(HttpMethod.POST))

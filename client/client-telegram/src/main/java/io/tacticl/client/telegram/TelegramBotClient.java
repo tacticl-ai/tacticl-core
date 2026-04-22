@@ -63,7 +63,8 @@ public class TelegramBotClient {
         Map<String, Object> payload = Map.of(
             "url", url,
             "secret_token", secretToken,
-            "allowed_updates", List.of("message", "callback_query"),
+            "allowed_updates", List.of("message", "edited_message", "callback_query",
+                                       "my_chat_member", "chat_member"),
             "drop_pending_updates", true
         );
         try {
