@@ -33,7 +33,7 @@ class TelegramDispatchServiceTest {
                 "/start abc",
                 null, null, null, null, null, null, null, false, null);
 
-        svc.handle(new Update(1L, msg, null));
+        svc.handle(new Update(1L, msg, null, null, null, null));
 
         verify(bot).sendMessage(argThat(r ->
                 r.chat_id() == 42L && r.text().contains("Linked")));
@@ -53,7 +53,7 @@ class TelegramDispatchServiceTest {
                 "/start bad",
                 null, null, null, null, null, null, null, false, null);
 
-        svc.handle(new Update(1L, msg, null));
+        svc.handle(new Update(1L, msg, null, null, null, null));
 
         verify(bot).sendMessage(argThat(r ->
                 r.text().toLowerCase().contains("invalid")
@@ -70,7 +70,7 @@ class TelegramDispatchServiceTest {
                 new User(42L, false, "alice", "Alice"),
                 "/start",
                 null, null, null, null, null, null, null, false, null);
-        svc.handle(new Update(1L, msg, null));
+        svc.handle(new Update(1L, msg, null, null, null, null));
         verify(bot).sendMessage(argThat(r -> r.text().toLowerCase().contains("welcome")));
     }
 
@@ -84,7 +84,7 @@ class TelegramDispatchServiceTest {
                 new User(42L, false, "alice", "Alice"),
                 "hello there",
                 null, null, null, null, null, null, null, false, null);
-        svc.handle(new Update(1L, msg, null));
+        svc.handle(new Update(1L, msg, null, null, null, null));
         verify(bot).sendMessage(any(SendMessageRequest.class));
     }
 }

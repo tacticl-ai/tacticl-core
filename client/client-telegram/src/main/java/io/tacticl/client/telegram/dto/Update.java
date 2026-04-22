@@ -6,5 +6,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public record Update(
     long update_id,
     Message message,
-    CallbackQuery callback_query
+    Message edited_message,
+    CallbackQuery callback_query,
+    ChatMemberUpdate my_chat_member,
+    ChatMemberUpdate chat_member
 ) {}
