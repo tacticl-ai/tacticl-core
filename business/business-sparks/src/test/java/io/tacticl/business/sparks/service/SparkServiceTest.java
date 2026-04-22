@@ -4,6 +4,7 @@ import io.tacticl.data.sparks.entity.*;
 import io.tacticl.data.sparks.repository.SparkRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -30,13 +31,25 @@ class SparkServiceTest {
     }
 
     @Test
-    void save_persistsEnrichedSpark() {
-        Spark spark = Spark.create("user-1", "test");
-        spark.setProjectId("project-1");
-        when(sparkRepository.save(spark)).thenReturn(spark);
-        Spark saved = sparkService.save(spark);
-        assertThat(saved.getProjectId()).isEqualTo("project-1");
-        verify(sparkRepository).save(spark);
+    void create_withProvenance_stampsFieldsBeforeSinglePersist() {
+        when(sparkRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Spark spark = sparkService.create(
+                "user-1",
+                "build me a REST API",
+                SparkInitiatorSource.TELEGRAM_GROUP,
+                "user-1",
+                "project-1");
+
+        ArgumentCaptor<Spark> captor = ArgumentCaptor.forClass(Spark.class);
+        verify(sparkRepository, times(1)).save(captor.capture());
+        Spark persisted = captor.getValue();
+        assertThat(persisted.getInitiatorSource()).isEqualTo(SparkInitiatorSource.TELEGRAM_GROUP);
+        assertThat(persisted.getInitiatorUserId()).isEqualTo("user-1");
+        assertThat(persisted.getProjectId()).isEqualTo("project-1");
+        assertThat(persisted.getUserId()).isEqualTo("user-1");
+        assertThat(persisted.getStatus()).isEqualTo(SparkStatus.PENDING);
+        assertThat(spark).isSameAs(persisted);
     }
 
     @Test

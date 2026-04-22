@@ -74,8 +74,12 @@ class TelegramSparkInitiatorTest {
                 .thenReturn(PermissionCheck.allow(MemberRole.CONTRIBUTOR));
 
         Spark spark = Spark.create(USER_ID, "build a REST API");
-        when(sparkService.create(USER_ID, "build a REST API")).thenReturn(spark);
-        when(sparkService.save(any(Spark.class))).thenAnswer(inv -> inv.getArgument(0));
+        spark.setInitiatorSource(SparkInitiatorSource.TELEGRAM_GROUP);
+        spark.setInitiatorUserId(USER_ID);
+        spark.setProjectId(PROJECT_ID);
+        when(sparkService.create(USER_ID, "build a REST API",
+                SparkInitiatorSource.TELEGRAM_GROUP, USER_ID, PROJECT_ID))
+                .thenReturn(spark);
 
         PipelineRun run = mock(PipelineRun.class);
         when(pdlcRouter.route(eq(USER_ID), eq(spark.getId()), eq("build a REST API"),
@@ -84,13 +88,8 @@ class TelegramSparkInitiatorTest {
 
         initiator.initiate(CHAT_ID, USER_ID, "build a REST API", link, REPO_URL);
 
-        verify(sparkService).create(USER_ID, "build a REST API");
-
-        ArgumentCaptor<Spark> saved = ArgumentCaptor.forClass(Spark.class);
-        verify(sparkService).save(saved.capture());
-        assertThat(saved.getValue().getInitiatorSource()).isEqualTo(SparkInitiatorSource.TELEGRAM_GROUP);
-        assertThat(saved.getValue().getInitiatorUserId()).isEqualTo(USER_ID);
-        assertThat(saved.getValue().getProjectId()).isEqualTo(PROJECT_ID);
+        verify(sparkService).create(USER_ID, "build a REST API",
+                SparkInitiatorSource.TELEGRAM_GROUP, USER_ID, PROJECT_ID);
 
         verify(pdlcRouter).route(eq(USER_ID), eq(spark.getId()), eq("build a REST API"),
                 eq(REPO_URL), any(), eq(List.of()), any(), eq(50.0));
@@ -106,19 +105,42 @@ class TelegramSparkInitiatorTest {
                 .thenReturn(PermissionCheck.allow(MemberRole.CONTRIBUTOR));
 
         Spark spark = Spark.create(USER_ID, "build a REST API");
-        when(sparkService.create(USER_ID, "build a REST API")).thenReturn(spark);
-        when(sparkService.save(any(Spark.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(sparkService.create(eq(USER_ID), eq("build a REST API"),
+                any(), anyString(), anyString())).thenReturn(spark);
         when(pdlcRouter.route(anyString(), anyString(), anyString(),
                 any(), any(), any(), any(), anyDouble()))
                 .thenReturn(Optional.empty());
 
         initiator.initiate(CHAT_ID, USER_ID, "build a REST API", link, REPO_URL);
 
-        verify(sparkService).save(any(Spark.class));
         ArgumentCaptor<OutboundMessage> msg = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(outbound).enqueue(eq(CHAT_ID), msg.capture());
         assertThat(msg.getValue().request().text())
                 .contains("Pipeline engine is disabled");
+    }
+
+    @Test
+    void routerThrowsRepliesErrorAndStops() {
+        when(permissions.require(CHAT_ID, USER_ID, MemberRole.CONTRIBUTOR))
+                .thenReturn(PermissionCheck.allow(MemberRole.CONTRIBUTOR));
+
+        Spark spark = Spark.create(USER_ID, "build a REST API");
+        when(sparkService.create(eq(USER_ID), eq("build a REST API"),
+                any(), anyString(), anyString())).thenReturn(spark);
+        when(pdlcRouter.route(anyString(), anyString(), anyString(),
+                any(), any(), any(), any(), anyDouble()))
+                .thenThrow(new RuntimeException("boom"));
+
+        initiator.initiate(CHAT_ID, USER_ID, "build a REST API", link, REPO_URL);
+
+        verify(sparkService).create(eq(USER_ID), eq("build a REST API"),
+                any(), anyString(), anyString());
+
+        ArgumentCaptor<OutboundMessage> msg = ArgumentCaptor.forClass(OutboundMessage.class);
+        verify(outbound, times(1)).enqueue(eq(CHAT_ID), msg.capture());
+        String replyText = msg.getValue().request().text();
+        assertThat(replyText).contains("Couldn't start");
+        assertThat(replyText).doesNotContain("Started");
     }
 
     @Test
@@ -139,8 +161,8 @@ class TelegramSparkInitiatorTest {
                 .thenReturn(PermissionCheck.allow(MemberRole.CONTRIBUTOR));
 
         Spark spark = Spark.create(USER_ID, "refactor module");
-        when(sparkService.create(USER_ID, "refactor module")).thenReturn(spark);
-        when(sparkService.save(any(Spark.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(sparkService.create(eq(USER_ID), eq("refactor module"),
+                any(), anyString(), anyString())).thenReturn(spark);
         when(pdlcRouter.route(anyString(), anyString(), anyString(),
                 any(), any(), any(), any(), anyDouble()))
                 .thenReturn(Optional.of(mock(PipelineRun.class)));

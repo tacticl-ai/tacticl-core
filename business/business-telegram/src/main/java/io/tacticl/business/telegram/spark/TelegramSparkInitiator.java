@@ -33,8 +33,8 @@ public class TelegramSparkInitiator {
 
     private static final Logger log = LoggerFactory.getLogger(TelegramSparkInitiator.class);
 
-    // Phase 2 hard-coded; future task will pull from UserConfig. Matches the prod default
-    // documented in application-prod.properties for pdlc.v2.
+    // TODO: read cost ceiling from UserConfig (plan 2026-04-19 — future Phase 3 work).
+    // Matches the prod default documented in application-prod.properties for pdlc.v2.
     private static final double COST_CEILING_USD = 50.0;
 
     private final SparkService sparkService;
@@ -69,34 +69,43 @@ public class TelegramSparkInitiator {
             return;
         }
 
-        Spark spark = sparkService.create(tacticlUserId, text);
-        spark.setInitiatorSource(SparkInitiatorSource.TELEGRAM_GROUP);
-        spark.setInitiatorUserId(tacticlUserId);
-        spark.setProjectId(link.getProjectId());
-        sparkService.save(spark);
-
-        // SparkType.CODE is the Phase 2 default so PdlcRouter treats the spark as eligible;
-        // a downstream classifier will refine once Task 26+ wires in auto-classification.
-        Optional<PipelineRun> run = pdlcRouter.route(
+        Spark spark = sparkService.create(
                 tacticlUserId,
-                spark.getId(),
                 text,
-                repoUrl,
-                SparkType.CODE,
-                List.of(),
-                null,
-                COST_CEILING_USD);
+                SparkInitiatorSource.TELEGRAM_GROUP,
+                tacticlUserId,
+                link.getProjectId());
+
+        // SparkType=CODE is the Phase 2 default. Auto-classification will replace this
+        // via SparkClassifierService in a later task; for now CODE is safe because /spark
+        // is an explicit intent to run a pipeline.
+        Optional<PipelineRun> run;
+        try {
+            run = pdlcRouter.route(
+                    tacticlUserId,
+                    spark.getId(),
+                    text,
+                    repoUrl,
+                    SparkType.CODE,
+                    List.of(),
+                    null,
+                    COST_CEILING_USD);
+        } catch (RuntimeException e) {
+            log.error("Pipeline routing failed for spark {} in chat {}", spark.getId(), chatId, e);
+            reply(chatId, "⚠️ Couldn't start the pipeline. Try again or check with an admin.");
+            return;
+        }
 
         if (run.isEmpty()) {
             // TODO: when CloudOrchestratorService (legacy cloud path) lands, fall back here
             // instead of replying with a disabled message (plan 2026-04-19 Task 25).
             log.warn("PDLC v2 disabled — spark {} in chat {} not routed to pipeline",
                     spark.getId(), chatId);
-            reply(chatId, "\u26A0\uFE0F Pipeline engine is disabled \u2014 ask an admin to enable pdlc.v2.");
+            reply(chatId, "⚠️ Pipeline engine is disabled — ask an admin to enable pdlc.v2.");
             return;
         }
 
-        reply(chatId, "\u25B6\uFE0F Started \u2014 I'll post updates here.");
+        reply(chatId, "▶️ Started — I'll post updates here.");
     }
 
     private void reply(long chatId, String text) {

@@ -20,10 +20,19 @@ public class SparkService {
         return sparkRepository.save(Spark.create(userId, input));
     }
 
-    // Exposed so callers that enrich a spark post-create (e.g. Telegram group initiator
-    // stamping initiatorSource/initiatorUserId/projectId) can persist the mutation
-    // without a second round-trip through a specialized updater.
-    public Spark save(Spark spark) {
+    /**
+     * Creates a spark with provenance fields stamped before the single persistence call.
+     * Used by callers (e.g. Telegram group initiator) that know the origin of the spark
+     * at creation time — avoids a double-write (create-then-save) round-trip.
+     */
+    public Spark create(String userId, String input,
+                        SparkInitiatorSource initiatorSource,
+                        String initiatorUserId,
+                        String projectId) {
+        Spark spark = Spark.create(userId, input);
+        spark.setInitiatorSource(initiatorSource);
+        spark.setInitiatorUserId(initiatorUserId);
+        spark.setProjectId(projectId);
         return sparkRepository.save(spark);
     }
 
