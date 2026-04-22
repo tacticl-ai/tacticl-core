@@ -20,6 +20,13 @@ public class SparkService {
         return sparkRepository.save(Spark.create(userId, input));
     }
 
+    // Exposed so callers that enrich a spark post-create (e.g. Telegram group initiator
+    // stamping initiatorSource/initiatorUserId/projectId) can persist the mutation
+    // without a second round-trip through a specialized updater.
+    public Spark save(Spark spark) {
+        return sparkRepository.save(spark);
+    }
+
     public Spark classify(String sparkId, String userId, SparkType type) {
         Spark spark = sparkRepository.findByIdAndUserId(sparkId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Spark not found: " + sparkId));

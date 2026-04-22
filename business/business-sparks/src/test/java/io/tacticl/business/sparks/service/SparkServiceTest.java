@@ -30,6 +30,16 @@ class SparkServiceTest {
     }
 
     @Test
+    void save_persistsEnrichedSpark() {
+        Spark spark = Spark.create("user-1", "test");
+        spark.setProjectId("project-1");
+        when(sparkRepository.save(spark)).thenReturn(spark);
+        Spark saved = sparkService.save(spark);
+        assertThat(saved.getProjectId()).isEqualTo("project-1");
+        verify(sparkRepository).save(spark);
+    }
+
+    @Test
     void classify_updatesSparkAndSaves() {
         Spark spark = Spark.create("user-1", "build me a REST API");
         when(sparkRepository.findByIdAndUserId(spark.getId(), "user-1")).thenReturn(Optional.of(spark));
