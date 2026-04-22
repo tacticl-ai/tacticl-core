@@ -10,7 +10,11 @@ public interface TelegramLinkRepository extends MongoRepository<TelegramLink, St
 
     List<TelegramLink> findByUserIdAndIsActiveTrue(String userId);
 
+    // Includes soft-deleted rows — used by redeemToken to detect prior links so
+    // cross-user chat-id collisions are rejected and a user's own unlink can be re-activated.
     Optional<TelegramLink> findByChatId(long chatId);
+
+    Optional<TelegramLink> findByChatIdAndIsActiveTrue(long chatId);
 
     Optional<TelegramLink> findByUserIdAndChatId(String userId, long chatId);
 }

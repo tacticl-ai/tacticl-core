@@ -37,6 +37,11 @@ public class TelegramSparkInitiator {
     // Matches the prod default documented in application-prod.properties for pdlc.v2.
     private static final double COST_CEILING_USD = 50.0;
 
+    // Telegram group messages allow up to 4096 chars but Sparks above ~2k chars are almost
+    // always paste-spam or accidental dumps — routing them wastes tokens and can pin
+    // the LLM into oversized prompts. Reject (don't truncate) so user intent is preserved.
+    private static final int MAX_SPARK_TEXT_CHARS = 2000;
+
     private final SparkService sparkService;
     private final PdlcRouter pdlcRouter;
     private final MemberPermissionService permissions;
@@ -60,6 +65,11 @@ public class TelegramSparkInitiator {
                          TelegramProjectLink link, String repoUrl) {
         if (text == null || text.isBlank()) {
             reply(chatId, "Spark text is required.");
+            return;
+        }
+
+        if (text.length() > MAX_SPARK_TEXT_CHARS) {
+            reply(chatId, "Your spark text is too long (max " + MAX_SPARK_TEXT_CHARS + " chars).");
             return;
         }
 

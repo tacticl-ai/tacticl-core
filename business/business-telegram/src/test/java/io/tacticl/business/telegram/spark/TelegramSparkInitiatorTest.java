@@ -156,6 +156,38 @@ class TelegramSparkInitiatorTest {
     }
 
     @Test
+    void tooLongTextIsRejectedBeforeCreate() {
+        String tooLong = "a".repeat(2001);
+
+        initiator.initiate(CHAT_ID, USER_ID, tooLong, link, REPO_URL);
+
+        verifyNoInteractions(sparkService);
+        verifyNoInteractions(pdlcRouter);
+        verifyNoInteractions(permissions);
+        ArgumentCaptor<OutboundMessage> msg = ArgumentCaptor.forClass(OutboundMessage.class);
+        verify(outbound, times(1)).enqueue(eq(CHAT_ID), msg.capture());
+        assertThat(msg.getValue().request().text()).contains("too long");
+        assertThat(msg.getValue().request().text()).contains("2000");
+    }
+
+    @Test
+    void textAtCapIsAccepted() {
+        String atCap = "a".repeat(2000);
+        when(permissions.require(CHAT_ID, USER_ID, MemberRole.CONTRIBUTOR))
+                .thenReturn(PermissionCheck.allow(MemberRole.CONTRIBUTOR));
+        Spark spark = Spark.create(USER_ID, atCap);
+        when(sparkService.create(eq(USER_ID), eq(atCap),
+                any(), anyString(), anyString())).thenReturn(spark);
+        when(pdlcRouter.route(anyString(), anyString(), anyString(),
+                any(), any(), any(), any(), anyDouble()))
+                .thenReturn(Optional.of(mock(PipelineRun.class)));
+
+        initiator.initiate(CHAT_ID, USER_ID, atCap, link, REPO_URL);
+
+        verify(sparkService).create(eq(USER_ID), eq(atCap), any(), anyString(), anyString());
+    }
+
+    @Test
     void nullRepoUrlStillRoutes() {
         when(permissions.require(CHAT_ID, USER_ID, MemberRole.CONTRIBUTOR))
                 .thenReturn(PermissionCheck.allow(MemberRole.CONTRIBUTOR));

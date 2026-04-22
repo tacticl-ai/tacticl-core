@@ -16,7 +16,8 @@ public class TelegramIdentityResolver {
         this.linkRepo = linkRepo;
     }
 
-    public Optional<String> resolveByChatId(long telegramUserId) {
-        return linkRepo.findByChatId(telegramUserId).map(l -> l.getUserId());
+    public Optional<String> resolveByChatId(long chatId) {
+        // isActiveTrue filter: soft-deleted links (post /unlink) must not authenticate.
+        return linkRepo.findByChatIdAndIsActiveTrue(chatId).map(l -> l.getUserId());
     }
 }
