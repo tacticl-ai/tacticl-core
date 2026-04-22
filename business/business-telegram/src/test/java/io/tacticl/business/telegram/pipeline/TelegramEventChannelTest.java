@@ -1,5 +1,6 @@
 package io.tacticl.business.telegram.pipeline;
 
+import io.tacticl.business.pipeline.dto.PipelineCallbackEvent;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
 import io.tacticl.business.telegram.outbound.TelegramOutboundQueue;
 import io.tacticl.client.telegram.dto.SendMessageRequest;
@@ -8,7 +9,6 @@ import io.tacticl.data.pipeline.entity.PipelineRun;
 import io.tacticl.data.pipeline.repository.PipelineRunRepository;
 import io.tacticl.data.sparks.entity.Spark;
 import io.tacticl.data.sparks.repository.SparkRepository;
-import io.tacticl.data.telegram.entity.ProjectStatus;
 import io.tacticl.data.telegram.entity.TelegramProjectLink;
 import io.tacticl.data.telegram.repository.TelegramProjectLinkRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,7 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -59,19 +59,30 @@ class TelegramEventChannelTest {
     void missingPipelineRun_skipsSilently() {
         when(runRepo.findById(RUN_ID)).thenReturn(Optional.empty());
 
-        channel.emit(RUN_ID, "ROLE_STARTED", Map.of("role", "RESEARCHER"));
+        channel.emit(event("ROLE_STARTED", "RESEARCHER"));
 
         verifyNoInteractions(sparkRepo, linkRepo, queue);
+    }
+
+    @Test
+    void sparkNotFound_skipsSilently() {
+        // WHY: cover the branch where the run exists but the spark lookup misses
+        // (e.g., user-id skew or spark deleted mid-run). Must not touch the link repo.
+        stubRun();
+        when(sparkRepo.findByIdAndUserId(SPARK_ID, USER_ID)).thenReturn(Optional.empty());
+
+        channel.emit(event("ROLE_STARTED", "RESEARCHER"));
+
+        verifyNoInteractions(linkRepo, queue);
     }
 
     @Test
     void sparkWithoutProjectId_skipsSilently() {
         stubRun();
         Spark spark = Spark.create(USER_ID, "do things");
-        // WHY: cloud/non-group sparks have no projectId — channel must be a no-op.
         when(sparkRepo.findByIdAndUserId(SPARK_ID, USER_ID)).thenReturn(Optional.of(spark));
 
-        channel.emit(RUN_ID, "ROLE_STARTED", Map.of("role", "RESEARCHER"));
+        channel.emit(event("ROLE_STARTED", "RESEARCHER"));
 
         verifyNoInteractions(linkRepo, queue);
     }
@@ -82,7 +93,7 @@ class TelegramEventChannelTest {
         stubSparkWithProject();
         when(linkRepo.findByProjectIdAndIsActiveTrue(PROJECT_ID)).thenReturn(Optional.empty());
 
-        channel.emit(RUN_ID, "ROLE_STARTED", Map.of("role", "RESEARCHER"));
+        channel.emit(event("ROLE_STARTED", "RESEARCHER"));
 
         verifyNoInteractions(queue);
     }
@@ -95,7 +106,7 @@ class TelegramEventChannelTest {
         link.archive();
         when(linkRepo.findByProjectIdAndIsActiveTrue(PROJECT_ID)).thenReturn(Optional.of(link));
 
-        channel.emit(RUN_ID, "ROLE_STARTED", Map.of("role", "RESEARCHER"));
+        channel.emit(event("ROLE_STARTED", "RESEARCHER"));
 
         verifyNoInteractions(queue);
     }
@@ -108,7 +119,7 @@ class TelegramEventChannelTest {
             .thenReturn(Optional.of(TelegramProjectLink.create(PROJECT_ID, CHAT_ID, USER_ID, "My Group")));
         when(queue.enqueue(anyLong(), any(OutboundMessage.class))).thenReturn(true);
 
-        channel.emit(RUN_ID, "ROLE_STARTED", Map.of("role", "RESEARCHER"));
+        channel.emit(event("ROLE_STARTED", "RESEARCHER"));
 
         ArgumentCaptor<OutboundMessage> captor = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(queue).enqueue(eq(CHAT_ID), captor.capture());
@@ -127,7 +138,7 @@ class TelegramEventChannelTest {
         when(linkRepo.findByProjectIdAndIsActiveTrue(PROJECT_ID)).thenReturn(Optional.of(link));
         when(queue.enqueue(anyLong(), any(OutboundMessage.class))).thenReturn(true);
 
-        channel.emit(RUN_ID, "ROLE_STARTED", Map.of("role", "RESEARCHER", "phase", "DISCOVERY"));
+        channel.emit(event("ROLE_STARTED", "RESEARCHER"));
 
         ArgumentCaptor<OutboundMessage> captor = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(queue).enqueue(eq(CHAT_ID), captor.capture());
@@ -139,12 +150,11 @@ class TelegramEventChannelTest {
         stubRun();
         stubSparkWithProject();
         TelegramProjectLink link = TelegramProjectLink.create(PROJECT_ID, CHAT_ID, USER_ID, "My Group");
-        // WHY: no mapping for ARCHITECT — must not NPE; must post to general (null threadId).
         link.setForumTopics(Map.of(PdlcRole.RESEARCHER, 42L));
         when(linkRepo.findByProjectIdAndIsActiveTrue(PROJECT_ID)).thenReturn(Optional.of(link));
         when(queue.enqueue(anyLong(), any(OutboundMessage.class))).thenReturn(true);
 
-        channel.emit(RUN_ID, "ROLE_STARTED", Map.of("role", "ARCHITECT"));
+        channel.emit(event("ROLE_STARTED", "ARCHITECT"));
 
         ArgumentCaptor<OutboundMessage> captor = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(queue).enqueue(eq(CHAT_ID), captor.capture());
@@ -158,8 +168,7 @@ class TelegramEventChannelTest {
         when(linkRepo.findByProjectIdAndIsActiveTrue(PROJECT_ID))
             .thenReturn(Optional.of(TelegramProjectLink.create(PROJECT_ID, CHAT_ID, USER_ID, "My Group")));
 
-        // WHY: unknown event name → formatter returns empty list → must be a no-op.
-        channel.emit(RUN_ID, "UNKNOWN_EVENT_TYPE", Map.of("role", "RESEARCHER"));
+        channel.emit(event("UNKNOWN_EVENT_TYPE", "RESEARCHER"));
 
         verifyNoInteractions(queue);
     }
@@ -171,19 +180,18 @@ class TelegramEventChannelTest {
         when(linkRepo.findByProjectIdAndIsActiveTrue(PROJECT_ID))
             .thenReturn(Optional.of(TelegramProjectLink.create(PROJECT_ID, CHAT_ID, USER_ID, "My Group")));
 
-        // WHY: guard the per-message enqueue contract. Use a spy formatter returning two messages.
         TelegramMessageFormatter multiFormatter = mock(TelegramMessageFormatter.class);
         SendMessageRequest m1 = SendMessageRequest.plain(CHAT_ID, "first");
         SendMessageRequest m2 = SendMessageRequest.plain(CHAT_ID, "second");
-        when(multiFormatter.format(eq(CHAT_ID), eq(null), eq("ROLE_STARTED"), any()))
+        when(multiFormatter.format(eq(CHAT_ID), eq(null), any(PipelineCallbackEvent.class)))
             .thenReturn(List.of(m1, m2));
         when(queue.enqueue(anyLong(), any(OutboundMessage.class))).thenReturn(true);
 
         TelegramEventChannel c = new TelegramEventChannel(runRepo, sparkRepo, linkRepo, multiFormatter, queue);
-        c.emit(RUN_ID, "ROLE_STARTED", Map.of("role", "RESEARCHER"));
+        c.emit(event("ROLE_STARTED", "RESEARCHER"));
 
         ArgumentCaptor<OutboundMessage> captor = ArgumentCaptor.forClass(OutboundMessage.class);
-        verify(queue, org.mockito.Mockito.times(2)).enqueue(eq(CHAT_ID), captor.capture());
+        verify(queue, times(2)).enqueue(eq(CHAT_ID), captor.capture());
         assertThat(captor.getAllValues()).extracting(m -> m.request().text())
             .containsExactly("first", "second");
     }
@@ -197,8 +205,8 @@ class TelegramEventChannelTest {
         when(linkRepo.findByProjectIdAndIsActiveTrue(PROJECT_ID)).thenReturn(Optional.of(link));
         when(queue.enqueue(anyLong(), any(OutboundMessage.class))).thenReturn(true);
 
-        // WHY: PIPELINE_STARTED carries no role — threadId must default to null.
-        channel.emit(RUN_ID, "PIPELINE_STARTED", Map.of());
+        // PIPELINE_STARTED carries no role — threadId must default to null.
+        channel.emit(new PipelineCallbackEvent(RUN_ID, "PIPELINE_STARTED", null, null, null));
 
         ArgumentCaptor<OutboundMessage> captor = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(queue).enqueue(eq(CHAT_ID), captor.capture());
@@ -206,14 +214,94 @@ class TelegramEventChannelTest {
     }
 
     @Test
-    void completeIsNoOp() {
-        // WHY: default channel#complete should not touch repositories or the queue.
-        channel.complete(RUN_ID);
+    void queueFullOnEnqueue_logsAndContinuesWithoutThrowing() {
+        // WHY: queue back-pressure — returning false from enqueue must be logged
+        // and not raise to the caller.
+        stubRun();
+        stubSparkWithProject();
+        when(linkRepo.findByProjectIdAndIsActiveTrue(PROJECT_ID))
+            .thenReturn(Optional.of(TelegramProjectLink.create(PROJECT_ID, CHAT_ID, USER_ID, "My Group")));
+        when(queue.enqueue(anyLong(), any(OutboundMessage.class))).thenReturn(false);
 
+        channel.emit(event("ROLE_STARTED", "RESEARCHER"));
+
+        verify(queue).enqueue(eq(CHAT_ID), any(OutboundMessage.class));
+        // Does not throw — that's the contract.
+    }
+
+    @Test
+    void destinationCache_secondEmitSkipsMongoLookups() {
+        // WHY: with the new cache, back-to-back events for the same run must not
+        // repeat the 3 Mongo reads. Verify each repo is hit at most once.
+        stubRun();
+        stubSparkWithProject();
+        when(linkRepo.findByProjectIdAndIsActiveTrue(PROJECT_ID))
+            .thenReturn(Optional.of(TelegramProjectLink.create(PROJECT_ID, CHAT_ID, USER_ID, "My Group")));
+        when(queue.enqueue(anyLong(), any(OutboundMessage.class))).thenReturn(true);
+
+        channel.emit(event("ROLE_STARTED", "RESEARCHER"));
+        channel.emit(event("ROLE_COMPLETED", "RESEARCHER"));
+        channel.emit(event("ROLE_STARTED", "ARCHITECT"));
+
+        verify(runRepo, times(1)).findById(RUN_ID);
+        verify(sparkRepo, times(1)).findByIdAndUserId(SPARK_ID, USER_ID);
+        verify(linkRepo, times(1)).findByProjectIdAndIsActiveTrue(PROJECT_ID);
+        // All three events still produce an enqueue.
+        verify(queue, times(3)).enqueue(eq(CHAT_ID), any(OutboundMessage.class));
+    }
+
+    @Test
+    void destinationCache_emptyDestinationAlsoCached() {
+        // WHY: negative resolution (no spark / no link) must also cache so cloud sparks
+        // don't re-query Mongo 3× per event.
+        stubRun();
+        Spark spark = Spark.create(USER_ID, "do things");
+        // No projectId — cloud spark.
+        when(sparkRepo.findByIdAndUserId(SPARK_ID, USER_ID)).thenReturn(Optional.of(spark));
+
+        channel.emit(event("ROLE_STARTED", "RESEARCHER"));
+        channel.emit(event("ROLE_COMPLETED", "RESEARCHER"));
+
+        verify(runRepo, times(1)).findById(RUN_ID);
+        verify(sparkRepo, times(1)).findByIdAndUserId(SPARK_ID, USER_ID);
+        verifyNoInteractions(linkRepo, queue);
+    }
+
+    @Test
+    void completeEvictsCache() {
+        // WHY: terminal event must drop the cached entry — otherwise late stray events
+        // for the same run would re-use a stale destination.
+        stubRun();
+        stubSparkWithProject();
+        when(linkRepo.findByProjectIdAndIsActiveTrue(PROJECT_ID))
+            .thenReturn(Optional.of(TelegramProjectLink.create(PROJECT_ID, CHAT_ID, USER_ID, "My Group")));
+        when(queue.enqueue(anyLong(), any(OutboundMessage.class))).thenReturn(true);
+
+        channel.emit(event("ROLE_STARTED", "RESEARCHER"));
+        channel.complete(RUN_ID);
+        channel.emit(event("PIPELINE_COMPLETED", null));
+
+        // Cache got cleared on complete(), so the next emit re-resolves.
+        verify(runRepo, times(2)).findById(RUN_ID);
+    }
+
+    @Test
+    void nullEventIsNoOp() {
+        channel.emit((PipelineCallbackEvent) null);
+        verifyNoInteractions(runRepo, sparkRepo, linkRepo, queue);
+    }
+
+    @Test
+    void nullPipelineRunIdIsNoOp() {
+        channel.emit(new PipelineCallbackEvent(null, "ROLE_STARTED", "PM", null, null));
         verifyNoInteractions(runRepo, sparkRepo, linkRepo, queue);
     }
 
     // ---- helpers -----------------------------------------------------------
+
+    private static PipelineCallbackEvent event(String type, String role) {
+        return new PipelineCallbackEvent(RUN_ID, type, role, role, null);
+    }
 
     private void stubRun() {
         PipelineRun run = PipelineRun.create(USER_ID, SPARK_ID, "do it", "repo", "FULL_PDLC", List.of(), 50.0);

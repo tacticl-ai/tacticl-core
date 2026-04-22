@@ -1,24 +1,30 @@
 package io.tacticl.business.telegram.pipeline;
 
+import io.tacticl.business.pipeline.dto.PipelineCallbackEvent;
 import io.tacticl.client.telegram.dto.InlineKeyboardButton;
 import io.tacticl.client.telegram.dto.InlineKeyboardMarkup;
 import io.tacticl.client.telegram.dto.SendMessageRequest;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Formats PDLC pipeline events emitted by {@code PipelineEventEmitter} into Telegram
  * {@link SendMessageRequest} payloads. Emits MarkdownV2 text and, for checkpoint events,
  * an inline keyboard with approve/changes/reject actions.
  *
- * <p>Pure formatter: no I/O, no project lookup — {@code TelegramEventChannel} (Wave 2)
- * is responsible for resolving chat/thread ids and enqueueing.
+ * <p>Reads role/phase/eventType as first-class fields from {@link PipelineCallbackEvent}.
+ * The {@code payloadJson} string is only parsed for events that actually need a payload
+ * field (checkpoint id, artifact path, failure reason) — the hot path of role events
+ * avoids JSON parsing entirely.
+ *
+ * <p>Pure formatter: no I/O, no project lookup — {@code TelegramEventChannel} is
+ * responsible for resolving chat/thread ids and enqueueing.
  */
 @Component
 @ConditionalOnProperty(name = "tacticl.telegram.enabled", havingValue = "true")
@@ -37,33 +43,33 @@ public class TelegramMessageFormatter {
     /**
      * @param chatId          target Telegram chat id.
      * @param messageThreadId forum-topic thread id, or {@code null} for the main chat.
-     * @param eventName       PDLC event type (e.g. {@code ROLE_STARTED}, {@code CHECKPOINT_REQUESTED}).
-     * @param payload         event payload — {@link Map}, {@link JsonNode}, {@link String} (JSON) or {@code null}.
-     * @return zero or more ready-to-enqueue {@link SendMessageRequest}s. Unknown events return an empty list.
+     * @param event           callback event from the pipeline emitter. Carries eventType,
+     *                        role, phase as first-class fields; {@code payloadJson} is a
+     *                        raw JSON string (may be null/blank) parsed only when needed.
+     * @return zero or more ready-to-enqueue {@link SendMessageRequest}s. Unknown event
+     *         types return an empty list.
      */
     public List<SendMessageRequest> format(long chatId,
                                            Integer messageThreadId,
-                                           String eventName,
-                                           Object payload) {
-        if (eventName == null) {
+                                           PipelineCallbackEvent event) {
+        if (event == null || event.eventType() == null) {
             return List.of();
         }
-        JsonNode node = toJsonNode(payload);
-        return switch (eventName) {
+        return switch (event.eventType()) {
             case "PIPELINE_STARTED" ->
                 single(chatId, messageThreadId, "🚀 *Pipeline started*", null);
             case "ROLE_STARTED" ->
-                single(chatId, messageThreadId, formatRoleStarted(node), null);
+                single(chatId, messageThreadId, formatRoleStarted(event), null);
             case "ROLE_COMPLETED" ->
-                single(chatId, messageThreadId, formatRoleCompleted(node), null);
+                single(chatId, messageThreadId, formatRoleCompleted(event), null);
             case "ROLE_REWORK" ->
-                single(chatId, messageThreadId, formatRoleRework(node), null);
+                single(chatId, messageThreadId, formatRoleRework(event), null);
             case "CHECKPOINT_REQUESTED", "CHECKPOINT_PENDING", "REVIEWER_NEEDS_APPROVAL" ->
-                formatCheckpoint(chatId, messageThreadId, node);
+                formatCheckpoint(chatId, messageThreadId, event);
             case "PIPELINE_COMPLETED" ->
                 single(chatId, messageThreadId, "✅ *Pipeline completed*", null);
             case "PIPELINE_FAILED" ->
-                single(chatId, messageThreadId, formatPipelineFailed(node), null);
+                single(chatId, messageThreadId, formatPipelineFailed(event), null);
             case "PIPELINE_CANCELLED" ->
                 single(chatId, messageThreadId, "🛑 *Pipeline cancelled*", null);
             default -> List.of();
@@ -72,19 +78,22 @@ public class TelegramMessageFormatter {
 
     // ---- Event builders ----------------------------------------------------
 
-    private String formatRoleStarted(JsonNode payload) {
-        String role = asString(payload, "role", "ROLE");
-        String phase = asString(payload, "phase", null);
+    private String formatRoleStarted(PipelineCallbackEvent event) {
+        String role = firstNonBlank(event.role(), "ROLE");
+        String phase = event.phase();
         StringBuilder sb = new StringBuilder();
         sb.append("▶️ *").append(escape(role)).append("* started");
-        if (phase != null && !phase.isEmpty()) {
+        if (phase != null && !phase.isBlank()) {
             sb.append(" \\(").append(escape(phase)).append("\\)");
         }
         return sb.toString();
     }
 
-    private String formatRoleCompleted(JsonNode payload) {
-        String role = asString(payload, "role", "ROLE");
+    private String formatRoleCompleted(PipelineCallbackEvent event) {
+        String role = firstNonBlank(event.role(), "ROLE");
+        // WHY: role completion payload may carry a message + artifact reference.
+        // Parse once lazily — unlike role-started/ended, the payload here matters.
+        JsonNode payload = parsePayloadJson(event.payloadJson());
         String message = asString(payload, "message", null);
         String artifactPath = asString(payload, "artifactPath", null);
         String artifactUrl = asString(payload, "artifactUrl", null);
@@ -101,12 +110,13 @@ public class TelegramMessageFormatter {
         return applyLengthBudget(sb.toString(), fallbackUrl);
     }
 
-    private String formatRoleRework(JsonNode payload) {
-        String role = asString(payload, "role", "ROLE");
+    private String formatRoleRework(PipelineCallbackEvent event) {
+        String role = firstNonBlank(event.role(), "ROLE");
         return "🔁 *" + escape(role) + "* rework requested";
     }
 
-    private String formatPipelineFailed(JsonNode payload) {
+    private String formatPipelineFailed(PipelineCallbackEvent event) {
+        JsonNode payload = parsePayloadJson(event.payloadJson());
         String reason = asString(payload, "reason", null);
         if (reason == null || reason.isBlank()) {
             return "❌ *Pipeline failed*";
@@ -118,15 +128,18 @@ public class TelegramMessageFormatter {
     }
 
     private List<SendMessageRequest> formatCheckpoint(long chatId,
-                                                      Integer messageThreadId,
-                                                      JsonNode payload) {
+                                                     Integer messageThreadId,
+                                                     PipelineCallbackEvent event) {
+        // WHY: production payloadJson for checkpoint events embeds "checkpointId".
+        // Checkpoints are infrequent, so a full JSON parse here is fine.
+        JsonNode payload = parsePayloadJson(event.payloadJson());
         String checkpointId = asString(payload, "checkpointId", null);
-        String role = asString(payload, "role", "ROLE");
-        String phase = asString(payload, "phase", null);
+        String role = firstNonBlank(event.role(), "ROLE");
+        String phase = event.phase();
 
         StringBuilder sb = new StringBuilder();
         sb.append("⏸️ *Checkpoint:* ").append(escape(role));
-        if (phase != null && !phase.isEmpty()) {
+        if (phase != null && !phase.isBlank()) {
             sb.append(" \\(").append(escape(phase)).append("\\)");
         }
         sb.append("\n\nApprove, request changes, or reject:");
@@ -173,7 +186,9 @@ public class TelegramMessageFormatter {
 
     /**
      * Enforces the 4096-char cap. If text overflows, truncates and appends either the
-     * artifact URL (if provided) or an ellipsis.
+     * artifact URL (if provided) or an ellipsis. Ensures the cut does not land mid-escape
+     * (a trailing backslash would leave an unmatched MarkdownV2 escape and Telegram would
+     * reject the message).
      */
     private String applyLengthBudget(String text, String artifactUrl) {
         if (text.length() <= MAX_TEXT_LENGTH) {
@@ -188,6 +203,11 @@ public class TelegramMessageFormatter {
         int keep = MAX_TEXT_LENGTH - suffix.length();
         if (keep < 0) {
             keep = 0;
+        }
+        // WHY: if truncation lands on the backslash of an escape pair, drop the lone
+        // backslash so Telegram's MarkdownV2 parser doesn't reject "\\…" or "\\<eof>".
+        while (keep > 0 && text.charAt(keep - 1) == '\\') {
+            keep--;
         }
         return text.substring(0, keep) + suffix;
     }
@@ -217,6 +237,10 @@ public class TelegramMessageFormatter {
         return s.getBytes(StandardCharsets.UTF_8).length;
     }
 
+    private static String firstNonBlank(String s, String fallback) {
+        return (s == null || s.isBlank()) ? fallback : s;
+    }
+
     private static String asString(JsonNode node, String field, String fallback) {
         if (node == null || node.isMissingNode() || node.isNull()) {
             return fallback;
@@ -229,28 +253,15 @@ public class TelegramMessageFormatter {
         return s.isEmpty() ? fallback : s;
     }
 
-    /** Accepts Map, JsonNode, JSON string, or null — normalises to a JsonNode view. */
-    private static JsonNode toJsonNode(Object payload) {
-        if (payload == null) {
+    /** Parses a raw JSON string into a JsonNode. Returns a null-node for blank or invalid input. */
+    private static JsonNode parsePayloadJson(String payloadJson) {
+        if (payloadJson == null || payloadJson.isBlank()) {
             return JSON.nullNode();
         }
-        if (payload instanceof JsonNode jn) {
-            return jn;
+        try {
+            return JSON.readTree(payloadJson);
+        } catch (JacksonException e) {
+            return JSON.nullNode();
         }
-        if (payload instanceof String s) {
-            if (s.isBlank()) {
-                return JSON.nullNode();
-            }
-            try {
-                return JSON.readTree(s);
-            } catch (Exception e) {
-                return JSON.nullNode();
-            }
-        }
-        if (payload instanceof Map<?, ?> map) {
-            return JSON.valueToTree(map);
-        }
-        return JSON.valueToTree(payload);
     }
-
 }
