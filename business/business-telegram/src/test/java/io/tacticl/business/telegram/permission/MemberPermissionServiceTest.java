@@ -6,6 +6,7 @@ import io.tacticl.data.telegram.entity.TelegramProjectLink;
 import io.tacticl.data.telegram.repository.TelegramMemberGrantRepository;
 import io.tacticl.data.telegram.repository.TelegramProjectLinkRepository;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.Optional;
 
@@ -70,5 +71,71 @@ class MemberPermissionServiceTest {
         var svc = new MemberPermissionService(projRepo, grantRepo);
         PermissionCheck c = svc.require(1L, "u-observer", MemberRole.RUNNER);
         assertFalse(c.allowed());
+    }
+
+    @Test
+    void requireAllowsWhenRoleAtLeastMinimum() {
+        var projRepo = mock(TelegramProjectLinkRepository.class);
+        var grantRepo = mock(TelegramMemberGrantRepository.class);
+        var link = TelegramProjectLink.create("p-1", 1L, "u-owner", "G");
+        when(projRepo.findByChatIdAndIsActiveTrue(1L)).thenReturn(Optional.of(link));
+        var existing = TelegramMemberGrant.create("p-1", 1L, "u-runner", 40L, MemberRole.RUNNER, "u-owner");
+        when(grantRepo.findByProjectIdAndTacticlUserIdAndIsActiveTrue("p-1", "u-runner"))
+            .thenReturn(Optional.of(existing));
+
+        var svc = new MemberPermissionService(projRepo, grantRepo);
+        PermissionCheck c = svc.require(1L, "u-runner", MemberRole.CONTRIBUTOR);
+        assertTrue(c.allowed());
+    }
+
+    @Test
+    void revokeSoftDeletesExistingGrant() {
+        var projRepo = mock(TelegramProjectLinkRepository.class);
+        var grantRepo = mock(TelegramMemberGrantRepository.class);
+        var link = TelegramProjectLink.create("p-1", 1L, "u-owner", "G");
+        when(projRepo.findByChatIdAndIsActiveTrue(1L)).thenReturn(Optional.of(link));
+        var existing = TelegramMemberGrant.create("p-1", 1L, "u-x", 20L, MemberRole.RUNNER, "u-owner");
+        when(grantRepo.findByProjectIdAndTacticlUserIdAndIsActiveTrue("p-1", "u-x"))
+            .thenReturn(Optional.of(existing));
+
+        var svc = new MemberPermissionService(projRepo, grantRepo);
+        svc.revoke(1L, "u-x");
+
+        assertFalse(existing.isActive());
+        verify(grantRepo).save(existing);
+    }
+
+    @Test
+    void grantNewMemberInserts() {
+        var projRepo = mock(TelegramProjectLinkRepository.class);
+        var grantRepo = mock(TelegramMemberGrantRepository.class);
+        var link = TelegramProjectLink.create("p-1", 1L, "u-owner", "G");
+        when(projRepo.findByChatIdAndIsActiveTrue(1L)).thenReturn(Optional.of(link));
+        when(grantRepo.findByProjectIdAndTacticlUserIdAndIsActiveTrue("p-1", "u-new"))
+            .thenReturn(Optional.empty());
+
+        var svc = new MemberPermissionService(projRepo, grantRepo);
+        svc.grant(1L, "u-new", 30L, MemberRole.CONTRIBUTOR, "u-owner");
+
+        ArgumentCaptor<TelegramMemberGrant> captor = ArgumentCaptor.forClass(TelegramMemberGrant.class);
+        verify(grantRepo).save(captor.capture());
+        TelegramMemberGrant saved = captor.getValue();
+        assertEquals(MemberRole.CONTRIBUTOR, saved.getRole());
+        assertEquals("u-new", saved.getTacticlUserId());
+        assertEquals(30L, saved.getTelegramUserId());
+    }
+
+    @Test
+    void grantToOwnerShortCircuits() {
+        var projRepo = mock(TelegramProjectLinkRepository.class);
+        var grantRepo = mock(TelegramMemberGrantRepository.class);
+        var link = TelegramProjectLink.create("p-1", 1L, "u-owner", "G");
+        when(projRepo.findByChatIdAndIsActiveTrue(1L)).thenReturn(Optional.of(link));
+
+        var svc = new MemberPermissionService(projRepo, grantRepo);
+        svc.grant(1L, "u-owner", 10L, MemberRole.RUNNER, "u-owner");
+
+        verify(grantRepo, never()).save(any());
+        verify(grantRepo, never()).findByProjectIdAndTacticlUserIdAndIsActiveTrue(anyString(), anyString());
     }
 }

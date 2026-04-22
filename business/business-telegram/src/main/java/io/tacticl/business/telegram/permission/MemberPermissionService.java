@@ -43,6 +43,9 @@ public class MemberPermissionService {
     public void grant(long chatId, String tacticlUserId, long telegramUserId, MemberRole role, String grantedBy) {
         TelegramProjectLink project = projectRepo.findByChatIdAndIsActiveTrue(chatId)
             .orElseThrow(() -> new IllegalStateException("No active project for chatId " + chatId));
+        if (project.getOwnerUserId().equals(tacticlUserId)) {
+            return;  // owner role is inferred from project link; no grant row needed
+        }
         grantRepo.findByProjectIdAndTacticlUserIdAndIsActiveTrue(project.getProjectId(), tacticlUserId)
             .ifPresentOrElse(
                 g -> { g.updateRole(role, grantedBy); grantRepo.save(g); },
