@@ -14,10 +14,15 @@ RUN mkdir -p /opt/playwright
 
 WORKDIR /app
 
+# Download OpenTelemetry Java agent for automatic instrumentation
+ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.25.0/opentelemetry-javaagent.jar /app/opentelemetry-javaagent.jar
+RUN chmod 644 /app/opentelemetry-javaagent.jar
+
 COPY application-api/build/libs/application-api.jar app.jar
 # Note: Playwright Chromium install removed — business-browser module not active.
 # System libs above are kept so the image is ready when it's re-enabled.
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Attach OpenTelemetry agent with -javaagent flag
+ENTRYPOINT ["java", "-javaagent:/app/opentelemetry-javaagent.jar", "-jar", "app.jar"]
