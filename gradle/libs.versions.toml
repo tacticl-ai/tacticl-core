@@ -50,7 +50,6 @@ cidadel-framework-ai-engine = { module = "io.cidadel:framework-ai-engine", versi
 cidadel-business-ai-engine = { module = "io.cidadel:business-ai-engine", version.ref = "cidadel" }
 cidadel-service-ai-engine = { module = "io.cidadel:service-ai-engine", version.ref = "cidadel" }
 cidadel-client-claude-code = { module = "io.cidadel:client-claude-code", version.ref = "cidadel" }
-cidadel-client-codex = { module = "io.cidadel:client-codex", version.ref = "cidadel" }
 
 # External
 bucket4j-core = { module = "com.bucket4j:bucket4j-core", version.ref = "bucket4j" }
