@@ -3,6 +3,19 @@ plugins {
     alias(libs.plugins.spring.dependency.management)
 }
 
+springBoot {
+    buildInfo {
+        properties {
+            additional.put("git.sha", providers.exec {
+                commandLine("git", "rev-parse", "HEAD")
+            }.standardOutput.asText.map { it.trim() }.orElse("unknown"))
+            additional.put("git.shortSha", providers.exec {
+                commandLine("git", "rev-parse", "--short", "HEAD")
+            }.standardOutput.asText.map { it.trim() }.orElse("unknown"))
+        }
+    }
+}
+
 dependencies {
     // Service layer
     implementation(project(":service:service-agent"))
