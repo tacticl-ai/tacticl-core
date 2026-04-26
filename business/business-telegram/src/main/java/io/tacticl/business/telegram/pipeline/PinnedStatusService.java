@@ -2,9 +2,11 @@ package io.tacticl.business.telegram.pipeline;
 
 import io.tacticl.business.telegram.command.ProjectPipelineSummaryProvider;
 import io.tacticl.business.telegram.command.ProjectPipelineSummaryProvider.ProjectPipelineSummary;
+import io.tacticl.business.telegram.outbound.TelegramRateLimiter;
 import io.tacticl.client.telegram.TelegramBotClient;
 import io.tacticl.client.telegram.dto.SendMessageRequest;
 import io.tacticl.client.telegram.dto.SendMessageResponse;
+import io.tacticl.data.telegram.entity.ProjectStatus;
 import io.tacticl.data.telegram.entity.TelegramProjectLink;
 import io.tacticl.data.telegram.repository.TelegramProjectLinkRepository;
 import org.slf4j.Logger;
@@ -40,6 +42,10 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * <p>Bot API failures are logged and the pending entry is dropped — never retried —
  * so one bad chat cannot wedge the drain loop for the rest.
+ *
+ * <p>Per-chat rate limiting goes through the shared {@link TelegramRateLimiter}, the
+ * same gate {@code OutboundDrainer} consults. That keeps the queue-routed traffic
+ * and these direct status edits collectively under Telegram's 1 msg/s/chat ceiling.
  */
 @Component
 @ConditionalOnProperty(name = "tacticl.telegram.enabled", havingValue = "true")
@@ -56,6 +62,7 @@ public class PinnedStatusService {
     private final TelegramBotClient bot;
     private final TelegramProjectLinkRepository projectRepo;
     private final Optional<ProjectPipelineSummaryProvider> summaryProvider;
+    private final TelegramRateLimiter rateLimiter;
     private final Clock clock;
 
     private final ConcurrentHashMap<Long, AtomicReference<PendingStatus>> pending = new ConcurrentHashMap<>();
@@ -63,18 +70,21 @@ public class PinnedStatusService {
     @Autowired
     public PinnedStatusService(TelegramBotClient bot,
                                TelegramProjectLinkRepository projectRepo,
-                               Optional<ProjectPipelineSummaryProvider> summaryProvider) {
-        this(bot, projectRepo, summaryProvider, Clock.systemUTC());
+                               Optional<ProjectPipelineSummaryProvider> summaryProvider,
+                               TelegramRateLimiter rateLimiter) {
+        this(bot, projectRepo, summaryProvider, rateLimiter, Clock.systemUTC());
     }
 
     // Package-private ctor for tests — allows a deterministic clock without a dedicated bean.
     PinnedStatusService(TelegramBotClient bot,
                         TelegramProjectLinkRepository projectRepo,
                         Optional<ProjectPipelineSummaryProvider> summaryProvider,
+                        TelegramRateLimiter rateLimiter,
                         Clock clock) {
         this.bot = bot;
         this.projectRepo = projectRepo;
         this.summaryProvider = summaryProvider;
+        this.rateLimiter = rateLimiter;
         this.clock = clock;
     }
 
@@ -134,18 +144,38 @@ public class PinnedStatusService {
             return;
         }
         TelegramProjectLink link = linkOpt.get();
+        // WHY: mirror TelegramEventChannel's ACTIVE-only gate — archived/orphaned projects
+        // must not get fan-out from any Telegram code path.
+        if (link.getStatus() != ProjectStatus.ACTIVE) {
+            return;
+        }
         ProjectPipelineSummary summary = summaryProvider.get().summarize(link.getProjectId());
         if (summary == null) {
             return;
         }
         String content = renderContent(summary);
+        // WHY: when the rate limiter denies, the pending entry has already been removed
+        // in drain()'s finally block — so this flush silently drops. The next pipeline
+        // event will requestStatusUpdate → drain → retry. Acceptable because pipeline
+        // events arrive frequently during active execution and the pinned message is
+        // eventually-consistent; one missed edit is invisible. The alternative
+        // (re-queueing on rate-limit fail) introduces unbounded retry complexity for
+        // negligible UX gain.
         if (link.getPinnedStatusMessageId() == null) {
+            // Two Telegram calls (sendMessage + pinChatMessage) — acquire twice. If the
+            // second acquire fails, the message is sent but not pinned; we still persist
+            // pinnedStatusMessageId so the next drain attempts editMessageText (not a
+            // duplicate send) and the pin can be re-attempted manually if needed.
+            if (!rateLimiter.tryAcquire(chatId)) return;
             SendMessageResponse response = bot.sendMessage(SendMessageRequest.plain(chatId, content));
             long messageId = response.message_id();
-            bot.pinChatMessage(chatId, messageId);
             link.setPinnedStatusMessageId(messageId);
             projectRepo.save(link);
+            if (rateLimiter.tryAcquire(chatId)) {
+                bot.pinChatMessage(chatId, messageId);
+            }
         } else {
+            if (!rateLimiter.tryAcquire(chatId)) return;
             bot.editMessageText(chatId, link.getPinnedStatusMessageId(), content, null);
         }
     }

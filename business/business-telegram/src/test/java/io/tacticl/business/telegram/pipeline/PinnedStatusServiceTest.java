@@ -2,6 +2,7 @@ package io.tacticl.business.telegram.pipeline;
 
 import io.tacticl.business.telegram.command.ProjectPipelineSummaryProvider;
 import io.tacticl.business.telegram.command.ProjectPipelineSummaryProvider.ProjectPipelineSummary;
+import io.tacticl.business.telegram.outbound.TelegramRateLimiter;
 import io.tacticl.client.telegram.TelegramBotClient;
 import io.tacticl.client.telegram.dto.SendMessageRequest;
 import io.tacticl.client.telegram.dto.SendMessageResponse;
@@ -40,6 +41,7 @@ class PinnedStatusServiceTest {
     private TelegramBotClient bot;
     private TelegramProjectLinkRepository projectRepo;
     private ProjectPipelineSummaryProvider summaryProvider;
+    private TelegramRateLimiter rateLimiter;
     private MutableClock clock;
     private PinnedStatusService service;
 
@@ -48,8 +50,11 @@ class PinnedStatusServiceTest {
         bot = mock(TelegramBotClient.class);
         projectRepo = mock(TelegramProjectLinkRepository.class);
         summaryProvider = mock(ProjectPipelineSummaryProvider.class);
+        rateLimiter = mock(TelegramRateLimiter.class);
+        // Default: rate limiter never denies — keeps existing tests honest about debounce, not pacing.
+        when(rateLimiter.tryAcquire(anyLong())).thenReturn(true);
         clock = new MutableClock(Instant.parse("2026-04-22T10:00:00Z"));
-        service = new PinnedStatusService(bot, projectRepo, Optional.of(summaryProvider), clock);
+        service = new PinnedStatusService(bot, projectRepo, Optional.of(summaryProvider), rateLimiter, clock);
     }
 
     @Test
@@ -173,7 +178,7 @@ class PinnedStatusServiceTest {
 
     @Test
     void summaryProviderEmpty_dropsPending() {
-        service = new PinnedStatusService(bot, projectRepo, Optional.empty(), clock);
+        service = new PinnedStatusService(bot, projectRepo, Optional.empty(), rateLimiter, clock);
         TelegramProjectLink link = newLink(CHAT_ID, PROJECT_ID, null);
         when(projectRepo.findByChatIdAndIsActiveTrue(CHAT_ID)).thenReturn(Optional.of(link));
 
@@ -211,6 +216,7 @@ class PinnedStatusServiceTest {
 
         verify(projectRepo, never()).save(any());
         verify(bot, never()).editMessageText(anyLong(), anyLong(), anyString(), any());
+        verify(bot, never()).pinChatMessage(anyLong(), anyLong());
         // Drain again; pending must be cleared so no further findByChatId lookup.
         service.drain();
         verify(projectRepo, times(1)).findByChatIdAndIsActiveTrue(CHAT_ID);
@@ -276,6 +282,100 @@ class PinnedStatusServiceTest {
         service.drain();
         verifyNoInteractions(bot);
         verifyNoInteractions(projectRepo);
+    }
+
+    @Test
+    void rateLimitedFlush_skipsBotEntirely() {
+        TelegramProjectLink link = newLink(CHAT_ID, PROJECT_ID, 555L);
+        when(projectRepo.findByChatIdAndIsActiveTrue(CHAT_ID)).thenReturn(Optional.of(link));
+        when(summaryProvider.summarize(PROJECT_ID)).thenReturn(
+            new ProjectPipelineSummary(1, Instant.now(), BigDecimal.ZERO));
+        // Limiter denies for this chat — flush must skip without calling the bot.
+        when(rateLimiter.tryAcquire(CHAT_ID)).thenReturn(false);
+
+        service.requestStatusUpdate(CHAT_ID);
+        clock.advanceMillis(3_000L);
+        service.drain();
+
+        verify(bot, never()).sendMessage(any());
+        verify(bot, never()).editMessageText(anyLong(), anyLong(), anyString(), any());
+        verify(bot, never()).pinChatMessage(anyLong(), anyLong());
+
+        // Pending entry must have been removed in drain()'s finally block — second drain
+        // must NOT re-attempt the lookup, so no second call to the repo.
+        service.drain();
+        verify(projectRepo, times(1)).findByChatIdAndIsActiveTrue(CHAT_ID);
+    }
+
+    @Test
+    void firstRequest_secondAcquireFailsForPin_messageSentButNotPinned() {
+        TelegramProjectLink link = newLink(CHAT_ID, PROJECT_ID, null);
+        when(projectRepo.findByChatIdAndIsActiveTrue(CHAT_ID)).thenReturn(Optional.of(link));
+        when(summaryProvider.summarize(PROJECT_ID)).thenReturn(
+            new ProjectPipelineSummary(2, Instant.parse("2026-04-22T09:55:00Z"), new BigDecimal("0.10")));
+        when(bot.sendMessage(any())).thenReturn(sendResponse(555L));
+        // First acquire (sendMessage) wins; second acquire (pinChatMessage) loses.
+        when(rateLimiter.tryAcquire(CHAT_ID)).thenReturn(true, false);
+
+        service.requestStatusUpdate(CHAT_ID);
+        clock.advanceMillis(3_000L);
+        service.drain();
+
+        verify(bot, times(1)).sendMessage(any());
+        verify(bot, never()).pinChatMessage(anyLong(), anyLong());
+        // Persisting the messageId is critical: next drain must editMessageText, not re-send.
+        assertThat(link.getPinnedStatusMessageId()).isEqualTo(555L);
+        verify(projectRepo, times(1)).save(link);
+    }
+
+    @Test
+    void archivedProject_skipsFlush() {
+        TelegramProjectLink link = newLink(CHAT_ID, PROJECT_ID, 555L);
+        link.archive();
+        when(projectRepo.findByChatIdAndIsActiveTrue(CHAT_ID)).thenReturn(Optional.of(link));
+
+        service.requestStatusUpdate(CHAT_ID);
+        clock.advanceMillis(3_000L);
+        service.drain();
+
+        verifyNoInteractions(bot);
+        verifyNoInteractions(summaryProvider);
+        verify(projectRepo, never()).save(any());
+    }
+
+    @Test
+    void orphanedProject_skipsFlush() {
+        TelegramProjectLink link = newLink(CHAT_ID, PROJECT_ID, 555L);
+        link.orphan();
+        when(projectRepo.findByChatIdAndIsActiveTrue(CHAT_ID)).thenReturn(Optional.of(link));
+
+        service.requestStatusUpdate(CHAT_ID);
+        clock.advanceMillis(3_000L);
+        service.drain();
+
+        verifyNoInteractions(bot);
+        verifyNoInteractions(summaryProvider);
+        verify(projectRepo, never()).save(any());
+    }
+
+    @Test
+    void nullSummaryFields_rendersEmDashesAndZero() {
+        TelegramProjectLink link = newLink(CHAT_ID, PROJECT_ID, 555L);
+        when(projectRepo.findByChatIdAndIsActiveTrue(CHAT_ID)).thenReturn(Optional.of(link));
+        // Both lastActivity and costToDate null — exercise renderContent fallback branches.
+        when(summaryProvider.summarize(PROJECT_ID)).thenReturn(
+            new ProjectPipelineSummary(0, null, null));
+
+        service.requestStatusUpdate(CHAT_ID);
+        clock.advanceMillis(3_000L);
+        service.drain();
+
+        ArgumentCaptor<String> text = ArgumentCaptor.forClass(String.class);
+        verify(bot).editMessageText(eq(CHAT_ID), eq(555L), text.capture(), isNull());
+        assertThat(text.getValue())
+            .contains("Last activity: —")
+            .contains("$0.00")
+            .contains("Active sparks: 0");
     }
 
     private static TelegramProjectLink newLink(long chatId, String projectId, Long pinnedId) {

@@ -7,42 +7,36 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.function.LongSupplier;
-
 @Component
 @ConditionalOnProperty(name = "tacticl.telegram.enabled", havingValue = "true")
 public class OutboundDrainer {
 
     private static final Logger logger = LoggerFactory.getLogger(OutboundDrainer.class);
-    private static final long PER_CHAT_MIN_INTERVAL_MS = 1_000L;
 
     private final TelegramOutboundQueue queue;
     private final TelegramBotClient bot;
-    private final LongSupplier clock;
-    private final ConcurrentMap<Long, Long> lastSentMs = new ConcurrentHashMap<>();
+    private final TelegramRateLimiter rateLimiter;
 
-    public OutboundDrainer(TelegramOutboundQueue queue, TelegramBotClient bot) {
-        this(queue, bot, System::currentTimeMillis);
-    }
-
-    OutboundDrainer(TelegramOutboundQueue queue, TelegramBotClient bot, LongSupplier clock) {
+    public OutboundDrainer(TelegramOutboundQueue queue,
+                           TelegramBotClient bot,
+                           TelegramRateLimiter rateLimiter) {
         this.queue = queue;
         this.bot = bot;
-        this.clock = clock;
+        this.rateLimiter = rateLimiter;
     }
 
     @Scheduled(fixedDelayString = "${tacticl.telegram.outbound.drain-ms:50}")
     public void drain() {
-        long now = clock.getAsLong();
         for (long chatId : queue.activeChatIds()) {
-            long last = lastSentMs.getOrDefault(chatId, 0L);
-            if (now - last < PER_CHAT_MIN_INTERVAL_MS) continue;
+            // WHY: tryAcquire reserves the slot before we poll, so a slow bot.sendMessage
+            // does not push the next chat's wait beyond the configured 1 s window.
+            // PinnedStatusService consults the same limiter — that is the whole point of
+            // sharing the bean: two unrelated outbound paths never collectively breach
+            // Telegram's 1 msg/s/chat ceiling.
+            if (!rateLimiter.tryAcquire(chatId)) continue;
             queue.poll(chatId).ifPresent(msg -> {
                 try {
                     bot.sendMessage(msg.request());
-                    lastSentMs.put(chatId, now);
                 } catch (RuntimeException e) {
                     logger.error("Outbound send failed for chat {}", chatId, e);
                 }

@@ -135,6 +135,9 @@ class InitCommandTest {
                 .contains("Already linked")
                 .contains("proj-123");
         verify(projectRepo, never()).save(any());
+        // WHY: re-running /init on a claimed group must NOT touch the bot. Locks in
+        // the contract that already-linked groups never trigger forum-topic creation.
+        verify(bot, never()).createForumTopic(anyLong(), anyString());
     }
 
     @Test
