@@ -64,6 +64,28 @@ class TelegramProjectRepositoriesIntegrationTest {
     }
 
     @Test
+    void concurrentActiveLinkInsertion_violatesUniqueIndex() {
+        // Models the race: two concurrent /init handlers each see no existing link
+        // and proceed to insert. The partial unique index must reject the second write.
+        projectRepo.save(TelegramProjectLink.create("p-1", 500L, "u-a", "Group A"));
+        var racingInsert = TelegramProjectLink.create("p-2", 500L, "u-b", "Group B");
+        assertThatThrownBy(() -> projectRepo.save(racingInsert))
+                .isInstanceOf(DuplicateKeyException.class);
+    }
+
+    @Test
+    void archivedThenReactivated_doesNotViolateIndex() {
+        // /archive then re-/init must succeed: the inactive row is excluded from
+        // the partial filter, so a new active row for the same chatId is permitted.
+        var first = projectRepo.save(TelegramProjectLink.create("p-1", 600L, "u-a", "Group A"));
+        first.delete();
+        projectRepo.save(first);
+        var reinit = projectRepo.save(TelegramProjectLink.create("p-2", 600L, "u-b", "Group B"));
+        assertThat(reinit.getId()).isNotEqualTo(first.getId());
+        assertThat(reinit.isActive()).isTrue();
+    }
+
+    @Test
     void findByChatIdReturnsMatch() {
         projectRepo.save(TelegramProjectLink.create("p-1", 200L, "u-a", "G"));
         var found = projectRepo.findByChatIdAndIsActiveTrue(200L);

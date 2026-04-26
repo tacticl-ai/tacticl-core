@@ -3,6 +3,7 @@ package io.tacticl.data.telegram.entity;
 import io.tacticl.data.connections.base.BaseMongoEntity;
 import io.tacticl.data.pipeline.entity.PdlcRole;
 import org.springframework.data.annotation.Version;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -10,10 +11,18 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 
+// Partial unique index ensures concurrent /init in the same chat cannot create
+// two simultaneously-active links, while still allowing archived rows to coexist
+// with a freshly re-initialized link for the same chatId.
 @Document("telegram_project_links")
+@CompoundIndex(
+    name = "chat_active_unique",
+    def = "{'chatId': 1, 'isActive': 1}",
+    unique = true,
+    partialFilter = "{ 'isActive': true }"
+)
 public class TelegramProjectLink extends BaseMongoEntity {
 
-    @Indexed(unique = true, partialFilter = "{ 'isActive': true }")
     private long chatId;
 
     @Indexed
