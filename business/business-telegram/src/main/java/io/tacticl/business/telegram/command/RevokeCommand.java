@@ -64,6 +64,11 @@ public class RevokeCommand implements CommandHandler {
     }
 
     @Override
+    public String description() {
+        return "Revoke a member's role";
+    }
+
+    @Override
     public void handle(CommandContext ctx) {
         long chatId = ctx.chatId();
 

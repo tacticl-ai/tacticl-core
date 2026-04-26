@@ -52,6 +52,11 @@ public class SparkCommand implements CommandHandler {
     }
 
     @Override
+    public String description() {
+        return "Start a project spark";
+    }
+
+    @Override
     public void handle(CommandContext ctx) {
         long chatId = ctx.chatId();
 

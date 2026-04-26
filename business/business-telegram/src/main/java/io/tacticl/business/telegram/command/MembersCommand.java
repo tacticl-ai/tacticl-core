@@ -62,6 +62,11 @@ public class MembersCommand implements CommandHandler {
     }
 
     @Override
+    public String description() {
+        return "List project members";
+    }
+
+    @Override
     public void handle(CommandContext ctx) {
         long chatId = ctx.chatId();
 

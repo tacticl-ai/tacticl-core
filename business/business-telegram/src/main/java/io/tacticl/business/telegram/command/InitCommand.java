@@ -82,6 +82,11 @@ public class InitCommand implements CommandHandler {
     }
 
     @Override
+    public String description() {
+        return "Claim this group as a Tacticl project";
+    }
+
+    @Override
     public void handle(CommandContext ctx) {
         Optional<String> tacticlUserId = identity.resolveByChatId(ctx.telegramUserId());
         if (tacticlUserId.isEmpty()) {

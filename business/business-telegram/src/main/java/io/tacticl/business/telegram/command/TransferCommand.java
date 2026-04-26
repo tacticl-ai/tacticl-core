@@ -70,6 +70,11 @@ public class TransferCommand implements CommandHandler {
     }
 
     @Override
+    public String description() {
+        return "Transfer project ownership";
+    }
+
+    @Override
     public void handle(CommandContext ctx) {
         long chatId = ctx.chatId();
 

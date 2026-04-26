@@ -25,6 +25,17 @@ public interface CommandHandler {
     /** The chat scope in which this handler is valid. */
     Scope scope();
 
+    /**
+     * Short human-readable description shown in Telegram's command picker
+     * (BotFather convention: ≤30 chars, no leading slash, no trailing period).
+     *
+     * <p>Defaults to {@link #commandName()} so handlers compile without changes;
+     * override per-handler with proper user-facing text.
+     */
+    default String description() {
+        return commandName();
+    }
+
     /** Execute the command. */
     void handle(CommandContext ctx);
 }

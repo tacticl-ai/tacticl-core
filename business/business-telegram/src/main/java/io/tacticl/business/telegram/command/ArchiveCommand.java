@@ -62,6 +62,11 @@ public class ArchiveCommand implements CommandHandler {
     }
 
     @Override
+    public String description() {
+        return "Archive this project";
+    }
+
+    @Override
     public void handle(CommandContext ctx) {
         long chatId = ctx.chatId();
 

@@ -67,6 +67,11 @@ public class LeaveCommand implements CommandHandler {
     }
 
     @Override
+    public String description() {
+        return "Archive project and leave group";
+    }
+
+    @Override
     public void handle(CommandContext ctx) {
         long chatId = ctx.chatId();
 

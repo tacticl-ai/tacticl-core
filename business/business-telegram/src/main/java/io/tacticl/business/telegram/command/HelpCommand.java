@@ -53,6 +53,11 @@ public class HelpCommand implements CommandHandler {
     }
 
     @Override
+    public String description() {
+        return "Show available commands";
+    }
+
+    @Override
     public void handle(CommandContext ctx) {
         long chatId = ctx.chatId();
 

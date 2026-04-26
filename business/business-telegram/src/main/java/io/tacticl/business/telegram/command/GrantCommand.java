@@ -76,6 +76,11 @@ public class GrantCommand implements CommandHandler {
     }
 
     @Override
+    public String description() {
+        return "Grant a role to a member";
+    }
+
+    @Override
     public void handle(CommandContext ctx) {
         long chatId = ctx.chatId();
 

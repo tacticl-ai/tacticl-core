@@ -61,6 +61,11 @@ public class StatusCommand implements CommandHandler {
     }
 
     @Override
+    public String description() {
+        return "Show project status";
+    }
+
+    @Override
     public void handle(CommandContext ctx) {
         long chatId = ctx.chatId();
 
