@@ -47,7 +47,6 @@ public class CorsFilter implements Filter {
 	private boolean isAllowedOrigin(String origin) {
 		return origin.matches("http://localhost:\\d+") || origin.matches("https://localhost:\\d+")
 				|| origin.matches("https://.*\\.tacticl\\.ai") || origin.equals("https://tacticl.ai")
-				|| origin.matches("https://.*\\.web\\.app") || origin.matches("https://.*\\.firebaseapp\\.com")
 				|| origin.matches("https://.*\\.run\\.app");
 	}
 
