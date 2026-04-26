@@ -44,7 +44,7 @@ class GroupMembershipHandlerTest {
         long chatId = -100L;
         var bot = new User(999L, true, BOT_USERNAME, "Tacticl");
         var update = new ChatMemberUpdate(
-            new Chat(chatId, "group", null, null, null),
+            new Chat(chatId, "group", null, null, null, false),
             bot,
             0L,
             new ChatMember("left", bot),
@@ -65,7 +65,7 @@ class GroupMembershipHandlerTest {
         long chatId = -100L;
         var bot = new User(999L, true, BOT_USERNAME, "Tacticl");
         var update = new ChatMemberUpdate(
-            new Chat(chatId, "group", null, null, null),
+            new Chat(chatId, "group", null, null, null, false),
             bot,
             0L,
             new ChatMember("administrator", bot),
@@ -87,7 +87,7 @@ class GroupMembershipHandlerTest {
         long chatId = -100L;
         var otherUser = new User(42L, false, "alice", "Alice");
         var update = new ChatMemberUpdate(
-            new Chat(chatId, "group", null, null, null),
+            new Chat(chatId, "group", null, null, null, false),
             otherUser,
             0L,
             new ChatMember("left", otherUser),
@@ -106,7 +106,7 @@ class GroupMembershipHandlerTest {
         long chatId = -100L;
         var bot = new User(999L, true, BOT_USERNAME, "Tacticl");
         var update = new ChatMemberUpdate(
-            new Chat(chatId, "group", null, null, null),
+            new Chat(chatId, "group", null, null, null, false),
             bot,
             0L,
             new ChatMember("member", bot),

@@ -53,7 +53,7 @@ class LeaveCommandTest {
     }
 
     private static CommandContext groupCtx(String text) {
-        Chat chat = new Chat(CHAT_ID, "group", null, null, "My Group");
+        Chat chat = new Chat(CHAT_ID, "group", null, null, "My Group", false);
         Message msg = new Message(
                 1L, 0L, chat, null, text,
                 null, null, null, null,

@@ -1,11 +1,15 @@
 package io.tacticl.business.telegram.command;
 
+import io.cidadel.framework.exception.CidadelException;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
 import io.tacticl.business.telegram.outbound.TelegramOutboundQueue;
 import io.tacticl.business.telegram.router.CommandContext;
 import io.tacticl.business.telegram.router.CommandHandler;
+import io.tacticl.client.telegram.TelegramBotClient;
+import io.tacticl.client.telegram.dto.ForumTopic;
 import io.tacticl.client.telegram.dto.SendMessageRequest;
+import io.tacticl.data.pipeline.entity.PdlcRole;
 import io.tacticl.data.telegram.entity.TelegramProjectLink;
 import io.tacticl.data.telegram.repository.TelegramProjectLinkRepository;
 import org.slf4j.Logger;
@@ -13,6 +17,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,8 +32,9 @@ import java.util.UUID;
  *       and abort (no project is created).</li>
  *   <li>If the group already has an active {@link TelegramProjectLink} → reply
  *       in the group with the existing project id and abort.</li>
- *   <li>Otherwise persist a new link and post a welcome message citing the
- *       owner and the available command set.</li>
+ *   <li>Otherwise persist a new link, auto-create one forum topic per
+ *       {@link PdlcRole} when the chat is a forum supergroup, and post a
+ *       welcome message citing the owner and the available command set.</li>
  * </ol>
  *
  * <p>V1 generates a random UUID as the project id. A dedicated Project entity
@@ -45,13 +52,16 @@ public class InitCommand implements CommandHandler {
     private final TelegramIdentityResolver identity;
     private final TelegramProjectLinkRepository projectRepo;
     private final TelegramOutboundQueue outbound;
+    private final TelegramBotClient bot;
 
     public InitCommand(TelegramIdentityResolver identity,
                        TelegramProjectLinkRepository projectRepo,
-                       TelegramOutboundQueue outbound) {
+                       TelegramOutboundQueue outbound,
+                       TelegramBotClient bot) {
         this.identity = identity;
         this.projectRepo = projectRepo;
         this.outbound = outbound;
+        this.bot = bot;
     }
 
     @Override
@@ -91,6 +101,30 @@ public class InitCommand implements CommandHandler {
         projectRepo.save(link);
         logger.info("Project {} claimed by {} for chat {}",
                 projectId, tacticlUserId.get(), ctx.chatId());
+
+        // Auto-provision one forum topic per PdlcRole when the chat supports them.
+        // Boolean.TRUE.equals is null-safe — Telegram omits is_forum on non-forum chats.
+        if ("supergroup".equals(ctx.raw().chat().type())
+                && Boolean.TRUE.equals(ctx.raw().chat().is_forum())) {
+            Map<PdlcRole, Long> topics = new LinkedHashMap<>();
+            for (PdlcRole role : PdlcRole.values()) {
+                try {
+                    ForumTopic topic = bot.createForumTopic(ctx.chatId(), role.name());
+                    topics.put(role, topic.message_thread_id());
+                } catch (CidadelException e) {
+                    // WHY: CHAT_NOT_FORUM (and other API rejections) apply to the whole chat —
+                    // retrying for subsequent roles is futile. Persist whatever we got and move on.
+                    logger.warn("Forum-topic creation failed for project {} chat {} role {} — aborting topic loop",
+                            projectId, ctx.chatId(), role.name(), e);
+                    break;
+                }
+            }
+            if (!topics.isEmpty()) {
+                // Second save lets @Version drive optimistic locking on the topics attachment.
+                link.setForumTopics(topics);
+                projectRepo.save(link);
+            }
+        }
 
         String welcome = String.format(
                 "Project created by @%s.%n"

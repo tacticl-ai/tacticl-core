@@ -272,7 +272,7 @@ class CallbackQueryHandlerTest {
 
     private CallbackQuery callback(String data) {
         User from = new User(TELEGRAM_USER_ID, false, "alice", "Alice");
-        Chat chat = new Chat(CHAT_ID, "supergroup", null, null, "Test group");
+        Chat chat = new Chat(CHAT_ID, "supergroup", null, null, "Test group", false);
         Message message = new Message(
             MESSAGE_ID, 0L, chat, null, "checkpoint body",
             null, null, null, null, null, null, null, null, null

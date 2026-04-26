@@ -78,7 +78,7 @@ class TelegramDispatchServiceTest {
 
     private static Message privateMsg(long chatId, long userId, String username, String text) {
         return new Message(1L, 0L,
-                new Chat(chatId, "private", username, "First", null),
+                new Chat(chatId, "private", username, "First", null, false),
                 new User(userId, false, username, "First"),
                 text,
                 null, null, null, null, null, null, null, false, null);
@@ -87,7 +87,7 @@ class TelegramDispatchServiceTest {
     private static Message groupMsg(long chatId, long userId, String username, String text,
                                     List<MessageEntity> entities, Message replyTo) {
         return new Message(1L, 0L,
-                new Chat(chatId, "group", null, null, "Group"),
+                new Chat(chatId, "group", null, null, "Group", false),
                 new User(userId, false, username, "First"),
                 text,
                 entities, null, null, null, null, null, null, false, replyTo);
@@ -96,7 +96,7 @@ class TelegramDispatchServiceTest {
     private static Message supergroupMsg(long chatId, long userId, String username, String text,
                                          List<MessageEntity> entities) {
         return new Message(1L, 0L,
-                new Chat(chatId, "supergroup", null, null, "Supergroup"),
+                new Chat(chatId, "supergroup", null, null, "Supergroup", false),
                 new User(userId, false, username, "First"),
                 text,
                 entities, null, null, null, null, null, null, false, null);
@@ -198,7 +198,7 @@ class TelegramDispatchServiceTest {
         when(projectRepo.findByChatIdAndIsActiveTrue(-100L)).thenReturn(Optional.of(link));
 
         Message botReply = new Message(99L, 0L,
-                new Chat(-100L, "group", null, null, "Group"),
+                new Chat(-100L, "group", null, null, "Group", false),
                 new User(7L, true, BOT_USERNAME, "Tacticl"),
                 "Started",
                 null, null, null, null, null, null, null, false, null);

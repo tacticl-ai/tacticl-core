@@ -14,14 +14,14 @@ class TelegramCommandRouterTest {
 
     private static Message groupMsg(long chatId, String text) {
         return new Message(1L, 0L,
-                new Chat(chatId, "group", null, null, "Test Group"),
+                new Chat(chatId, "group", null, null, "Test Group", false),
                 null, text,
                 null, null, null, null, null, null, null, false, null);
     }
 
     private static Message dmMsg(long chatId, String text) {
         return new Message(1L, 0L,
-                new Chat(chatId, "private", "alice", "Alice", null),
+                new Chat(chatId, "private", "alice", "Alice", null, false),
                 null, text,
                 null, null, null, null, null, null, null, false, null);
     }
