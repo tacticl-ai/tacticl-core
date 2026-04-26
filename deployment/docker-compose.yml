@@ -62,12 +62,16 @@ services:
       - DOCKER_NETWORK=platform-net
       - AGENT_IMAGE=cidadel-agent:latest
       - REGISTRY_MONGO_URI=mongodb://admin:C1d4d3l_Adm1n_2026%21@mongodb:27017/strategiz?authSource=admin&directConnection=true
+      - ARBITER_HTTP_URL=http://cidadel-arbiter-prod:8080
+      - CALLBACK_SECRET=${PDLC_CALLBACK_SECRET}
     group_add:
       - '110'
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /opt/cidadel/agent-workspaces:/agent-workspaces
       - /opt/cidadel/agent-registry:/agent-registry:ro
+      - /opt/cidadel/arbiter-patches/ndjson-session.js:/app/packages/server/dist/shell/ndjson-session.js:ro
+      - /usr/bin/docker:/usr/bin/docker:ro
 
   cidadel-arbiter-qa:
     image: cidadel-arbiter:latest
@@ -86,12 +90,16 @@ services:
       - DOCKER_NETWORK=platform-net
       - AGENT_IMAGE=cidadel-agent:latest
       - REGISTRY_MONGO_URI=mongodb://admin:C1d4d3l_Adm1n_2026%21@mongodb:27017/strategiz?authSource=admin&directConnection=true
+      - ARBITER_HTTP_URL=http://cidadel-arbiter-qa:8080
+      - CALLBACK_SECRET=${PDLC_CALLBACK_SECRET}
     group_add:
       - '110'
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /opt/cidadel/agent-workspaces:/agent-workspaces
       - /opt/cidadel/agent-registry:/agent-registry:ro
+      - /opt/cidadel/arbiter-patches/ndjson-session.js:/app/packages/server/dist/shell/ndjson-session.js:ro
+      - /usr/bin/docker:/usr/bin/docker:ro
 
   # ==========================================
   # STRATEGIZ
@@ -205,6 +213,9 @@ services:
       - VAULT_TOKEN=${VAULT_TOKEN}
       - SPRING_MONGODB_URI=mongodb://tacticl_user:T4ct1cl_Db_2026%21@mongodb:27017/tacticl
       - PDLC_CALLBACK_SECRET=${PDLC_CALLBACK_SECRET}
+      - PDLC_V2_ARBITER_HOST=cidadel-arbiter-prod
+      - PDLC_V2_ARBITER_PORT=50051
+      - PDLC_V2_CALLBACK_URL=https://api.tacticl.ai/v1/internal/pipeline/callback
       - OTEL_JAVAAGENT_ENABLED=false
       - JAVA_TOOL_OPTIONS=-Xmx1g -Xms256m -Duser.timezone=UTC
     deploy:
@@ -222,7 +233,9 @@ services:
       - VAULT_TOKEN=${VAULT_TOKEN}
       - PORT=8086
       - SPRING_MONGODB_URI=mongodb://tacticl_user:T4ct1cl_Db_2026%21@mongodb:27017/tacticl
+      - PDLC_V2_ARBITER_HOST=cidadel-arbiter-qa
       - PDLC_V2_ARBITER_PORT=50052
+      - PDLC_V2_CALLBACK_URL=http://tacticl-api-qa:8080/v1/internal/pipeline/callback
       - PDLC_CALLBACK_SECRET=${PDLC_CALLBACK_SECRET:-}
       - OTEL_JAVAAGENT_ENABLED=false
       - JAVA_TOOL_OPTIONS=-Xmx512m -Xms256m -Duser.timezone=UTC
