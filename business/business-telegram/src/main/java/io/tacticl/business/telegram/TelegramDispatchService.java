@@ -1,6 +1,9 @@
 package io.tacticl.business.telegram;
 
 import io.tacticl.business.telegram.dedup.TelegramUpdateDedupCache;
+import io.tacticl.business.telegram.event.CallbackQueryHandler;
+import io.tacticl.business.telegram.event.GroupMembershipHandler;
+import io.tacticl.business.telegram.event.GroupMigrationHandler;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.identity.TelegramUsernameCache;
 import io.tacticl.business.telegram.router.CommandContext;
@@ -8,10 +11,13 @@ import io.tacticl.business.telegram.router.TelegramCommandRouter;
 import io.tacticl.business.telegram.spark.TelegramSparkInitiator;
 import io.tacticl.client.telegram.TelegramBotClient;
 import io.tacticl.client.telegram.config.TelegramConfig;
+import io.tacticl.client.telegram.dto.CallbackQuery;
+import io.tacticl.client.telegram.dto.ChatMemberUpdate;
 import io.tacticl.client.telegram.dto.Message;
 import io.tacticl.client.telegram.dto.MessageEntity;
 import io.tacticl.client.telegram.dto.SendMessageRequest;
 import io.tacticl.client.telegram.dto.Update;
+import io.tacticl.client.telegram.dto.User;
 import io.tacticl.data.telegram.entity.TelegramProjectLink;
 import io.tacticl.data.telegram.repository.TelegramProjectLinkRepository;
 import org.slf4j.Logger;
@@ -26,8 +32,16 @@ import java.util.Optional;
  * Entry point for every inbound Telegram {@link Update}. Responsibilities:
  *
  * <ul>
- *   <li>Seed {@link TelegramUsernameCache} from every message so later
- *       commands (e.g. {@code /grant @alice}) can resolve handles.</li>
+ *   <li>Seed {@link TelegramUsernameCache} from every update (message,
+ *       callback_query, my_chat_member) so later commands like
+ *       {@code /grant @alice} can resolve handles.</li>
+ *   <li>Route {@code my_chat_member} to {@link GroupMembershipHandler} for
+ *       bot add/remove lifecycle (welcome on add, orphan project on remove).</li>
+ *   <li>Route {@code callback_query} to {@link CallbackQueryHandler} for
+ *       inline-keyboard checkpoint approvals.</li>
+ *   <li>Route messages carrying {@code migrate_to_chat_id} to
+ *       {@link GroupMigrationHandler} so the project link follows the
+ *       group→supergroup conversion.</li>
  *   <li>Short-circuit the DM-only {@code /start} linking flow that predates
  *       the router (avoids coupling the pairing handshake to GROUP commands).</li>
  *   <li>Route every other slash command through {@link TelegramCommandRouter}.</li>
@@ -51,6 +65,9 @@ public class TelegramDispatchService {
     private final TelegramIdentityResolver identity;
     private final TelegramConfig telegramConfig;
     private final TelegramUpdateDedupCache dedupCache;
+    private final GroupMembershipHandler membershipHandler;
+    private final CallbackQueryHandler callbackQueryHandler;
+    private final GroupMigrationHandler migrationHandler;
 
     public TelegramDispatchService(TelegramUserLinker linker,
                                    TelegramBotClient bot,
@@ -60,7 +77,10 @@ public class TelegramDispatchService {
                                    TelegramProjectLinkRepository projectRepo,
                                    TelegramIdentityResolver identity,
                                    TelegramConfig telegramConfig,
-                                   TelegramUpdateDedupCache dedupCache) {
+                                   TelegramUpdateDedupCache dedupCache,
+                                   GroupMembershipHandler membershipHandler,
+                                   CallbackQueryHandler callbackQueryHandler,
+                                   GroupMigrationHandler migrationHandler) {
         this.linker = linker;
         this.bot = bot;
         this.commandRouter = commandRouter;
@@ -70,27 +90,74 @@ public class TelegramDispatchService {
         this.identity = identity;
         this.telegramConfig = telegramConfig;
         this.dedupCache = dedupCache;
+        this.membershipHandler = membershipHandler;
+        this.callbackQueryHandler = callbackQueryHandler;
+        this.migrationHandler = migrationHandler;
     }
 
     public void handle(Update update) {
+        if (update == null) {
+            return;
+        }
         // Telegram retries on non-2xx or slow webhooks — without this guard a
         // redelivery would create duplicate Sparks / pipeline runs / replies.
         if (!dedupCache.markIfAbsent(update.update_id())) {
             logger.debug("Dropping duplicate Telegram update_id={}", update.update_id());
             return;
         }
+
+        // Seed the username cache from every update kind — observations from
+        // callback taps and chat-member events are just as valuable for later
+        // /grant @alice resolutions as plain message observations.
+        observeFromAcrossUpdate(update);
+
+        if (update.my_chat_member() != null) {
+            membershipHandler.handle(update.my_chat_member());
+            return;
+        }
+        if (update.callback_query() != null) {
+            callbackQueryHandler.handle(update.callback_query());
+            return;
+        }
         if (update.message() != null) {
             handleMessage(update.message());
+        }
+    }
+
+    private void observeFromAcrossUpdate(Update update) {
+        if (update.message() != null) {
+            Message msg = update.message();
+            if (msg.from() != null && msg.chat() != null) {
+                usernameCache.observe(msg.chat().id(), msg.from().id(), msg.from().username());
+            }
         } else if (update.callback_query() != null) {
-            logger.debug("callback_query received, not handled in Phase 1");
+            CallbackQuery cb = update.callback_query();
+            // Without the host message we have no chat scope to seed against; skip.
+            if (cb.from() != null && cb.message() != null && cb.message().chat() != null) {
+                usernameCache.observe(cb.message().chat().id(), cb.from().id(), cb.from().username());
+            }
+        } else if (update.my_chat_member() != null) {
+            ChatMemberUpdate cmu = update.my_chat_member();
+            User from = cmu.from();
+            if (from != null && cmu.chat() != null) {
+                usernameCache.observe(cmu.chat().id(), from.id(), from.username());
+            }
         }
     }
 
     private void handleMessage(Message msg) {
-        // Seed the username cache from every inbound message, regardless of
-        // whether it carries text — /grant @alice relies on this observation.
-        if (msg.from() != null && msg.chat() != null && msg.from().username() != null) {
-            usernameCache.observe(msg.chat().id(), msg.from().id(), msg.from().username());
+        // Migration happens as a service message with no text — must be checked
+        // before the text-based branches below short-circuit on null/empty text.
+        if (msg.migrate_to_chat_id() != null) {
+            migrationHandler.handle(msg);
+            return;
+        }
+
+        // Voice handler is deferred (issue #11) — drop silently rather than
+        // replying with a stale "stay tuned" message in groups.
+        if (msg.voice() != null) {
+            logger.debug("telegram dispatch: voice message dropped (handler not wired)");
+            return;
         }
 
         if (msg.text() == null) {

@@ -1,6 +1,9 @@
 package io.tacticl.business.telegram;
 
 import io.tacticl.business.telegram.dedup.TelegramUpdateDedupCache;
+import io.tacticl.business.telegram.event.CallbackQueryHandler;
+import io.tacticl.business.telegram.event.GroupMembershipHandler;
+import io.tacticl.business.telegram.event.GroupMigrationHandler;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.identity.TelegramUsernameCache;
 import io.tacticl.business.telegram.router.CommandContext;
@@ -8,12 +11,16 @@ import io.tacticl.business.telegram.router.TelegramCommandRouter;
 import io.tacticl.business.telegram.spark.TelegramSparkInitiator;
 import io.tacticl.client.telegram.TelegramBotClient;
 import io.tacticl.client.telegram.config.TelegramConfig;
+import io.tacticl.client.telegram.dto.CallbackQuery;
 import io.tacticl.client.telegram.dto.Chat;
+import io.tacticl.client.telegram.dto.ChatMember;
+import io.tacticl.client.telegram.dto.ChatMemberUpdate;
 import io.tacticl.client.telegram.dto.Message;
 import io.tacticl.client.telegram.dto.MessageEntity;
 import io.tacticl.client.telegram.dto.SendMessageRequest;
 import io.tacticl.client.telegram.dto.Update;
 import io.tacticl.client.telegram.dto.User;
+import io.tacticl.client.telegram.dto.Voice;
 import io.tacticl.data.telegram.entity.TelegramProjectLink;
 import io.tacticl.data.telegram.repository.TelegramProjectLinkRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +56,9 @@ class TelegramDispatchServiceTest {
     private TelegramIdentityResolver identity;
     private TelegramConfig telegramConfig;
     private TelegramUpdateDedupCache dedupCache;
+    private GroupMembershipHandler membershipHandler;
+    private CallbackQueryHandler callbackQueryHandler;
+    private GroupMigrationHandler migrationHandler;
     private TelegramDispatchService svc;
     private long nextUpdateId;
 
@@ -64,10 +74,14 @@ class TelegramDispatchServiceTest {
         telegramConfig = new TelegramConfig();
         telegramConfig.setBotUsername(BOT_USERNAME);
         dedupCache = new TelegramUpdateDedupCache();
+        membershipHandler = mock(GroupMembershipHandler.class);
+        callbackQueryHandler = mock(CallbackQueryHandler.class);
+        migrationHandler = mock(GroupMigrationHandler.class);
         nextUpdateId = 1_000L;
 
         svc = new TelegramDispatchService(linker, bot, commandRouter, usernameCache,
-                sparkInitiator, projectRepo, identity, telegramConfig, dedupCache);
+                sparkInitiator, projectRepo, identity, telegramConfig, dedupCache,
+                membershipHandler, callbackQueryHandler, migrationHandler);
     }
 
     // Each test that calls handle() gets a fresh update_id so the shared dedup
@@ -375,6 +389,114 @@ class TelegramDispatchServiceTest {
 
         verify(sparkInitiator).initiate(eq(-100L), eq("user-alice"),
                 eq("ship it"), eq(link), isNull());
+    }
+
+    // ---- New update-branch routing tests -----------------------------------
+
+    @Test
+    void myChatMemberUpdate_routesToGroupMembershipHandler() {
+        ChatMemberUpdate cmu = new ChatMemberUpdate(
+                new Chat(-100L, "group", null, null, "Group", false),
+                new User(7L, true, BOT_USERNAME, "Tacticl"),
+                0L,
+                new ChatMember("left", new User(7L, true, BOT_USERNAME, "Tacticl")),
+                new ChatMember("member", new User(7L, true, BOT_USERNAME, "Tacticl")));
+
+        svc.handle(new Update(++nextUpdateId, null, null, null, cmu, null));
+
+        verify(membershipHandler).handle(cmu);
+        verify(commandRouter, never()).dispatch(any());
+        verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+    }
+
+    @Test
+    void callbackQueryUpdate_routesToCallbackQueryHandler() {
+        Message hostMessage = new Message(99L, 0L,
+                new Chat(-100L, "group", null, null, "Group", false),
+                new User(7L, true, BOT_USERNAME, "Tacticl"),
+                "Approve?", null, null, null, null, null, null, null, false, null);
+        CallbackQuery cb = new CallbackQuery("cbid-1",
+                new User(42L, false, "alice", "First"), hostMessage, "cp:approve:check-1");
+
+        svc.handle(new Update(++nextUpdateId, null, null, cb, null, null));
+
+        verify(callbackQueryHandler).handle(cb);
+        verify(commandRouter, never()).dispatch(any());
+    }
+
+    @Test
+    void messageWithMigrateToChatId_routesToGroupMigrationHandler() {
+        Message msg = new Message(1L, 0L,
+                new Chat(-100L, "group", null, null, "Group", false),
+                new User(42L, false, "alice", "First"),
+                null,
+                null, null, null, null, -1_002L, null, null, false, null);
+
+        svc.handle(new Update(++nextUpdateId, msg, null, null, null, null));
+
+        verify(migrationHandler).handle(msg);
+        verify(commandRouter, never()).dispatch(any());
+        verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+    }
+
+    @Test
+    void voiceMessage_droppedSilently_noHandlerInvoked() {
+        Voice voice = new Voice("file-id", "file-uniq", 3, "audio/ogg");
+        Message msg = new Message(1L, 0L,
+                new Chat(42L, "private", "alice", "First", null, false),
+                new User(42L, false, "alice", "First"),
+                null,
+                null, voice, null, null, null, null, null, false, null);
+
+        svc.handle(new Update(++nextUpdateId, msg, null, null, null, null));
+
+        verify(commandRouter, never()).dispatch(any());
+        verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(bot, never()).sendMessage(any(SendMessageRequest.class));
+        verify(migrationHandler, never()).handle(any());
+    }
+
+    @Test
+    void callbackQueryFrom_observedInUsernameCache() {
+        Message hostMessage = new Message(99L, 0L,
+                new Chat(-100L, "group", null, null, "Group", false),
+                new User(7L, true, BOT_USERNAME, "Tacticl"),
+                "Approve?", null, null, null, null, null, null, null, false, null);
+        CallbackQuery cb = new CallbackQuery("cbid-1",
+                new User(42L, false, "alice", "First"), hostMessage, "cp:approve:check-1");
+
+        svc.handle(new Update(++nextUpdateId, null, null, cb, null, null));
+
+        verify(usernameCache).observe(-100L, 42L, "alice");
+    }
+
+    @Test
+    void myChatMemberFrom_observedInUsernameCache() {
+        ChatMemberUpdate cmu = new ChatMemberUpdate(
+                new Chat(-100L, "group", null, null, "Group", false),
+                new User(42L, false, "alice", "First"),
+                0L,
+                new ChatMember("left", new User(7L, true, BOT_USERNAME, "Tacticl")),
+                new ChatMember("member", new User(7L, true, BOT_USERNAME, "Tacticl")));
+
+        svc.handle(new Update(++nextUpdateId, null, null, null, cmu, null));
+
+        verify(usernameCache).observe(-100L, 42L, "alice");
+    }
+
+    @Test
+    void myChatMemberWithNullFrom_doesNotCrash() {
+        ChatMemberUpdate cmu = new ChatMemberUpdate(
+                new Chat(-100L, "group", null, null, "Group", false),
+                null,
+                0L,
+                new ChatMember("left", new User(7L, true, BOT_USERNAME, "Tacticl")),
+                new ChatMember("member", new User(7L, true, BOT_USERNAME, "Tacticl")));
+
+        svc.handle(new Update(++nextUpdateId, null, null, null, cmu, null));
+
+        verify(membershipHandler).handle(cmu);
+        verify(usernameCache, never()).observe(anyLong(), anyLong(), anyString());
     }
 
     @Test
