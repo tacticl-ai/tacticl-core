@@ -1,5 +1,6 @@
 package io.tacticl.business.telegram.command;
 
+import io.tacticl.business.telegram.audit.TelegramAuditLogger;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
 import io.tacticl.business.telegram.outbound.TelegramOutboundQueue;
@@ -10,7 +11,9 @@ import io.tacticl.client.telegram.dto.SendMessageRequest;
 import io.tacticl.data.telegram.entity.MemberRole;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.json.JsonMapper;
 
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -22,16 +25,21 @@ import java.util.Optional;
 @ConditionalOnProperty(name = "tacticl.telegram.enabled", havingValue = "true")
 public class HelpCommand implements CommandHandler {
 
+    private static final JsonMapper MAPPER = JsonMapper.builder().build();
+
     private final TelegramIdentityResolver identity;
     private final MemberPermissionService permissions;
     private final TelegramOutboundQueue outbound;
+    private final TelegramAuditLogger auditLogger;
 
     public HelpCommand(TelegramIdentityResolver identity,
                        MemberPermissionService permissions,
-                       TelegramOutboundQueue outbound) {
+                       TelegramOutboundQueue outbound,
+                       TelegramAuditLogger auditLogger) {
         this.identity = identity;
         this.permissions = permissions;
         this.outbound = outbound;
+        this.auditLogger = auditLogger;
     }
 
     @Override
@@ -51,6 +59,7 @@ public class HelpCommand implements CommandHandler {
         Optional<String> senderTacticlUserId = identity.resolveByChatId(ctx.telegramUserId());
         if (senderTacticlUserId.isEmpty()) {
             reply(chatId, "You must link your Tacticl account first.");
+            audit(ctx, null, Map.of("rejected", "unlinked_sender"));
             return;
         }
 
@@ -76,9 +85,20 @@ public class HelpCommand implements CommandHandler {
         }
 
         reply(chatId, sb.toString().stripTrailing());
+        audit(ctx, senderTacticlUserId.get(), Map.of("role", role.name()));
     }
 
     private void reply(long chatId, String text) {
         outbound.enqueue(chatId, new OutboundMessage(SendMessageRequest.plain(chatId, text)));
+    }
+
+    private void audit(CommandContext ctx, String tacticlUserId, Map<String, ?> payload) {
+        String json;
+        try {
+            json = MAPPER.writeValueAsString(payload);
+        } catch (RuntimeException e) {
+            json = null;
+        }
+        auditLogger.record(ctx.chatId(), ctx.telegramUserId(), tacticlUserId, "HELP", json);
     }
 }

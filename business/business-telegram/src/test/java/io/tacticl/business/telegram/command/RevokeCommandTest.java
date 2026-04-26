@@ -1,5 +1,6 @@
 package io.tacticl.business.telegram.command;
 
+import io.tacticl.business.telegram.audit.TelegramAuditLogger;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.identity.TelegramUsernameCache;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
@@ -32,6 +33,7 @@ class RevokeCommandTest {
     private TelegramUsernameCache usernameCache;
     private MemberPermissionService permissions;
     private TelegramOutboundQueue outbound;
+    private TelegramAuditLogger auditLogger;
     private RevokeCommand command;
 
     private static final long CHAT_ID = -100L;
@@ -46,7 +48,8 @@ class RevokeCommandTest {
         usernameCache = mock(TelegramUsernameCache.class);
         permissions = mock(MemberPermissionService.class);
         outbound = mock(TelegramOutboundQueue.class);
-        command = new RevokeCommand(identity, usernameCache, permissions, outbound);
+        auditLogger = mock(TelegramAuditLogger.class);
+        command = new RevokeCommand(identity, usernameCache, permissions, outbound, auditLogger);
     }
 
     private static CommandContext groupCtx(String text) {

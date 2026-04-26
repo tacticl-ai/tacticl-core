@@ -1,5 +1,6 @@
 package io.tacticl.business.telegram.command;
 
+import io.tacticl.business.telegram.audit.TelegramAuditLogger;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
 import io.tacticl.business.telegram.outbound.TelegramOutboundQueue;
@@ -16,7 +17,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.json.JsonMapper;
 
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -30,22 +33,27 @@ public class LeaveCommand implements CommandHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(LeaveCommand.class);
 
+    private static final JsonMapper MAPPER = JsonMapper.builder().build();
+
     private final TelegramIdentityResolver identity;
     private final MemberPermissionService permissions;
     private final TelegramProjectLinkRepository projectRepo;
     private final TelegramOutboundQueue outbound;
     private final TelegramBotClient bot;
+    private final TelegramAuditLogger auditLogger;
 
     public LeaveCommand(TelegramIdentityResolver identity,
                         MemberPermissionService permissions,
                         TelegramProjectLinkRepository projectRepo,
                         TelegramOutboundQueue outbound,
-                        TelegramBotClient bot) {
+                        TelegramBotClient bot,
+                        TelegramAuditLogger auditLogger) {
         this.identity = identity;
         this.permissions = permissions;
         this.projectRepo = projectRepo;
         this.outbound = outbound;
         this.bot = bot;
+        this.auditLogger = auditLogger;
     }
 
     @Override
@@ -65,18 +73,21 @@ public class LeaveCommand implements CommandHandler {
         Optional<String> senderTacticlUserId = identity.resolveByChatId(ctx.telegramUserId());
         if (senderTacticlUserId.isEmpty()) {
             reply(chatId, "You must link your Tacticl account first.");
+            audit(ctx, null, Map.of("rejected", "unlinked_sender"));
             return;
         }
 
         PermissionCheck check = permissions.require(chatId, senderTacticlUserId.get(), MemberRole.ADMIN);
         if (!check.allowed()) {
             reply(chatId, "Only owners or admins can make me leave.");
+            audit(ctx, senderTacticlUserId.get(), Map.of("rejected", "insufficient_role"));
             return;
         }
 
         Optional<TelegramProjectLink> linkOpt = projectRepo.findByChatIdAndIsActiveTrue(chatId);
         if (linkOpt.isEmpty()) {
             reply(chatId, "No active project in this group.");
+            audit(ctx, senderTacticlUserId.get(), Map.of("rejected", "no_project"));
             return;
         }
         TelegramProjectLink link = linkOpt.get();
@@ -86,17 +97,32 @@ public class LeaveCommand implements CommandHandler {
 
         reply(chatId, "\uD83D\uDC4B Leaving the group. Bye!");
 
+        boolean leaveOk = true;
         try {
             bot.leaveChat(chatId);
         } catch (RuntimeException e) {
+            leaveOk = false;
             logger.warn("leaveChat failed for chat {}: {}", chatId, e.toString());
         }
 
         logger.info("Archived and left chat {} (project {}) by {}",
                 chatId, link.getProjectId(), senderTacticlUserId.get());
+
+        audit(ctx, senderTacticlUserId.get(),
+                Map.of("projectId", link.getProjectId(), "leaveOk", leaveOk));
     }
 
     private void reply(long chatId, String text) {
         outbound.enqueue(chatId, new OutboundMessage(SendMessageRequest.plain(chatId, text)));
+    }
+
+    private void audit(CommandContext ctx, String tacticlUserId, Map<String, ?> payload) {
+        String json;
+        try {
+            json = MAPPER.writeValueAsString(payload);
+        } catch (RuntimeException e) {
+            json = null;
+        }
+        auditLogger.record(ctx.chatId(), ctx.telegramUserId(), tacticlUserId, "LEAVE", json);
     }
 }

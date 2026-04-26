@@ -1,6 +1,7 @@
 package io.tacticl.business.telegram.command;
 
 import io.cidadel.framework.exception.CidadelException;
+import io.tacticl.business.telegram.audit.TelegramAuditLogger;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
 import io.tacticl.business.telegram.outbound.TelegramOutboundQueue;
@@ -16,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -49,19 +51,24 @@ public class InitCommand implements CommandHandler {
     private static final String LINK_PROMPT =
             "Link your Tacticl account first: https://tacticl.ai/telegram/link";
 
+    private static final JsonMapper MAPPER = JsonMapper.builder().build();
+
     private final TelegramIdentityResolver identity;
     private final TelegramProjectLinkRepository projectRepo;
     private final TelegramOutboundQueue outbound;
     private final TelegramBotClient bot;
+    private final TelegramAuditLogger auditLogger;
 
     public InitCommand(TelegramIdentityResolver identity,
                        TelegramProjectLinkRepository projectRepo,
                        TelegramOutboundQueue outbound,
-                       TelegramBotClient bot) {
+                       TelegramBotClient bot,
+                       TelegramAuditLogger auditLogger) {
         this.identity = identity;
         this.projectRepo = projectRepo;
         this.outbound = outbound;
         this.bot = bot;
+        this.auditLogger = auditLogger;
     }
 
     @Override
@@ -82,6 +89,7 @@ public class InitCommand implements CommandHandler {
             // for private chats with the bot.
             outbound.enqueue(ctx.telegramUserId(), new OutboundMessage(
                     SendMessageRequest.plain(ctx.telegramUserId(), LINK_PROMPT)));
+            audit(ctx, null, Map.of("rejected", "unlinked_sender"));
             return;
         }
 
@@ -91,6 +99,8 @@ public class InitCommand implements CommandHandler {
             outbound.enqueue(ctx.chatId(), new OutboundMessage(
                     SendMessageRequest.plain(ctx.chatId(),
                             "Already linked to project " + existing.get().getProjectId())));
+            audit(ctx, tacticlUserId.get(),
+                    Map.of("rejected", "already_linked", "projectId", existing.get().getProjectId()));
             return;
         }
 
@@ -134,5 +144,18 @@ public class InitCommand implements CommandHandler {
                 tacticlUserId.get());
         outbound.enqueue(ctx.chatId(), new OutboundMessage(
                 SendMessageRequest.plain(ctx.chatId(), welcome)));
+
+        audit(ctx, tacticlUserId.get(), Map.of("projectId", projectId));
+    }
+
+    private void audit(CommandContext ctx, String tacticlUserId, Map<String, ?> payload) {
+        String json;
+        try {
+            json = MAPPER.writeValueAsString(payload);
+        } catch (RuntimeException e) {
+            // WHY: serialization failure must not derail audit — drop payload, keep verb.
+            json = null;
+        }
+        auditLogger.record(ctx.chatId(), ctx.telegramUserId(), tacticlUserId, "INIT", json);
     }
 }

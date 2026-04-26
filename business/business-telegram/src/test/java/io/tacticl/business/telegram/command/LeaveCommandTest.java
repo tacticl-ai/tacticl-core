@@ -1,5 +1,6 @@
 package io.tacticl.business.telegram.command;
 
+import io.tacticl.business.telegram.audit.TelegramAuditLogger;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
 import io.tacticl.business.telegram.outbound.TelegramOutboundQueue;
@@ -35,6 +36,7 @@ class LeaveCommandTest {
     private TelegramProjectLinkRepository projectRepo;
     private TelegramOutboundQueue outbound;
     private TelegramBotClient bot;
+    private TelegramAuditLogger auditLogger;
     private LeaveCommand command;
 
     private static final long CHAT_ID = -100L;
@@ -49,7 +51,8 @@ class LeaveCommandTest {
         projectRepo = mock(TelegramProjectLinkRepository.class);
         outbound = mock(TelegramOutboundQueue.class);
         bot = mock(TelegramBotClient.class);
-        command = new LeaveCommand(identity, permissions, projectRepo, outbound, bot);
+        auditLogger = mock(TelegramAuditLogger.class);
+        command = new LeaveCommand(identity, permissions, projectRepo, outbound, bot, auditLogger);
     }
 
     private static CommandContext groupCtx(String text) {

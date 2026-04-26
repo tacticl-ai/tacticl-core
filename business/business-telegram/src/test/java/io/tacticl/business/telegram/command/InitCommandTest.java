@@ -1,6 +1,7 @@
 package io.tacticl.business.telegram.command;
 
 import io.cidadel.framework.exception.CidadelException;
+import io.tacticl.business.telegram.audit.TelegramAuditLogger;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
 import io.tacticl.business.telegram.outbound.TelegramOutboundQueue;
@@ -35,6 +36,7 @@ class InitCommandTest {
     private TelegramProjectLinkRepository projectRepo;
     private TelegramOutboundQueue outbound;
     private TelegramBotClient bot;
+    private TelegramAuditLogger auditLogger;
     private InitCommand command;
 
     @BeforeEach
@@ -43,7 +45,8 @@ class InitCommandTest {
         projectRepo = mock(TelegramProjectLinkRepository.class);
         outbound = mock(TelegramOutboundQueue.class);
         bot = mock(TelegramBotClient.class);
-        command = new InitCommand(identity, projectRepo, outbound, bot);
+        auditLogger = mock(TelegramAuditLogger.class);
+        command = new InitCommand(identity, projectRepo, outbound, bot, auditLogger);
     }
 
     private static CommandContext groupCtx(long chatId,
@@ -115,6 +118,12 @@ class InitCommandTest {
         assertThat(captor.getValue().request().text()).contains("Link your Tacticl account");
         verify(projectRepo, never()).save(any());
         verify(projectRepo, never()).findByChatIdAndIsActiveTrue(anyLong());
+
+        // WHY: forensic trail captures pre-link rejections too — payload encodes the reason.
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(auditLogger).record(eq(chatId), eq(telegramUserId), eq((String) null),
+                eq("INIT"), payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue()).contains("unlinked_sender");
     }
 
     @Test
@@ -138,6 +147,13 @@ class InitCommandTest {
         // WHY: re-running /init on a claimed group must NOT touch the bot. Locks in
         // the contract that already-linked groups never trigger forum-topic creation.
         verify(bot, never()).createForumTopic(anyLong(), anyString());
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(auditLogger).record(eq(chatId), eq(telegramUserId), eq("user-abc"),
+                eq("INIT"), payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue())
+                .contains("already_linked")
+                .contains("proj-123");
     }
 
     @Test
@@ -173,6 +189,13 @@ class InitCommandTest {
                 .contains("/members")
                 .contains("/status")
                 .contains("/help");
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(auditLogger).record(eq(chatId), eq(telegramUserId), eq(tacticlUserId),
+                eq("INIT"), payloadCaptor.capture());
+        // Happy-path payload carries the new projectId; project ids are UUIDs so we just
+        // assert the field name is present.
+        assertThat(payloadCaptor.getValue()).contains("projectId");
     }
 
     @Test

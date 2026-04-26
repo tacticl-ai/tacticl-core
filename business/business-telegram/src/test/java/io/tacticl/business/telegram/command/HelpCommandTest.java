@@ -1,5 +1,6 @@
 package io.tacticl.business.telegram.command;
 
+import io.tacticl.business.telegram.audit.TelegramAuditLogger;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
 import io.tacticl.business.telegram.outbound.TelegramOutboundQueue;
@@ -25,6 +26,7 @@ class HelpCommandTest {
     private TelegramIdentityResolver identity;
     private MemberPermissionService permissions;
     private TelegramOutboundQueue outbound;
+    private TelegramAuditLogger auditLogger;
     private HelpCommand command;
 
     private static final long CHAT_ID = -100L;
@@ -36,7 +38,8 @@ class HelpCommandTest {
         identity = mock(TelegramIdentityResolver.class);
         permissions = mock(MemberPermissionService.class);
         outbound = mock(TelegramOutboundQueue.class);
-        command = new HelpCommand(identity, permissions, outbound);
+        auditLogger = mock(TelegramAuditLogger.class);
+        command = new HelpCommand(identity, permissions, outbound, auditLogger);
     }
 
     private static CommandContext groupCtx(String text) {
@@ -81,6 +84,13 @@ class HelpCommandTest {
                 .doesNotContain("/transfer")
                 .doesNotContain("/archive")
                 .doesNotContain("/leave");
+
+        // WHY: even safe no-op commands like /help feed forensics — abuse-review needs
+        // to see who is probing, not just who is mutating.
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(auditLogger).record(eq(CHAT_ID), eq(SENDER_TG_ID), eq(SENDER_TACTICL_ID),
+                eq("HELP"), payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue()).contains("OBSERVER");
     }
 
     @Test

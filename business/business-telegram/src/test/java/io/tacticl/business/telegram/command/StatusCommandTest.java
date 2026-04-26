@@ -1,6 +1,8 @@
 package io.tacticl.business.telegram.command;
 
+import io.tacticl.business.telegram.audit.TelegramAuditLogger;
 import io.tacticl.business.telegram.command.ProjectPipelineSummaryProvider.ProjectPipelineSummary;
+import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
 import io.tacticl.business.telegram.outbound.TelegramOutboundQueue;
 import io.tacticl.business.telegram.router.CommandContext;
@@ -27,6 +29,8 @@ class StatusCommandTest {
     private TelegramProjectLinkRepository projectRepo;
     private ProjectPipelineSummaryProvider summaryProvider;
     private TelegramOutboundQueue outbound;
+    private TelegramIdentityResolver identity;
+    private TelegramAuditLogger auditLogger;
 
     private static final long CHAT_ID = -100L;
     private static final long SENDER_TG_ID = 42L;
@@ -38,14 +42,16 @@ class StatusCommandTest {
         projectRepo = mock(TelegramProjectLinkRepository.class);
         summaryProvider = mock(ProjectPipelineSummaryProvider.class);
         outbound = mock(TelegramOutboundQueue.class);
+        identity = mock(TelegramIdentityResolver.class);
+        auditLogger = mock(TelegramAuditLogger.class);
     }
 
     private StatusCommand withProvider() {
-        return new StatusCommand(projectRepo, Optional.of(summaryProvider), outbound);
+        return new StatusCommand(projectRepo, Optional.of(summaryProvider), outbound, identity, auditLogger);
     }
 
     private StatusCommand withoutProvider() {
-        return new StatusCommand(projectRepo, Optional.empty(), outbound);
+        return new StatusCommand(projectRepo, Optional.empty(), outbound, identity, auditLogger);
     }
 
     private static CommandContext groupCtx(String text) {

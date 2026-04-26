@@ -1,5 +1,6 @@
 package io.tacticl.business.telegram.command;
 
+import io.tacticl.business.telegram.audit.TelegramAuditLogger;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
 import io.tacticl.business.telegram.outbound.TelegramOutboundQueue;
@@ -15,7 +16,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.json.JsonMapper;
 
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -28,19 +31,24 @@ public class ArchiveCommand implements CommandHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(ArchiveCommand.class);
 
+    private static final JsonMapper MAPPER = JsonMapper.builder().build();
+
     private final TelegramIdentityResolver identity;
     private final MemberPermissionService permissions;
     private final TelegramProjectLinkRepository projectRepo;
     private final TelegramOutboundQueue outbound;
+    private final TelegramAuditLogger auditLogger;
 
     public ArchiveCommand(TelegramIdentityResolver identity,
                           MemberPermissionService permissions,
                           TelegramProjectLinkRepository projectRepo,
-                          TelegramOutboundQueue outbound) {
+                          TelegramOutboundQueue outbound,
+                          TelegramAuditLogger auditLogger) {
         this.identity = identity;
         this.permissions = permissions;
         this.projectRepo = projectRepo;
         this.outbound = outbound;
+        this.auditLogger = auditLogger;
     }
 
     @Override
@@ -60,18 +68,21 @@ public class ArchiveCommand implements CommandHandler {
         Optional<String> senderTacticlUserId = identity.resolveByChatId(ctx.telegramUserId());
         if (senderTacticlUserId.isEmpty()) {
             reply(chatId, "You must link your Tacticl account first.");
+            audit(ctx, null, Map.of("rejected", "unlinked_sender"));
             return;
         }
 
         PermissionCheck check = permissions.require(chatId, senderTacticlUserId.get(), MemberRole.OWNER);
         if (!check.allowed()) {
             reply(chatId, "Only the project owner can archive.");
+            audit(ctx, senderTacticlUserId.get(), Map.of("rejected", "not_owner"));
             return;
         }
 
         Optional<TelegramProjectLink> linkOpt = projectRepo.findByChatIdAndIsActiveTrue(chatId);
         if (linkOpt.isEmpty()) {
             reply(chatId, "No active project in this group.");
+            audit(ctx, senderTacticlUserId.get(), Map.of("rejected", "no_project"));
             return;
         }
         TelegramProjectLink link = linkOpt.get();
@@ -85,9 +96,20 @@ public class ArchiveCommand implements CommandHandler {
 
         reply(chatId,
                 "\uD83D\uDCE6 Project archived. I'll stay in the group but won't run sparks until someone sends /init again.");
+        audit(ctx, senderTacticlUserId.get(), Map.of("projectId", link.getProjectId()));
     }
 
     private void reply(long chatId, String text) {
         outbound.enqueue(chatId, new OutboundMessage(SendMessageRequest.plain(chatId, text)));
+    }
+
+    private void audit(CommandContext ctx, String tacticlUserId, Map<String, ?> payload) {
+        String json;
+        try {
+            json = MAPPER.writeValueAsString(payload);
+        } catch (RuntimeException e) {
+            json = null;
+        }
+        auditLogger.record(ctx.chatId(), ctx.telegramUserId(), tacticlUserId, "ARCHIVE", json);
     }
 }

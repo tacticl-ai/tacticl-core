@@ -1,5 +1,6 @@
 package io.tacticl.business.telegram.command;
 
+import io.tacticl.business.telegram.audit.TelegramAuditLogger;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.identity.TelegramUsernameCache;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
@@ -32,6 +33,7 @@ class GrantCommandTest {
     private TelegramUsernameCache usernameCache;
     private MemberPermissionService permissions;
     private TelegramOutboundQueue outbound;
+    private TelegramAuditLogger auditLogger;
     private GrantCommand command;
 
     private static final long CHAT_ID = -100L;
@@ -46,7 +48,8 @@ class GrantCommandTest {
         usernameCache = mock(TelegramUsernameCache.class);
         permissions = mock(MemberPermissionService.class);
         outbound = mock(TelegramOutboundQueue.class);
-        command = new GrantCommand(identity, usernameCache, permissions, outbound);
+        auditLogger = mock(TelegramAuditLogger.class);
+        command = new GrantCommand(identity, usernameCache, permissions, outbound, auditLogger);
     }
 
     private static CommandContext groupCtx(String text) {
@@ -141,5 +144,27 @@ class GrantCommandTest {
                 .contains("@bob")
                 .containsIgnoringCase("is now")
                 .containsIgnoringCase("runner");
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(auditLogger).record(eq(CHAT_ID), eq(SENDER_TG_ID), eq(SENDER_TACTICL_ID),
+                eq("GRANT"), payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue())
+                .contains("@bob")
+                .contains("RUNNER")
+                .contains(TARGET_TACTICL_ID);
+    }
+
+    @Test
+    void handleSenderInsufficientRoleAuditsRejection() {
+        when(identity.resolveByChatId(SENDER_TG_ID)).thenReturn(Optional.of(SENDER_TACTICL_ID));
+        when(permissions.require(CHAT_ID, SENDER_TACTICL_ID, MemberRole.ADMIN))
+                .thenReturn(PermissionCheck.deny(MemberRole.CONTRIBUTOR, MemberRole.ADMIN, "insufficient role"));
+
+        command.handle(groupCtx("/grant @bob runner"));
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(auditLogger).record(eq(CHAT_ID), eq(SENDER_TG_ID), eq(SENDER_TACTICL_ID),
+                eq("GRANT"), payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue()).contains("insufficient_role");
     }
 }
