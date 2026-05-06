@@ -17,7 +17,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Adapter that turns a Telegram voice message into a Spark by downloading the audio,
@@ -34,12 +40,29 @@ public class VoiceMessageHandler {
 
     private static final Logger log = LoggerFactory.getLogger(VoiceMessageHandler.class);
 
+    /**
+     * Telegram Bot API spec marks {@code Voice.mime_type} as optional, but voice notes
+     * are always OGG/Opus per the spec. Defaulting here keeps Whisper happy when the
+     * field is omitted (which we've observed from older Telegram clients).
+     */
+    private static final String DEFAULT_VOICE_MIME = "audio/ogg";
+
+    /**
+     * Per-chat token bucket: 6 voice messages per minute, sliding window.
+     * Each voice triggers getFile + downloadFile + Whisper + downstream LLM —
+     * a misbehaving group could otherwise rack up cost very fast.
+     */
+    private static final int VOICE_RATE_LIMIT = 6;
+    private static final Duration VOICE_RATE_WINDOW = Duration.ofMinutes(1);
+
     private final TelegramBotClient bot;
     private final TranscriptionService transcription;
     private final TelegramIdentityResolver identity;
     private final TelegramProjectLinkRepository projects;
     private final TelegramSparkInitiator initiator;
     private final TelegramOutboundQueue outbound;
+
+    private final Map<Long, Deque<Instant>> voiceTimestamps = new ConcurrentHashMap<>();
 
     public VoiceMessageHandler(TelegramBotClient bot,
                                TranscriptionService transcription,
@@ -61,6 +84,12 @@ public class VoiceMessageHandler {
         }
         long chatId = msg.chat().id();
         long fromId = msg.from() != null ? msg.from().id() : 0L;
+
+        if (!consumeVoiceQuota(chatId)) {
+            log.warn("Voice rate limit exceeded for chat {}", chatId);
+            reply(chatId, "⚠️ Too many voice messages right now — please wait a moment.");
+            return;
+        }
 
         Optional<String> userId = identity.resolveByChatId(fromId);
         if (userId.isEmpty()) {
@@ -100,11 +129,14 @@ public class VoiceMessageHandler {
             return;
         }
 
+        String contentType = voice.mime_type();
+        if (contentType == null || contentType.isBlank()) {
+            contentType = DEFAULT_VOICE_MIME;
+        }
+
         String transcript;
         try {
-            // file_path doubles as a stable filename hint for the upstream transcription service
-            // (which expects a filename including extension to infer the audio container).
-            transcript = transcription.transcribe(audio, file.get().file_path(), voice.mime_type());
+            transcript = transcription.transcribe(audio, file.get().file_path(), contentType);
         } catch (RuntimeException e) {
             log.warn("Voice transcription failed for chat {}: {}", chatId, e.getMessage());
             reply(chatId, "⚠️ Couldn't transcribe voice. Try sending text.");
@@ -113,8 +145,23 @@ public class VoiceMessageHandler {
 
         log.info("Voice transcribed for chat {} ({} chars)", chatId,
                 transcript == null ? 0 : transcript.length());
-        // repoUrl is null — repo mapping is a Phase 2 concern; the router treats null as "no repo".
         initiator.initiate(chatId, userId.get(), transcript, link.get(), null);
+    }
+
+    private boolean consumeVoiceQuota(long chatId) {
+        Instant now = Instant.now();
+        Instant cutoff = now.minus(VOICE_RATE_WINDOW);
+        Deque<Instant> stamps = voiceTimestamps.computeIfAbsent(chatId, k -> new ArrayDeque<>());
+        synchronized (stamps) {
+            while (!stamps.isEmpty() && stamps.peekFirst().isBefore(cutoff)) {
+                stamps.pollFirst();
+            }
+            if (stamps.size() >= VOICE_RATE_LIMIT) {
+                return false;
+            }
+            stamps.addLast(now);
+            return true;
+        }
     }
 
     private void reply(long chatId, String text) {

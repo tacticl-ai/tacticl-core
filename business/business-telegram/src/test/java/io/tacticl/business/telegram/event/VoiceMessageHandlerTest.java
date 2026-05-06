@@ -127,6 +127,50 @@ class VoiceMessageHandlerTest {
     }
 
     @Test
+    void nullMimeType_defaultsToAudioOgg() {
+        when(identity.resolveByChatId(FROM_ID)).thenReturn(Optional.of("user-alice"));
+        TelegramProjectLink link = TelegramProjectLink.create("proj-1", CHAT_ID, "user-alice", "Group");
+        when(projects.findByChatIdAndIsActiveTrue(CHAT_ID)).thenReturn(Optional.of(link));
+        when(bot.getFile("file-1"))
+                .thenReturn(Optional.of(new TelegramFile("file-1", "uniq-1", 1234L, "voice/file_5.ogg")));
+        byte[] audio = new byte[]{1, 2, 3};
+        when(bot.downloadFile("voice/file_5.ogg")).thenReturn(audio);
+        when(transcription.transcribe(audio, "voice/file_5.ogg", "audio/ogg")).thenReturn("hi");
+
+        // Voice with null mime_type — older Telegram clients omit this field.
+        handler.handle(voiceMsg(new Voice("file-1", "uniq-1", 5, null)));
+
+        verify(transcription).transcribe(audio, "voice/file_5.ogg", "audio/ogg");
+        verify(initiator).initiate(eq(CHAT_ID), eq("user-alice"), eq("hi"), eq(link), isNull());
+    }
+
+    @Test
+    void perChatRateLimitThrottlesAfterSixVoicesInOneMinute() {
+        when(identity.resolveByChatId(FROM_ID)).thenReturn(Optional.of("user-alice"));
+        TelegramProjectLink link = TelegramProjectLink.create("proj-1", CHAT_ID, "user-alice", "Group");
+        when(projects.findByChatIdAndIsActiveTrue(CHAT_ID)).thenReturn(Optional.of(link));
+        when(bot.getFile("file-1"))
+                .thenReturn(Optional.of(new TelegramFile("file-1", "uniq-1", 1234L, "voice/file_5.ogg")));
+        when(bot.downloadFile("voice/file_5.ogg")).thenReturn(new byte[]{1});
+        when(transcription.transcribe(any(), anyString(), anyString())).thenReturn("ok");
+
+        for (int i = 0; i < 6; i++) {
+            handler.handle(voiceMsg(new Voice("file-1", "uniq-1", 5, "audio/ogg")));
+        }
+        // 7th: throttled.
+        handler.handle(voiceMsg(new Voice("file-1", "uniq-1", 5, "audio/ogg")));
+
+        verify(transcription, org.mockito.Mockito.times(6))
+                .transcribe(any(), anyString(), anyString());
+        verify(initiator, org.mockito.Mockito.times(6))
+                .initiate(anyLong(), anyString(), anyString(), any(), any());
+        ArgumentCaptor<OutboundMessage> captor = ArgumentCaptor.forClass(OutboundMessage.class);
+        verify(outbound).enqueue(eq(CHAT_ID), captor.capture());
+        assertThat(captor.getValue().request().text())
+                .isEqualTo("⚠️ Too many voice messages right now — please wait a moment.");
+    }
+
+    @Test
     void transcriptionThrows_repliesTranscriptionFailure() {
         when(identity.resolveByChatId(FROM_ID)).thenReturn(Optional.of("user-alice"));
         TelegramProjectLink link = TelegramProjectLink.create("proj-1", CHAT_ID, "user-alice", "Group");
