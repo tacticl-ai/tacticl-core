@@ -13,6 +13,8 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -31,7 +33,7 @@ class AgentControllerTest {
     void setUp() {
         agentCommandService = mock(AgentCommandService.class);
         transcriptionService = mock(TranscriptionService.class);
-        controller = new AgentController(agentCommandService, transcriptionService);
+        controller = new AgentController(agentCommandService, Optional.of(transcriptionService));
     }
 
     @Test
@@ -117,6 +119,22 @@ class AgentControllerTest {
         assertThat(resp.getBody().isSuccess()).isFalse();
         assertThat(resp.getBody().getResponseText()).contains("empty");
         verify(transcriptionService, never()).transcribe(any(), any(), any());
+        verify(agentCommandService, never()).execute(any());
+    }
+
+    @Test
+    void voiceEndpointReturns503WhenTranscriptionDisabled() {
+        AgentController noTranscription = new AgentController(agentCommandService, Optional.empty());
+        MockMultipartFile file = new MockMultipartFile(
+                "audio", "v.ogg", "audio/ogg", "bytes".getBytes());
+        AuthenticatedUser user = mock(AuthenticatedUser.class);
+        when(user.getUserId()).thenReturn("u1");
+
+        ResponseEntity<AgentCommandResponse> resp = noTranscription.executeVoice(file, null, user);
+
+        assertThat(resp.getStatusCode().value()).isEqualTo(503);
+        assertThat(resp.getBody().isSuccess()).isFalse();
+        assertThat(resp.getBody().getResponseText()).contains("not configured");
         verify(agentCommandService, never()).execute(any());
     }
 }

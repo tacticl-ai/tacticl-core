@@ -11,8 +11,10 @@ import io.strategiz.social.service.agent.dto.AgentCommandRequest;
 import io.strategiz.social.service.agent.dto.AgentCommandResponse;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,10 +34,16 @@ public class AgentController {
     private static final Logger log = LoggerFactory.getLogger(AgentController.class);
 
     private final AgentCommandService agentCommandService;
-    private final TranscriptionService transcriptionService;
+
+    /**
+     * Optional so the application boots in profiles where
+     * {@code tacticl.whisper.enabled=false} (default local). When absent,
+     * {@link #executeVoice} returns 503; {@link #executeCommand} is unaffected.
+     */
+    private final Optional<TranscriptionService> transcriptionService;
 
     public AgentController(AgentCommandService agentCommandService,
-                           TranscriptionService transcriptionService) {
+                           Optional<TranscriptionService> transcriptionService) {
         this.agentCommandService = agentCommandService;
         this.transcriptionService = transcriptionService;
     }
@@ -60,6 +68,11 @@ public class AgentController {
             @RequestPart("audio") MultipartFile audio,
             @RequestParam(value = "model", required = false) String model,
             @AuthUser AuthenticatedUser user) {
+        if (transcriptionService.isEmpty()) {
+            log.warn("Voice intake from user {} rejected: transcription disabled", user.getUserId());
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new AgentCommandResponse(
+                    "Voice intake not configured.", List.of(), false, null));
+        }
         if (audio == null || audio.isEmpty()) {
             log.warn("Voice intake from user {} rejected: empty audio", user.getUserId());
             return ResponseEntity.badRequest().body(new AgentCommandResponse(
@@ -84,7 +97,7 @@ public class AgentController {
         log.info("Voice intake from user {}: {} bytes ({}, {})",
                 user.getUserId(), bytes.length, filename, contentType);
 
-        String transcript = transcriptionService.transcribe(bytes, filename, contentType);
+        String transcript = transcriptionService.get().transcribe(bytes, filename, contentType);
         AgentCommand cmd = AgentCommand.fromHttp(user.getUserId(), transcript, model);
         AgentCommandResult result = agentCommandService.execute(cmd);
         return ResponseEntity.ok(toResponse(result));
