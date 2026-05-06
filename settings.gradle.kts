@@ -21,6 +21,7 @@ include(
     "client:client-github",
     "client:client-google",
     "client:client-jina",
+    "client:client-whisper",
 )
 
 include(":data:data-connections")
