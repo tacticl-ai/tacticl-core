@@ -183,6 +183,33 @@ public class TelegramBotClient {
         }
     }
 
+    /**
+     * Downloads the binary content of a Telegram file using the {@code file_path} obtained from
+     * {@link #getFile(String)}. Telegram serves files from a different host pattern than the
+     * Bot API: {@code https://api.telegram.org/file/bot<token>/<file_path>} (note the
+     * {@code /file} prefix). The file_path is valid for at least 1 hour.
+     *
+     * @param filePath value of {@link TelegramFile#file_path()}
+     * @return file bytes (never {@code null}); zero-length array if the body was empty
+     */
+    public byte[] downloadFile(String filePath) {
+        checkRateLimit();
+        // Build URI manually so embedded slashes in file_path (e.g. "voice/file_5.ogg")
+        // are preserved as path separators rather than percent-encoded.
+        String uri = "/file/bot" + config.getBotToken() + "/" + filePath;
+        try {
+            byte[] body = restClient.get()
+                .uri(uri)
+                .retrieve()
+                .body(byte[].class);
+            return body != null ? body : new byte[0];
+        }
+        catch (Exception e) {
+            logger.error("Telegram downloadFile failed for filePath={}", filePath, e);
+            throw new CidadelException(TelegramErrorDetails.BOT_API_ERROR, MODULE_NAME, e.getMessage());
+        }
+    }
+
     public boolean setMyCommands(List<BotCommand> commands, String scopeType) {
         checkRateLimit();
         Map<String, Object> payload = Map.of(

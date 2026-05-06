@@ -262,6 +262,53 @@ class TelegramBotClientExtendedTest {
     }
 
     @Test
+    void downloadFileReturnsBytes() {
+        byte[] expected = new byte[] {0x4F, 0x67, 0x67, 0x53, 0x00, 0x02};
+        server.expect(requestTo(BASE_URL + "/file/bot" + TOKEN + "/voice/file_5.ogg"))
+            .andExpect(method(HttpMethod.GET))
+            .andRespond(withSuccess(expected, MediaType.APPLICATION_OCTET_STREAM));
+
+        byte[] result = client.downloadFile("voice/file_5.ogg");
+
+        assertNotNull(result);
+        assertEquals(expected.length, result.length);
+        for (int i = 0; i < expected.length; i++) {
+            assertEquals(expected[i], result[i]);
+        }
+        server.verify();
+    }
+
+    @Test
+    void downloadFileEmptyBodyReturnsEmptyArray() {
+        server.expect(requestTo(BASE_URL + "/file/bot" + TOKEN + "/voice/empty.ogg"))
+            .andRespond(withSuccess(new byte[0], MediaType.APPLICATION_OCTET_STREAM));
+
+        byte[] result = client.downloadFile("voice/empty.ogg");
+
+        assertNotNull(result);
+        assertEquals(0, result.length);
+        server.verify();
+    }
+
+    @Test
+    void downloadFileRateLimitExceededThrows() {
+        Bucket limited = mock(Bucket.class);
+        when(limited.tryConsume(1)).thenReturn(false);
+        TelegramBotClient rateLimitedClient = new TelegramBotClient(config, limited, builder);
+
+        assertThrows(CidadelException.class, () -> rateLimitedClient.downloadFile("voice/file.ogg"));
+    }
+
+    @Test
+    void downloadFileTransportFailureThrows() {
+        server.expect(requestTo(BASE_URL + "/file/bot" + TOKEN + "/voice/boom.ogg"))
+            .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators
+                .withServerError());
+
+        assertThrows(CidadelException.class, () -> client.downloadFile("voice/boom.ogg"));
+    }
+
+    @Test
     void setMyCommandsSucceeds() {
         server.expect(requestTo(BASE_URL + "/bot" + TOKEN + "/setMyCommands"))
             .andExpect(method(HttpMethod.POST))
