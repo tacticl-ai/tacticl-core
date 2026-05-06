@@ -116,8 +116,8 @@ class TelegramCommandRegistrarTest {
 
     @Test
     void emptyDmList_skipsDmRegistration() {
-        // All real handlers are GROUP-scoped today; ensure we don't make a wasted API call
-        // with an empty command list.
+        // Defensive: a future regression that strips DM commands shouldn't waste an
+        // API call with an empty list (Telegram silently clears the prior catalog).
         CommandHandler init = stub("/init", CommandHandler.Scope.GROUP, "Claim group");
         TelegramCommandRegistrar registrar =
                 new TelegramCommandRegistrar(bot, List.of(init));
@@ -126,6 +126,27 @@ class TelegramCommandRegistrarTest {
 
         verify(bot).setMyCommands(any(), eq("all_group_chats"));
         verify(bot, never()).setMyCommands(any(), eq("all_private_chats"));
+    }
+
+    @Test
+    void dmTrioShipsToPrivateScope() {
+        // /whoami, /projects, /unlink are DM-only — the registrar must publish them
+        // to all_private_chats so the Telegram autocomplete shows them in DMs.
+        CommandHandler whoami = stub("/whoami", CommandHandler.Scope.DM, "Show linked account");
+        CommandHandler projects = stub("/projects", CommandHandler.Scope.DM, "List projects");
+        CommandHandler unlink = stub("/unlink", CommandHandler.Scope.DM, "Disconnect Telegram");
+        TelegramCommandRegistrar registrar =
+                new TelegramCommandRegistrar(bot, List.of(whoami, projects, unlink));
+
+        registrar.registerOnStartup();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<BotCommand>> captor = ArgumentCaptor.forClass(List.class);
+        verify(bot).setMyCommands(captor.capture(), eq("all_private_chats"));
+        assertThat(captor.getValue())
+                .extracting(BotCommand::command)
+                .containsExactlyInAnyOrder("whoami", "projects", "unlink");
+        verify(bot, never()).setMyCommands(any(), eq("all_group_chats"));
     }
 
     private static CommandHandler stub(String name, CommandHandler.Scope scope, String description) {
