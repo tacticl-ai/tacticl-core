@@ -69,8 +69,9 @@ AgentController                  TelegramSparkInitiator     VoiceMessageHandler
 - Loses hardcoded `50.0` cost ceiling — service applies the documented default; future `UserConfig` lookup belongs in the service.
 
 **`TranscriptionService`** — new interface in `business-agent`.
-- `String transcribe(byte[] audio, String mimeType)`.
-- `WhisperTranscriptionService` impl in tacticl-core (new `client-whisper` module — small, ~80 lines: RestClient → multipart → `audio/transcriptions` endpoint, Vault-backed key at `secret/strategiz/openai`).
+- `String transcribe(byte[] audio, String filename, String contentType)` (filename hint helps Whisper format detection).
+- `WhisperTranscriptionService` impl in tacticl-core (new `client-whisper` module — small, ~80 lines: RestClient → multipart → `audio/transcriptions` endpoint).
+- Vault-backed key at the explicit cross-context path `secret/strategiz/openai` (key `api-key`). The shared OpenAI key is provisioned once for the whole product family rather than duplicated into each product's Vault context; mirrors `AnthropicVaultConfig.loadOAuthFromContext("strategiz")`.
 - Reasoning for in-tacticl-core: cidadel `client-openai-direct` is chat-only; arbiter has no STT. When cidadel grows STT, swap impl by changing one bean.
 
 **`VoiceMessageHandler`** — new in `business-telegram/event/`.
