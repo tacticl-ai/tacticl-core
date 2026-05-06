@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":client:client-jina"))
     implementation(project(":client:client-google"))
     implementation(project(":client:client-github"))
+    implementation(project(":client:client-whisper"))
     implementation(project(":data:data-sparks"))
     implementation(project(":data:data-pipeline"))
     implementation(project(":business:business-sparks"))
