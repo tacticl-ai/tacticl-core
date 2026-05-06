@@ -19,6 +19,10 @@ deliberately operator-shaped.
 | `tacticl.telegram.outbound.capacity`      | `200` | `TelegramOutboundQueue` (per-chat ring) |
 | `tacticl.telegram.outbound.drain-ms`      | `50` | `OutboundDrainer` `@Scheduled` cadence |
 | `tacticl.telegram.status-debounce-ms`     | `10000` | **not yet wired** — see "Status debounce" below |
+| `tacticl.whisper.enabled`                 | `false` | Server-side voice transcription (gates `WhisperTranscriptionService` + `VoiceMessageHandler`) |
+| `tacticl.whisper.base-url`                | `https://api.openai.com` | `WhisperClient` |
+| `tacticl.whisper.model`                   | `whisper-1` | `WhisperClient` |
+| `tacticl.whisper.rate-limit-per-minute`   | `60` | per-pod outbound throttle to OpenAI |
 
 > **Heads-up:** `tacticl.telegram.status-debounce-ms` is exposed as a
 > configuration key but is **not currently consumed** by `PinnedStatusService`.
@@ -115,9 +119,45 @@ they appear in Telegram's `/` autocomplete). All commands except `/help` are
 | `/leave`    | Archive project and leave group            |
 | `/help`     | Show available commands                    |
 
+DM-scoped commands (private chat with the bot only):
+
+| Command     | Description                                |
+|-------------|--------------------------------------------|
+| `/whoami`   | Show your linked Tacticl identity          |
+| `/projects` | List Tacticl projects you belong to        |
+| `/unlink`   | Unlink your Tacticl account from Telegram  |
+
+`/unlink` is blocked if you are the sole owner of any active project — transfer
+ownership first via `/transfer` in the affected group.
+
 Source of truth: each command's `description()` override in
 `business-telegram/.../command/*.java`. If you add or rename a command, the
 registrar republishes on next deploy — no manual BotFather edit required.
+
+### Voice messages
+
+When `tacticl.whisper.enabled=true`, voice notes posted in a linked group are
+treated as `/spark`-equivalents:
+
+```
+user posts voice note in linked group
+  └─> TelegramDispatchService routes to VoiceMessageHandler
+        └─> bot.getFile + downloadFile → audio bytes
+              └─> TranscriptionService (Whisper) → text
+                    └─> TelegramSparkInitiator (same path text mentions take)
+                          └─> AgentCommandService → spark + classify + route
+```
+
+Prerequisites:
+- `tacticl.whisper.enabled=true` (this gates the bean — when false, voice notes
+  are silently dropped, preserving prior behaviour).
+- Vault key at `secret/strategiz/openai` with field `api-key`.
+
+Symptoms of misconfiguration:
+- "⚠️ Couldn't download voice message." — Telegram `getFile` failed; check bot
+  token, network egress to `api.telegram.org`.
+- "⚠️ Couldn't transcribe voice. Try sending text." — Whisper API call failed;
+  check OpenAI key, quota, and network egress to `api.openai.com`.
 
 ## 5. Rate-limit diagnostics
 
