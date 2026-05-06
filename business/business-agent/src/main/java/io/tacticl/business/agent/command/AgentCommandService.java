@@ -71,8 +71,10 @@ public class AgentCommandService {
                 log.info("[AgentCommand] Spark {} routed to PDLC run {}", spark.getId(), run.get().getId());
                 return AgentCommandResult.pipeline(spark.getId(), run.get().getId(), "FULL_PDLC");
             }
-            log.warn("[AgentCommand] PDLC disabled for spark {} type {}; falling through to cloud loop",
+            log.warn("[AgentCommand] PDLC disabled for code/devops spark {} type {}; failing explicitly",
                     spark.getId(), type);
+            sparks.markFailed(spark.getId(), cmd.userId());
+            return AgentCommandResult.pipelineDisabled(spark.getId());
         }
 
         spark = sparks.markExecuting(spark.getId(), cmd.userId(), SparkRoute.CLOUD, null);
@@ -84,7 +86,7 @@ public class AgentCommandService {
             int tokens = llm != null && llm.getTotalTokens() != null ? llm.getTotalTokens() : 0;
             sparks.markCompleted(spark.getId(), cmd.userId(), tokens, model);
             return AgentCommandResult.cloudCompleted(spark.getId(), text, model, tokens);
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             log.error("[AgentCommand] Spark {} failed: {}", spark.getId(), e.getMessage(), e);
             sparks.markFailed(spark.getId(), cmd.userId());
             return AgentCommandResult.cloudFailed(spark.getId(),

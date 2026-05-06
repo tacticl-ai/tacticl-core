@@ -33,6 +33,19 @@ public record AgentCommandResult(
 
     public static AgentCommandResult cloudFailed(String sparkId, String message) {
         return new AgentCommandResult(sparkId, "FAILED", "SYNC",
-                null, "SIMPLE", message, List.of(), false, null, 0);
+                null, null, message, List.of(), false, null, 0);
+    }
+
+    /**
+     * Code/devops spark routed to PDLC, but the pipeline engine is disabled.
+     * Distinct from {@link #cloudFailed} so adapters can render an actionable
+     * message ("ask an admin to enable pdlc.v2") rather than the generic
+     * upstream-failure copy.
+     */
+    public static AgentCommandResult pipelineDisabled(String sparkId) {
+        return new AgentCommandResult(sparkId, "FAILED", "ASYNC",
+                null, "FULL_PDLC",
+                "Pipeline engine is disabled — ask an admin to enable pdlc.v2.",
+                List.of(), false, null, 0);
     }
 }

@@ -106,6 +106,46 @@ class AgentCommandServiceTest {
     }
 
     @Test
+    void pipelineDisabledForCodeReturnsDisabledResultAndMarksFailed() {
+        Spark spark = Spark.create("u1", "deploy this");
+        String sparkId = spark.getId();
+        when(sparks.create(eq("u1"), eq("deploy this"), any(), eq("u1"), any())).thenReturn(spark);
+        when(classifier.classify("deploy this")).thenReturn(SparkType.CODE);
+        when(sparks.classify(sparkId, "u1", SparkType.CODE)).thenReturn(spark);
+        when(pdlcRouter.route(any(), any(), any(), any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyDouble()))
+                .thenReturn(Optional.empty());
+
+        AgentCommandResult result = service.execute(AgentCommand.fromHttp("u1", "deploy this", null));
+
+        assertThat(result.succeeded()).isFalse();
+        assertThat(result.sparkStatus()).isEqualTo("FAILED");
+        assertThat(result.pipelineTier()).isEqualTo("FULL_PDLC");
+        assertThat(result.responseText()).contains("Pipeline engine is disabled");
+        verify(sparks).markFailed(sparkId, "u1");
+        verify(anthropic, org.mockito.Mockito.never())
+                .generateContent(anyString(), anyList(), anyString());
+    }
+
+    @Test
+    void marksSparkFailedWhenAnthropicThrowsCheckedException() {
+        Spark spark = Spark.create("u1", "hi");
+        String sparkId = spark.getId();
+        when(sparks.create(eq("u1"), eq("hi"), any(), eq("u1"), any())).thenReturn(spark);
+        when(classifier.classify("hi")).thenReturn(SparkType.RESEARCH);
+        when(sparks.classify(sparkId, "u1", SparkType.RESEARCH)).thenReturn(spark);
+        when(sparks.markExecuting(eq(sparkId), eq("u1"), eq(SparkRoute.CLOUD), any())).thenReturn(spark);
+        when(anthropic.generateContent(anyString(), anyList(), anyString()))
+                .thenAnswer(inv -> { throw new java.io.IOException("upstream timeout"); });
+
+        AgentCommandResult result = service.execute(AgentCommand.fromHttp("u1", "hi", null));
+
+        assertThat(result.succeeded()).isFalse();
+        assertThat(result.sparkStatus()).isEqualTo("FAILED");
+        assertThat(result.pipelineTier()).isNull();
+        verify(sparks).markFailed(sparkId, "u1");
+    }
+
+    @Test
     void honoursCallerCostCeilingWhenProvided() {
         Spark spark = Spark.create("u1", "deploy");
         when(sparks.create(any(), any(), any(), any(), any())).thenReturn(spark);
