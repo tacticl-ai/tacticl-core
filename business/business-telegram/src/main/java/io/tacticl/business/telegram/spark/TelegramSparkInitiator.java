@@ -1,16 +1,13 @@
 package io.tacticl.business.telegram.spark;
 
-import io.tacticl.business.pipeline.router.PdlcRouter;
-import io.tacticl.business.sparks.service.SparkService;
+import io.tacticl.business.agent.command.AgentCommand;
+import io.tacticl.business.agent.command.AgentCommandResult;
+import io.tacticl.business.agent.command.AgentCommandService;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
 import io.tacticl.business.telegram.outbound.TelegramOutboundQueue;
 import io.tacticl.business.telegram.permission.MemberPermissionService;
 import io.tacticl.business.telegram.permission.PermissionCheck;
 import io.tacticl.client.telegram.dto.SendMessageRequest;
-import io.tacticl.data.pipeline.entity.PipelineRun;
-import io.tacticl.data.sparks.entity.Spark;
-import io.tacticl.data.sparks.entity.SparkInitiatorSource;
-import io.tacticl.data.sparks.entity.SparkType;
 import io.tacticl.data.telegram.entity.MemberRole;
 import io.tacticl.data.telegram.entity.TelegramProjectLink;
 import org.slf4j.Logger;
@@ -18,14 +15,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Optional;
-
 /**
  * Initiates a Spark from a Telegram group message:
- * permission check → create spark → stamp Telegram provenance → route to PDLC v2 → reply.
+ * permission check → delegate to {@link AgentCommandService} → reply.
  *
- * <p>Called by {@code SparkCommand} (Task 26) when a contributor addresses the bot in a group.
+ * <p>Called by {@code SparkCommand} when a contributor addresses the bot in a group.
+ * Spark creation, classification, and pipeline routing all live in
+ * {@link AgentCommandService}; this adapter only carries Telegram-specific
+ * concerns (permission, text validation, outbound reply formatting).
  */
 @Service
 @ConditionalOnProperty(name = "tacticl.telegram.enabled", havingValue = "true")
@@ -33,33 +30,26 @@ public class TelegramSparkInitiator {
 
     private static final Logger log = LoggerFactory.getLogger(TelegramSparkInitiator.class);
 
-    // TODO: read cost ceiling from UserConfig (plan 2026-04-19 — future Phase 3 work).
-    // Matches the prod default documented in application-prod.properties for pdlc.v2.
-    private static final double COST_CEILING_USD = 50.0;
-
     // Telegram group messages allow up to 4096 chars but Sparks above ~2k chars are almost
     // always paste-spam or accidental dumps — routing them wastes tokens and can pin
     // the LLM into oversized prompts. Reject (don't truncate) so user intent is preserved.
     private static final int MAX_SPARK_TEXT_CHARS = 2000;
 
-    private final SparkService sparkService;
-    private final PdlcRouter pdlcRouter;
+    private final AgentCommandService agentCommandService;
     private final MemberPermissionService permissions;
     private final TelegramOutboundQueue outbound;
 
-    public TelegramSparkInitiator(SparkService sparkService,
-                                  PdlcRouter pdlcRouter,
+    public TelegramSparkInitiator(AgentCommandService agentCommandService,
                                   MemberPermissionService permissions,
                                   TelegramOutboundQueue outbound) {
-        this.sparkService = sparkService;
-        this.pdlcRouter = pdlcRouter;
+        this.agentCommandService = agentCommandService;
         this.permissions = permissions;
         this.outbound = outbound;
     }
 
     /**
-     * @param repoUrl nullable — no repo-mapping service exists yet (Phase 2 deferral);
-     *                callers pass whatever they have, router treats null as "no repo".
+     * @param repoUrl nullable — no repo-mapping service exists yet; callers pass
+     *                whatever they have, the router treats null as "no repo".
      */
     public void initiate(long chatId, String tacticlUserId, String text,
                          TelegramProjectLink link, String repoUrl) {
@@ -79,43 +69,25 @@ public class TelegramSparkInitiator {
             return;
         }
 
-        Spark spark = sparkService.create(
-                tacticlUserId,
-                text,
-                SparkInitiatorSource.TELEGRAM_GROUP,
-                tacticlUserId,
-                link.getProjectId());
-
-        // SparkType=CODE is the Phase 2 default. Auto-classification will replace this
-        // via SparkClassifierService in a later task; for now CODE is safe because /spark
-        // is an explicit intent to run a pipeline.
-        Optional<PipelineRun> run;
+        AgentCommand cmd = AgentCommand.fromTelegramGroup(tacticlUserId, text, link.getProjectId(), repoUrl);
+        AgentCommandResult result;
         try {
-            run = pdlcRouter.route(
-                    tacticlUserId,
-                    spark.getId(),
-                    text,
-                    repoUrl,
-                    SparkType.CODE,
-                    List.of(),
-                    null,
-                    COST_CEILING_USD);
+            result = agentCommandService.execute(cmd);
         } catch (RuntimeException e) {
-            log.error("Pipeline routing failed for spark {} in chat {}", spark.getId(), chatId, e);
-            reply(chatId, "⚠️ Couldn't start the pipeline. Try again or check with an admin.");
+            log.error("Agent command failed for spark in chat {}", chatId, e);
+            reply(chatId, "⚠️ Couldn't start the spark. Try again or check with an admin.");
             return;
         }
 
-        if (run.isEmpty()) {
-            // TODO: when CloudOrchestratorService (legacy cloud path) lands, fall back here
-            // instead of replying with a disabled message (plan 2026-04-19 Task 25).
-            log.warn("PDLC v2 disabled — spark {} in chat {} not routed to pipeline",
-                    spark.getId(), chatId);
-            reply(chatId, "⚠️ Pipeline engine is disabled — ask an admin to enable pdlc.v2.");
+        if (!result.succeeded()) {
+            reply(chatId, "⚠️ " + result.responseText());
             return;
         }
-
-        reply(chatId, "▶️ Started — I'll post updates here.");
+        if (result.pipelineRunId() != null) {
+            reply(chatId, "▶️ Started — I'll post updates here.");
+        } else {
+            reply(chatId, result.responseText());
+        }
     }
 
     private void reply(long chatId, String text) {

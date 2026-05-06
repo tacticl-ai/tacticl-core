@@ -8,6 +8,10 @@ dependencies {
     implementation(project(":client:client-jina"))
     implementation(project(":client:client-google"))
     implementation(project(":client:client-github"))
+    implementation(project(":data:data-sparks"))
+    implementation(project(":data:data-pipeline"))
+    implementation(project(":business:business-sparks"))
+    implementation(project(":business:business-pipeline"))
 
     // Cidadel shared infrastructure (module-specific, beyond parent)
     implementation(libs.cidadel.service.framework.base)

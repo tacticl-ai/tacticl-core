@@ -11,5 +11,6 @@ dependencies {
     implementation(project(":data:data-profile"))
     implementation(project(":business:business-sparks"))
     implementation(project(":business:business-pipeline"))
+    implementation(project(":business:business-agent"))
     implementation(libs.cidadel.framework.secrets)
 }

@@ -1,14 +1,12 @@
 package io.tacticl.business.telegram.spark;
 
-import io.tacticl.business.pipeline.router.PdlcRouter;
-import io.tacticl.business.sparks.service.SparkService;
+import io.tacticl.business.agent.command.AgentCommand;
+import io.tacticl.business.agent.command.AgentCommandResult;
+import io.tacticl.business.agent.command.AgentCommandService;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
 import io.tacticl.business.telegram.outbound.TelegramOutboundQueue;
 import io.tacticl.business.telegram.permission.MemberPermissionService;
 import io.tacticl.business.telegram.permission.PermissionCheck;
-import io.tacticl.data.pipeline.entity.PipelineRun;
-import io.tacticl.data.sparks.entity.Spark;
-import io.tacticl.data.sparks.entity.SparkInitiatorSource;
 import io.tacticl.data.telegram.entity.MemberRole;
 import io.tacticl.data.telegram.entity.TelegramProjectLink;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,15 +16,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
-import java.util.Optional;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -40,8 +32,7 @@ class TelegramSparkInitiatorTest {
     private static final String PROJECT_ID = "project-1";
     private static final String REPO_URL = "https://github.com/acme/repo";
 
-    @Mock SparkService sparkService;
-    @Mock PdlcRouter pdlcRouter;
+    @Mock AgentCommandService agentCommandService;
     @Mock MemberPermissionService permissions;
     @Mock TelegramOutboundQueue outbound;
 
@@ -50,49 +41,39 @@ class TelegramSparkInitiatorTest {
 
     @BeforeEach
     void setUp() {
-        initiator = new TelegramSparkInitiator(sparkService, pdlcRouter, permissions, outbound);
+        initiator = new TelegramSparkInitiator(agentCommandService, permissions, outbound);
         link = TelegramProjectLink.create(PROJECT_ID, CHAT_ID, USER_ID, "My Group");
     }
 
     @Test
-    void permissionDeniedRepliesAndSkipsCreate() {
+    void permissionDeniedRepliesAndSkipsExecute() {
         when(permissions.require(CHAT_ID, USER_ID, MemberRole.CONTRIBUTOR))
                 .thenReturn(PermissionCheck.deny(MemberRole.OBSERVER, MemberRole.CONTRIBUTOR, "insufficient role"));
 
         initiator.initiate(CHAT_ID, USER_ID, "build a REST API", link, REPO_URL);
 
-        verifyNoInteractions(sparkService);
-        verifyNoInteractions(pdlcRouter);
+        verifyNoInteractions(agentCommandService);
         ArgumentCaptor<OutboundMessage> msg = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(outbound).enqueue(eq(CHAT_ID), msg.capture());
         assertThat(msg.getValue().request().text()).contains("contributor");
     }
 
     @Test
-    void happyPathCreatesSparkAndRoutes() {
+    void happyPathDelegatesAndRepliesStarted() {
         when(permissions.require(CHAT_ID, USER_ID, MemberRole.CONTRIBUTOR))
                 .thenReturn(PermissionCheck.allow(MemberRole.CONTRIBUTOR));
-
-        Spark spark = Spark.create(USER_ID, "build a REST API");
-        spark.setInitiatorSource(SparkInitiatorSource.TELEGRAM_GROUP);
-        spark.setInitiatorUserId(USER_ID);
-        spark.setProjectId(PROJECT_ID);
-        when(sparkService.create(USER_ID, "build a REST API",
-                SparkInitiatorSource.TELEGRAM_GROUP, USER_ID, PROJECT_ID))
-                .thenReturn(spark);
-
-        PipelineRun run = mock(PipelineRun.class);
-        when(pdlcRouter.route(eq(USER_ID), eq(spark.getId()), eq("build a REST API"),
-                eq(REPO_URL), any(), any(), any(), anyDouble()))
-                .thenReturn(Optional.of(run));
+        when(agentCommandService.execute(any(AgentCommand.class)))
+                .thenReturn(AgentCommandResult.pipeline("spark-1", "run-1", "FULL_PDLC"));
 
         initiator.initiate(CHAT_ID, USER_ID, "build a REST API", link, REPO_URL);
 
-        verify(sparkService).create(USER_ID, "build a REST API",
-                SparkInitiatorSource.TELEGRAM_GROUP, USER_ID, PROJECT_ID);
-
-        verify(pdlcRouter).route(eq(USER_ID), eq(spark.getId()), eq("build a REST API"),
-                eq(REPO_URL), any(), eq(List.of()), any(), eq(50.0));
+        ArgumentCaptor<AgentCommand> captor = ArgumentCaptor.forClass(AgentCommand.class);
+        verify(agentCommandService).execute(captor.capture());
+        AgentCommand cmd = captor.getValue();
+        assertThat(cmd.userId()).isEqualTo(USER_ID);
+        assertThat(cmd.text()).isEqualTo("build a REST API");
+        assertThat(cmd.projectId()).isEqualTo(PROJECT_ID);
+        assertThat(cmd.repoUrl()).isEqualTo(REPO_URL);
 
         ArgumentCaptor<OutboundMessage> msg = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(outbound).enqueue(eq(CHAT_ID), msg.capture());
@@ -100,41 +81,27 @@ class TelegramSparkInitiatorTest {
     }
 
     @Test
-    void pdlcDisabledRepliesDisabledMessage() {
+    void cloudCompletionRepliesWithResponseText() {
         when(permissions.require(CHAT_ID, USER_ID, MemberRole.CONTRIBUTOR))
                 .thenReturn(PermissionCheck.allow(MemberRole.CONTRIBUTOR));
+        when(agentCommandService.execute(any(AgentCommand.class)))
+                .thenReturn(AgentCommandResult.cloudCompleted("spark-2", "Here you go!", "claude-sonnet-4-6", 7));
 
-        Spark spark = Spark.create(USER_ID, "build a REST API");
-        when(sparkService.create(eq(USER_ID), eq("build a REST API"),
-                any(), anyString(), anyString())).thenReturn(spark);
-        when(pdlcRouter.route(anyString(), anyString(), anyString(),
-                any(), any(), any(), any(), anyDouble()))
-                .thenReturn(Optional.empty());
-
-        initiator.initiate(CHAT_ID, USER_ID, "build a REST API", link, REPO_URL);
+        initiator.initiate(CHAT_ID, USER_ID, "summarize the news", link, null);
 
         ArgumentCaptor<OutboundMessage> msg = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(outbound).enqueue(eq(CHAT_ID), msg.capture());
-        assertThat(msg.getValue().request().text())
-                .contains("Pipeline engine is disabled");
+        assertThat(msg.getValue().request().text()).isEqualTo("Here you go!");
     }
 
     @Test
-    void routerThrowsRepliesErrorAndStops() {
+    void serviceThrowsRepliesFriendlyError() {
         when(permissions.require(CHAT_ID, USER_ID, MemberRole.CONTRIBUTOR))
                 .thenReturn(PermissionCheck.allow(MemberRole.CONTRIBUTOR));
-
-        Spark spark = Spark.create(USER_ID, "build a REST API");
-        when(sparkService.create(eq(USER_ID), eq("build a REST API"),
-                any(), anyString(), anyString())).thenReturn(spark);
-        when(pdlcRouter.route(anyString(), anyString(), anyString(),
-                any(), any(), any(), any(), anyDouble()))
+        when(agentCommandService.execute(any(AgentCommand.class)))
                 .thenThrow(new RuntimeException("boom"));
 
         initiator.initiate(CHAT_ID, USER_ID, "build a REST API", link, REPO_URL);
-
-        verify(sparkService).create(eq(USER_ID), eq("build a REST API"),
-                any(), anyString(), anyString());
 
         ArgumentCaptor<OutboundMessage> msg = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(outbound, times(1)).enqueue(eq(CHAT_ID), msg.capture());
@@ -144,11 +111,24 @@ class TelegramSparkInitiatorTest {
     }
 
     @Test
-    void blankTextRepliesAndSkipsCreate() {
+    void cloudFailureRepliesWithWarning() {
+        when(permissions.require(CHAT_ID, USER_ID, MemberRole.CONTRIBUTOR))
+                .thenReturn(PermissionCheck.allow(MemberRole.CONTRIBUTOR));
+        when(agentCommandService.execute(any(AgentCommand.class)))
+                .thenReturn(AgentCommandResult.cloudFailed("spark-3", "Try again later."));
+
+        initiator.initiate(CHAT_ID, USER_ID, "do something", link, null);
+
+        ArgumentCaptor<OutboundMessage> msg = ArgumentCaptor.forClass(OutboundMessage.class);
+        verify(outbound).enqueue(eq(CHAT_ID), msg.capture());
+        assertThat(msg.getValue().request().text()).contains("Try again later");
+    }
+
+    @Test
+    void blankTextRepliesAndSkipsExecute() {
         initiator.initiate(CHAT_ID, USER_ID, "   ", link, REPO_URL);
 
-        verifyNoInteractions(sparkService);
-        verifyNoInteractions(pdlcRouter);
+        verifyNoInteractions(agentCommandService);
         verifyNoInteractions(permissions);
         ArgumentCaptor<OutboundMessage> msg = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(outbound, times(1)).enqueue(eq(CHAT_ID), msg.capture());
@@ -156,13 +136,12 @@ class TelegramSparkInitiatorTest {
     }
 
     @Test
-    void tooLongTextIsRejectedBeforeCreate() {
+    void tooLongTextIsRejectedBeforeExecute() {
         String tooLong = "a".repeat(2001);
 
         initiator.initiate(CHAT_ID, USER_ID, tooLong, link, REPO_URL);
 
-        verifyNoInteractions(sparkService);
-        verifyNoInteractions(pdlcRouter);
+        verifyNoInteractions(agentCommandService);
         verifyNoInteractions(permissions);
         ArgumentCaptor<OutboundMessage> msg = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(outbound, times(1)).enqueue(eq(CHAT_ID), msg.capture());
@@ -175,33 +154,11 @@ class TelegramSparkInitiatorTest {
         String atCap = "a".repeat(2000);
         when(permissions.require(CHAT_ID, USER_ID, MemberRole.CONTRIBUTOR))
                 .thenReturn(PermissionCheck.allow(MemberRole.CONTRIBUTOR));
-        Spark spark = Spark.create(USER_ID, atCap);
-        when(sparkService.create(eq(USER_ID), eq(atCap),
-                any(), anyString(), anyString())).thenReturn(spark);
-        when(pdlcRouter.route(anyString(), anyString(), anyString(),
-                any(), any(), any(), any(), anyDouble()))
-                .thenReturn(Optional.of(mock(PipelineRun.class)));
+        when(agentCommandService.execute(any(AgentCommand.class)))
+                .thenReturn(AgentCommandResult.pipeline("s", "r", "FULL_PDLC"));
 
         initiator.initiate(CHAT_ID, USER_ID, atCap, link, REPO_URL);
 
-        verify(sparkService).create(eq(USER_ID), eq(atCap), any(), anyString(), anyString());
-    }
-
-    @Test
-    void nullRepoUrlStillRoutes() {
-        when(permissions.require(CHAT_ID, USER_ID, MemberRole.CONTRIBUTOR))
-                .thenReturn(PermissionCheck.allow(MemberRole.CONTRIBUTOR));
-
-        Spark spark = Spark.create(USER_ID, "refactor module");
-        when(sparkService.create(eq(USER_ID), eq("refactor module"),
-                any(), anyString(), anyString())).thenReturn(spark);
-        when(pdlcRouter.route(anyString(), anyString(), anyString(),
-                any(), any(), any(), any(), anyDouble()))
-                .thenReturn(Optional.of(mock(PipelineRun.class)));
-
-        initiator.initiate(CHAT_ID, USER_ID, "refactor module", link, null);
-
-        verify(pdlcRouter).route(eq(USER_ID), eq(spark.getId()), eq("refactor module"),
-                eq(null), any(), eq(List.of()), any(), eq(50.0));
+        verify(agentCommandService).execute(any(AgentCommand.class));
     }
 }
