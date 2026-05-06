@@ -10,11 +10,13 @@ import io.tacticl.client.telegram.dto.InlineKeyboardMarkup;
 import io.tacticl.client.telegram.dto.Message;
 import io.tacticl.client.telegram.dto.SendMessageRequest;
 import io.tacticl.client.telegram.dto.SendMessageResponse;
+import io.tacticl.client.telegram.dto.TelegramFile;
 import io.tacticl.client.telegram.dto.WebhookInfo;
 import io.tacticl.client.telegram.exception.TelegramErrorDetails;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -150,6 +152,35 @@ public class TelegramBotClient {
         Boolean ok = executePost("/leaveChat", Map.of("chat_id", chatId), Boolean.class,
             TelegramErrorDetails.BOT_API_ERROR);
         return Boolean.TRUE.equals(ok);
+    }
+
+    /**
+     * Retrieves metadata for a file (voice note, document, photo, etc.) by Telegram file id.
+     * The returned {@link TelegramFile#file_path()} is valid for at least 1 hour and can be
+     * passed to {@link #downloadFile(String)} to fetch the binary content.
+     *
+     * @return populated {@link TelegramFile} on success, empty when the API responds {@code ok=false}
+     */
+    public Optional<TelegramFile> getFile(String fileId) {
+        checkRateLimit();
+        try {
+            String body = restClient.get()
+                .uri("/bot{token}/getFile?file_id={fileId}", config.getBotToken(), fileId)
+                .retrieve()
+                .body(String.class);
+            ApiResponse<TelegramFile> response = objectMapper.readValue(
+                body,
+                objectMapper.getTypeFactory().constructParametricType(
+                    ApiResponse.class, TelegramFile.class));
+            if (response == null || !response.ok()) {
+                return Optional.empty();
+            }
+            return Optional.ofNullable(response.result());
+        }
+        catch (Exception e) {
+            logger.error("Telegram getFile failed for fileId={}", fileId, e);
+            throw new CidadelException(TelegramErrorDetails.BOT_API_ERROR, MODULE_NAME, e.getMessage());
+        }
     }
 
     public boolean setMyCommands(List<BotCommand> commands, String scopeType) {
