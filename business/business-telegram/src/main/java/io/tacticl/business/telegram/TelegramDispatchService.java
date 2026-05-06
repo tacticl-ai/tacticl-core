@@ -4,6 +4,7 @@ import io.tacticl.business.telegram.dedup.TelegramUpdateDedupCache;
 import io.tacticl.business.telegram.event.CallbackQueryHandler;
 import io.tacticl.business.telegram.event.GroupMembershipHandler;
 import io.tacticl.business.telegram.event.GroupMigrationHandler;
+import io.tacticl.business.telegram.event.VoiceMessageHandler;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.identity.TelegramUsernameCache;
 import io.tacticl.business.telegram.router.CommandContext;
@@ -68,6 +69,11 @@ public class TelegramDispatchService {
     private final GroupMembershipHandler membershipHandler;
     private final CallbackQueryHandler callbackQueryHandler;
     private final GroupMigrationHandler migrationHandler;
+    // Optional so the dispatcher still wires when tacticl.whisper.enabled=false:
+    // the VoiceMessageHandler bean is conditional on the same telegram flag, but
+    // its TranscriptionService dependency is conditional on the whisper flag —
+    // when whisper is off the bean is absent and we preserve the previous silent drop.
+    private final Optional<VoiceMessageHandler> voiceHandler;
 
     public TelegramDispatchService(TelegramUserLinker linker,
                                    TelegramBotClient bot,
@@ -80,7 +86,8 @@ public class TelegramDispatchService {
                                    TelegramUpdateDedupCache dedupCache,
                                    GroupMembershipHandler membershipHandler,
                                    CallbackQueryHandler callbackQueryHandler,
-                                   GroupMigrationHandler migrationHandler) {
+                                   GroupMigrationHandler migrationHandler,
+                                   Optional<VoiceMessageHandler> voiceHandler) {
         this.linker = linker;
         this.bot = bot;
         this.commandRouter = commandRouter;
@@ -93,6 +100,7 @@ public class TelegramDispatchService {
         this.membershipHandler = membershipHandler;
         this.callbackQueryHandler = callbackQueryHandler;
         this.migrationHandler = migrationHandler;
+        this.voiceHandler = voiceHandler;
     }
 
     public void handle(Update update) {
@@ -153,10 +161,15 @@ public class TelegramDispatchService {
             return;
         }
 
-        // Voice handler is deferred (issue #11) — drop silently rather than
-        // replying with a stale "stay tuned" message in groups.
         if (msg.voice() != null) {
-            logger.debug("telegram dispatch: voice message dropped (handler not wired)");
+            // When the Whisper-backed handler is disabled (dev / cost-saving) the bean
+            // is absent and we keep the previous silent drop rather than replying with
+            // a stale "stay tuned" message in groups.
+            if (voiceHandler.isPresent()) {
+                voiceHandler.get().handle(msg);
+            } else {
+                logger.debug("telegram dispatch: voice message dropped (whisper disabled)");
+            }
             return;
         }
 

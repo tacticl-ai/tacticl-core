@@ -4,6 +4,7 @@ import io.tacticl.business.telegram.dedup.TelegramUpdateDedupCache;
 import io.tacticl.business.telegram.event.CallbackQueryHandler;
 import io.tacticl.business.telegram.event.GroupMembershipHandler;
 import io.tacticl.business.telegram.event.GroupMigrationHandler;
+import io.tacticl.business.telegram.event.VoiceMessageHandler;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.identity.TelegramUsernameCache;
 import io.tacticl.business.telegram.router.CommandContext;
@@ -59,6 +60,7 @@ class TelegramDispatchServiceTest {
     private GroupMembershipHandler membershipHandler;
     private CallbackQueryHandler callbackQueryHandler;
     private GroupMigrationHandler migrationHandler;
+    private VoiceMessageHandler voiceHandler;
     private TelegramDispatchService svc;
     private long nextUpdateId;
 
@@ -77,11 +79,22 @@ class TelegramDispatchServiceTest {
         membershipHandler = mock(GroupMembershipHandler.class);
         callbackQueryHandler = mock(CallbackQueryHandler.class);
         migrationHandler = mock(GroupMigrationHandler.class);
+        voiceHandler = mock(VoiceMessageHandler.class);
         nextUpdateId = 1_000L;
 
         svc = new TelegramDispatchService(linker, bot, commandRouter, usernameCache,
                 sparkInitiator, projectRepo, identity, telegramConfig, dedupCache,
-                membershipHandler, callbackQueryHandler, migrationHandler);
+                membershipHandler, callbackQueryHandler, migrationHandler,
+                Optional.of(voiceHandler));
+    }
+
+    // Constructs a dispatch service without the voice handler bean — mirrors the
+    // production wiring when tacticl.whisper.enabled=false (handler bean absent).
+    private TelegramDispatchService dispatchWithoutVoiceHandler() {
+        return new TelegramDispatchService(linker, bot, commandRouter, usernameCache,
+                sparkInitiator, projectRepo, identity, telegramConfig, dedupCache,
+                membershipHandler, callbackQueryHandler, migrationHandler,
+                Optional.empty());
     }
 
     // Each test that calls handle() gets a fresh update_id so the shared dedup
@@ -440,7 +453,7 @@ class TelegramDispatchServiceTest {
     }
 
     @Test
-    void voiceMessage_droppedSilently_noHandlerInvoked() {
+    void voiceMessage_whenHandlerPresent_routesToVoiceHandler() {
         Voice voice = new Voice("file-id", "file-uniq", 3, "audio/ogg");
         Message msg = new Message(1L, 0L,
                 new Chat(42L, "private", "alice", "First", null, false),
@@ -450,6 +463,30 @@ class TelegramDispatchServiceTest {
 
         svc.handle(new Update(++nextUpdateId, msg, null, null, null, null));
 
+        verify(voiceHandler).handle(msg);
+        // Voice updates must not bleed into text/command branches.
+        verify(commandRouter, never()).dispatch(any());
+        verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(bot, never()).sendMessage(any(SendMessageRequest.class));
+        verify(migrationHandler, never()).handle(any());
+    }
+
+    @Test
+    void voiceMessage_whenHandlerAbsent_droppedSilentlyWithoutCrash() {
+        // Production: when tacticl.whisper.enabled=false the VoiceMessageHandler bean
+        // is not created — Optional.empty() must preserve the previous no-op drop
+        // rather than NPE on .get().
+        TelegramDispatchService svcNoVoice = dispatchWithoutVoiceHandler();
+        Voice voice = new Voice("file-id", "file-uniq", 3, "audio/ogg");
+        Message msg = new Message(1L, 0L,
+                new Chat(42L, "private", "alice", "First", null, false),
+                new User(42L, false, "alice", "First"),
+                null,
+                null, voice, null, null, null, null, null, false, null);
+
+        svcNoVoice.handle(new Update(++nextUpdateId, msg, null, null, null, null));
+
+        verify(voiceHandler, never()).handle(any());
         verify(commandRouter, never()).dispatch(any());
         verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
         verify(bot, never()).sendMessage(any(SendMessageRequest.class));
