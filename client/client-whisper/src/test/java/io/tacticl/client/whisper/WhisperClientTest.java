@@ -87,21 +87,34 @@ class WhisperClientTest {
     }
 
     @Test
-    void transcribeWrapsServerErrorAsCidadelException() {
+    void transcribeWrapsServerErrorAsTranscriptionFailed() {
         server.expect(requestTo(BASE_URL + "/v1/audio/transcriptions"))
             .andRespond(withServerError());
 
-        assertThrows(CidadelException.class,
+        CidadelException ex = assertThrows(CidadelException.class,
             () -> client.transcribe(new byte[]{1}, "a.m4a", "audio/mp4"));
+        assertEquals("whisper-transcription-failed", ex.getErrorDetails().getPropertyKey());
     }
 
     @Test
-    void transcribeWrapsUnauthorizedAsCidadelException() {
+    void transcribeWrapsUnauthorizedAsUnauthorized() {
         server.expect(requestTo(BASE_URL + "/v1/audio/transcriptions"))
             .andRespond(withUnauthorizedRequest());
 
-        assertThrows(CidadelException.class,
+        CidadelException ex = assertThrows(CidadelException.class,
             () -> client.transcribe(new byte[]{1}, "a.m4a", "audio/mp4"));
+        assertEquals("whisper-unauthorized", ex.getErrorDetails().getPropertyKey());
+    }
+
+    @Test
+    void transcribeWraps429AsRateLimitExceeded() {
+        server.expect(requestTo(BASE_URL + "/v1/audio/transcriptions"))
+            .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators
+                .withTooManyRequests());
+
+        CidadelException ex = assertThrows(CidadelException.class,
+            () -> client.transcribe(new byte[]{1}, "a.m4a", "audio/mp4"));
+        assertEquals("whisper-rate-limit-exceeded", ex.getErrorDetails().getPropertyKey());
     }
 
     @Test

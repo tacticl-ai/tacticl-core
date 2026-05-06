@@ -11,6 +11,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.JsonNode;
@@ -112,6 +114,19 @@ public class WhisperClient {
         }
         catch (CidadelException e) {
             throw e;
+        }
+        catch (HttpClientErrorException.Unauthorized e) {
+            logger.error("Whisper API rejected key (401): {}", e.getMessage());
+            throw new CidadelException(WhisperErrorDetails.UNAUTHORIZED, MODULE_NAME);
+        }
+        catch (HttpClientErrorException.TooManyRequests e) {
+            logger.warn("Whisper API rate-limited upstream (429): {}", e.getMessage());
+            throw new CidadelException(WhisperErrorDetails.RATE_LIMIT_EXCEEDED, MODULE_NAME);
+        }
+        catch (HttpServerErrorException e) {
+            logger.error("Whisper API upstream error ({}): {}", e.getStatusCode(), e.getMessage());
+            throw new CidadelException(WhisperErrorDetails.TRANSCRIPTION_FAILED, MODULE_NAME,
+                "upstream " + e.getStatusCode());
         }
         catch (Exception e) {
             logger.error("Whisper transcription failed for filename {}: {}", filename, e.getMessage());
