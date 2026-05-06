@@ -8,7 +8,9 @@ import io.tacticl.client.telegram.dto.ForumTopic;
 import io.tacticl.client.telegram.dto.InlineKeyboardButton;
 import io.tacticl.client.telegram.dto.InlineKeyboardMarkup;
 import io.tacticl.client.telegram.dto.Message;
+import io.tacticl.client.telegram.dto.TelegramFile;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -206,6 +208,104 @@ class TelegramBotClientExtendedTest {
 
         assertTrue(client.setWebhook("https://example.com/hook", "secret"));
         server.verify();
+    }
+
+    @Test
+    void getFileReturnsTelegramFile() {
+        server.expect(requestTo(BASE_URL + "/bot" + TOKEN + "/getFile?file_id=AwACAgEAAxk"))
+            .andExpect(method(HttpMethod.GET))
+            .andRespond(withSuccess(
+                "{\"ok\":true,\"result\":{\"file_id\":\"AwACAgEAAxk\","
+                    + "\"file_unique_id\":\"unique-xyz\",\"file_size\":1024,"
+                    + "\"file_path\":\"voice/file_5.ogg\"}}",
+                MediaType.APPLICATION_JSON));
+
+        Optional<TelegramFile> file = client.getFile("AwACAgEAAxk");
+
+        assertTrue(file.isPresent());
+        assertEquals("AwACAgEAAxk", file.get().file_id());
+        assertEquals("unique-xyz", file.get().file_unique_id());
+        assertEquals(1024L, file.get().file_size());
+        assertEquals("voice/file_5.ogg", file.get().file_path());
+        server.verify();
+    }
+
+    @Test
+    void getFileNonOkResponseReturnsEmpty() {
+        server.expect(requestTo(BASE_URL + "/bot" + TOKEN + "/getFile?file_id=missing"))
+            .andRespond(withSuccess(
+                "{\"ok\":false,\"description\":\"file not found\"}",
+                MediaType.APPLICATION_JSON));
+
+        Optional<TelegramFile> file = client.getFile("missing");
+
+        assertTrue(file.isEmpty());
+        server.verify();
+    }
+
+    @Test
+    void getFileRateLimitExceededThrows() {
+        Bucket limited = mock(Bucket.class);
+        when(limited.tryConsume(1)).thenReturn(false);
+        TelegramBotClient rateLimitedClient = new TelegramBotClient(config, limited, builder);
+
+        assertThrows(CidadelException.class, () -> rateLimitedClient.getFile("any"));
+    }
+
+    @Test
+    void getFileTransportFailureThrows() {
+        server.expect(requestTo(BASE_URL + "/bot" + TOKEN + "/getFile?file_id=boom"))
+            .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators
+                .withServerError());
+
+        assertThrows(CidadelException.class, () -> client.getFile("boom"));
+    }
+
+    @Test
+    void downloadFileReturnsBytes() {
+        byte[] expected = new byte[] {0x4F, 0x67, 0x67, 0x53, 0x00, 0x02};
+        server.expect(requestTo(BASE_URL + "/file/bot" + TOKEN + "/voice/file_5.ogg"))
+            .andExpect(method(HttpMethod.GET))
+            .andRespond(withSuccess(expected, MediaType.APPLICATION_OCTET_STREAM));
+
+        byte[] result = client.downloadFile("voice/file_5.ogg");
+
+        assertNotNull(result);
+        assertEquals(expected.length, result.length);
+        for (int i = 0; i < expected.length; i++) {
+            assertEquals(expected[i], result[i]);
+        }
+        server.verify();
+    }
+
+    @Test
+    void downloadFileEmptyBodyReturnsEmptyArray() {
+        server.expect(requestTo(BASE_URL + "/file/bot" + TOKEN + "/voice/empty.ogg"))
+            .andRespond(withSuccess(new byte[0], MediaType.APPLICATION_OCTET_STREAM));
+
+        byte[] result = client.downloadFile("voice/empty.ogg");
+
+        assertNotNull(result);
+        assertEquals(0, result.length);
+        server.verify();
+    }
+
+    @Test
+    void downloadFileRateLimitExceededThrows() {
+        Bucket limited = mock(Bucket.class);
+        when(limited.tryConsume(1)).thenReturn(false);
+        TelegramBotClient rateLimitedClient = new TelegramBotClient(config, limited, builder);
+
+        assertThrows(CidadelException.class, () -> rateLimitedClient.downloadFile("voice/file.ogg"));
+    }
+
+    @Test
+    void downloadFileTransportFailureThrows() {
+        server.expect(requestTo(BASE_URL + "/file/bot" + TOKEN + "/voice/boom.ogg"))
+            .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators
+                .withServerError());
+
+        assertThrows(CidadelException.class, () -> client.downloadFile("voice/boom.ogg"));
     }
 
     @Test
