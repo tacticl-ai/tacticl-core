@@ -36,6 +36,7 @@ dependencies {
     implementation(project(":client:client-brave-search"))
     implementation(project(":client:client-jina"))
     implementation(project(":client:client-telegram"))
+    implementation(project(":client:client-whisper"))
 
     // Data layer
     implementation(project(":data:data-telegram"))
