@@ -6,18 +6,23 @@ import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.tacticl.business.agent.command.AgentCommand;
 import io.tacticl.business.agent.command.AgentCommandResult;
 import io.tacticl.business.agent.command.AgentCommandService;
+import io.tacticl.business.agent.transcription.TranscriptionService;
 import io.strategiz.social.service.agent.dto.AgentCommandRequest;
 import io.strategiz.social.service.agent.dto.AgentCommandResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /** REST controller for the cloud agent orchestrator. */
 @RestController
@@ -27,9 +32,12 @@ public class AgentController {
     private static final Logger log = LoggerFactory.getLogger(AgentController.class);
 
     private final AgentCommandService agentCommandService;
+    private final TranscriptionService transcriptionService;
 
-    public AgentController(AgentCommandService agentCommandService) {
+    public AgentController(AgentCommandService agentCommandService,
+                           TranscriptionService transcriptionService) {
         this.agentCommandService = agentCommandService;
+        this.transcriptionService = transcriptionService;
     }
 
     @PostMapping("/command")
@@ -42,6 +50,42 @@ public class AgentController {
                 text.length() > 100 ? text.substring(0, 100) + "..." : text);
 
         AgentCommand cmd = AgentCommand.fromHttp(user.getUserId(), text, request.getModel());
+        AgentCommandResult result = agentCommandService.execute(cmd);
+        return ResponseEntity.ok(toResponse(result));
+    }
+
+    @PostMapping(value = "/voice", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @RequireAuth
+    public ResponseEntity<AgentCommandResponse> executeVoice(
+            @RequestPart("audio") MultipartFile audio,
+            @RequestParam(value = "model", required = false) String model,
+            @AuthUser AuthenticatedUser user) {
+        if (audio == null || audio.isEmpty()) {
+            log.warn("Voice intake from user {} rejected: empty audio", user.getUserId());
+            return ResponseEntity.badRequest().body(new AgentCommandResponse(
+                    "Audio file is empty.", List.of(), false, null));
+        }
+
+        byte[] bytes;
+        try {
+            bytes = audio.getBytes();
+        } catch (java.io.IOException e) {
+            log.warn("Voice intake from user {} failed to read upload: {}",
+                    user.getUserId(), e.getMessage());
+            return ResponseEntity.badRequest().body(new AgentCommandResponse(
+                    "Could not read uploaded audio.", List.of(), false, null));
+        }
+
+        String filename = audio.getOriginalFilename() != null && !audio.getOriginalFilename().isBlank()
+                ? audio.getOriginalFilename()
+                : "audio";
+        String contentType = audio.getContentType() != null ? audio.getContentType() : "application/octet-stream";
+
+        log.info("Voice intake from user {}: {} bytes ({}, {})",
+                user.getUserId(), bytes.length, filename, contentType);
+
+        String transcript = transcriptionService.transcribe(bytes, filename, contentType);
+        AgentCommand cmd = AgentCommand.fromHttp(user.getUserId(), transcript, model);
         AgentCommandResult result = agentCommandService.execute(cmd);
         return ResponseEntity.ok(toResponse(result));
     }
