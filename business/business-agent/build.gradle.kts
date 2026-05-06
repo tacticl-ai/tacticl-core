@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":client:client-jina"))
     implementation(project(":client:client-google"))
     implementation(project(":client:client-github"))
+    implementation(project(":client:client-whisper"))
 
     // Cidadel shared infrastructure (module-specific, beyond parent)
     implementation(libs.cidadel.service.framework.base)
