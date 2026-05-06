@@ -5,6 +5,7 @@ plugins {
 
 dependencies {
     // Internal modules
+    implementation(project(":business:business-agent"))
     implementation(project(":business:business-sparks"))
     implementation(project(":business:business-pipeline"))
     implementation(project(":data:data-sparks"))
