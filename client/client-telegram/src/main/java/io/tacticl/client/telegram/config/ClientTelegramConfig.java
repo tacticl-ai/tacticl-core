@@ -20,8 +20,16 @@ public class ClientTelegramConfig {
         return new TelegramConfig();
     }
 
+    /**
+     * Bucket gating outbound HTTP calls to the Telegram Bot API. Renamed from
+     * {@code telegramRateLimiter} to {@code telegramApiBucket} so it does not
+     * collide with {@code business-telegram}'s {@link io.tacticl.business.telegram.outbound.TelegramRateLimiter}
+     * @Component (default bean name {@code telegramRateLimiter}). Spring's
+     * bean override silently kept whichever loaded last, leaving consumers of
+     * the per-chat 1 msg/s gate without a registered bean.
+     */
     @Bean
-    public Bucket telegramRateLimiter(TelegramConfig config) {
+    public Bucket telegramApiBucket(TelegramConfig config) {
         Bandwidth limit = Bandwidth.classic(
             config.getRateLimitPerMinute(),
             Refill.intervally(config.getRateLimitPerMinute(), Duration.ofMinutes(1))
@@ -30,7 +38,7 @@ public class ClientTelegramConfig {
     }
 
     @Bean
-    public TelegramBotClient telegramBotClient(TelegramConfig config, Bucket telegramRateLimiter) {
-        return new TelegramBotClient(config, telegramRateLimiter);
+    public TelegramBotClient telegramBotClient(TelegramConfig config, Bucket telegramApiBucket) {
+        return new TelegramBotClient(config, telegramApiBucket);
     }
 }
