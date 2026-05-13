@@ -1,0 +1,786 @@
+# Autonomous Product Development Lifecycle Pipeline
+
+An AI-agent-driven PDLC pipeline that takes a single Slack request and drives it through every stage of the software lifecycle — product definition, architecture, design, planning, implementation, review, test, security, documentation, deployment — with a structured, reviewable artifact and a human approval gate at every phase. Built for regulated enterprise environments.
+
+---
+
+## 1. Problem
+
+Engineering organizations inside large enterprises face a structural productivity ceiling that current AI coding assistants have not removed.
+
+1. **Handoffs are lossy and slow.** Every stage of the PDLC — PM writing the PRD, architect drafting the ADR, engineers implementing, reviewers approving, QA testing, security signing off, tech writers documenting, DevOps deploying — is a separate meeting, a separate tool, and a separate calendar wait. A two-day feature takes two weeks.
+2. **AI coding tools are islands.** Copilot, Cursor, Codeium, Devin — each speeds up *one* stage (almost always implementation). None orchestrate the full lifecycle, produce the compliance artifacts a regulated engineering org requires, or enforce the human review gates finance and healthcare mandate.
+3. **Autonomous AI is a non-starter in regulated orgs.** An agent that reads the whole monorepo, accumulates context across customers or business domains, and talks directly to a model provider is disqualifying under PCI-DSS, SOX, and SOC 2 regimes. Most enterprise adoption stalls here.
+4. **Organizational knowledge is not captured.** Every PR, ADR, retro, and post-mortem is written once and buried. The org re-learns the same lesson each quarter. No system reads history and applies it forward.
+5. **Governance vs. speed is treated as a tradeoff.** Today teams either get ungoverned speed (individual devs using AI ad hoc) or governed slowness (change boards, checklists, manual reviews). Enterprises need both.
+
+The missing capability is a **governed, end-to-end, multi-agent PDLC pipeline** — fast because the agents do the work, safe because humans approve at every gate, compliant because every artifact is auditable, and accretive because the system learns.
+
+---
+
+## 2. Solution
+
+A pipeline platform that structures software delivery as a series of specialized AI **role agents**, each producing a concrete, reviewable artifact, each gated by a human approver, each running inside an **ephemeral containerized workspace** that never shares state with another task.
+
+The shape of a single request:
+
+1. An engineer or PM types a request into a Slack channel (`/pdlc Add MFA option to the mobile login flow`).
+2. An **intake agent** classifies the request: type (feature, bug fix, refactor, infra change, security patch, docs-only), depth (small feature vs. full PDLC), urgency, and governance tags (PII, PCI, regulated).
+3. A **classifier** selects the **playbook** — a named, declarative dependency graph of which roles run, in what order, with which roles running in parallel.
+4. An **orchestrator** spins up the pipeline, dispatches work, collects artifacts, posts every artifact back to the Slack thread, and waits for human approval before advancing.
+5. A **choreographer** fans out roles that can run in parallel (Reviewer + Tester + Security all execute simultaneously after Implementer, for example) and rejoins them when all complete.
+6. Each role executes inside a **freshly minted Docker container** with a shallow clone of only the repos it needs, short-lived scoped credentials from vault, and no access to other teams' code or data. Containers are destroyed the moment the role finishes.
+7. Every model call for every role goes through a central **LLM arbiter** that handles provider routing, cost caps, rate limiting, and credential management. Role agents never hold API keys.
+8. A **retrospective agent** runs at the end of every pipeline and writes lessons into a **git-managed knowledge vault** (Obsidian-style markdown). A **Wiki-LLM** curates, indexes, and retrieves from the vault so future role agents pick up relevant prior context automatically.
+9. A full audit log — every artifact, every approver, every model call, every container lifecycle event — is persisted for SOX, SOC 2, and internal governance review.
+
+The user experience: one Slack message in; a tracked pipeline with a full artifact chain and a recorded human approval at every gate out; a green-lit deployment; and an automatic retrospective.
+
+---
+
+## 3. Vision and Measures of Success
+
+### Vision
+
+**"A week of engineering work, delivered in a day — with better artifacts, tighter reviews, and a learning trail you can audit."**
+
+Every software change inside the enterprise passes through a single governed pipeline. AI does the heavy lifting inside each stage. Humans own the decisions at every gate. The system gets measurably faster and more accurate every quarter because it reads its own history.
+
+### Measures of Success
+
+**Throughput**
+
+| Metric | Baseline (typical) | Target |
+|---|---|---|
+| Time from request → deployed change (small feature) | 5–15 business days | ≤ 1 business day |
+| Time from request → deployed change (full PDLC) | 6–10 weeks | ≤ 1 week |
+| Pipelines completed per engineer per week | 1–2 | 8–12 |
+
+**Quality**
+
+| Metric | Target |
+|---|---|
+| Production rollback rate on pipeline-delivered changes | ≤ parity with human-delivered |
+| Defects per KLOC caught post-deploy | ≤ parity with human-delivered |
+| Reviewer-role auto-flagged issues confirmed by human reviewer | ≥ 90% precision |
+
+**Governance**
+
+| Metric | Target |
+|---|---|
+| Pipelines with full artifact set (PRD, ADR, plan, tests, security scan, docs) | 100% |
+| Human approval recorded for every gate | 100% |
+| Changes deployed without human approval at any gate | **0** |
+
+**Learning**
+
+| Metric | Target |
+|---|---|
+| Knowledge-vault entries auto-generated per pipeline | ≥ 1 on average |
+| Proposed learnings approved by humans | ≥ 80% |
+| Cost per pipeline (same task type), month over month | Monotonically decreasing |
+
+**Adoption**
+
+| Metric | Target |
+|---|---|
+| Teams onboarded after 6 months | ≥ 10 |
+| % of team PRs that originated in the pipeline | ≥ 40% within year 1 |
+| NPS from participating engineers | ≥ +30 |
+
+---
+
+## 4. Architecture
+
+### 4.1 High-Level Architecture
+
+```mermaid
+flowchart TB
+  subgraph Intake["Intake"]
+    SL["Slack channel<br/>/pdlc command"]
+    IA["Intake Agent<br/>classifies type, depth, urgency"]
+  end
+
+  subgraph Classify["Classification"]
+    PB["Playbook Selector<br/>chooses role graph"]
+    GT["Governance Tagger<br/>PII / PCI / regulated"]
+  end
+
+  subgraph Orchestration["Orchestration"]
+    OR["Orchestrator<br/>lifecycle · dependencies · rework"]
+    CH["Choreographer<br/>parallel fan-out · rejoin"]
+  end
+
+  subgraph Roles["Role Agent Pool (12 specialized agents)"]
+    PM["PM"]
+    RS["Researcher"]
+    AR["Architect"]
+    DS["Designer"]
+    PL["Planner"]
+    IM["Implementer"]
+    RV["Reviewer"]
+    TS["Tester"]
+    SC["Security"]
+    TW["Tech Writer"]
+    DO["DevOps"]
+    RE["Retro Analyst"]
+  end
+
+  subgraph Exec["Ephemeral Execution"]
+    CP["Container Pool<br/>Docker / k8s Jobs"]
+    WS["Per-task Workspace<br/>shallow clone · scoped creds"]
+  end
+
+  subgraph Platform["Shared Platform (separate service)"]
+    AB["LLM Arbiter (gRPC)<br/>routing · cost · credentials"]
+    VT["Vault<br/>secrets · OAuth · short-lived tokens"]
+    AU["Audit Log<br/>SOX / SOC 2 / internal"]
+  end
+
+  subgraph Learn["Learning Layer"]
+    OV["Obsidian-style<br/>Knowledge Vault (git)"]
+    WL["Wiki-LLM<br/>curate · index · retrieve"]
+  end
+
+  subgraph Review["Human-in-the-Loop"]
+    HR["Slack review threads<br/>approve · request changes · escalate"]
+  end
+
+  SL --> IA --> PB --> GT --> OR
+  OR <--> CH
+  CH --> Roles
+  Roles --> CP --> WS
+  Roles --> AB --> VT
+  Roles --> AU
+  Roles --> HR
+  HR --> OR
+  RE --> WL --> OV
+  OV --> WL --> Roles
+  OR -. reads context .-> WL
+  IA -. reads context .-> WL
+```
+
+The pipeline is the product; everything else (arbiter, vault, containers) is infrastructure that makes the pipeline safe and auditable inside a regulated enterprise.
+
+---
+
+### 4.2 Intake → Classification → Execution
+
+The intake path turns a free-text Slack message into a fully-specified pipeline run.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor User as Engineer / PM
+  participant Slack
+  participant Intake as Intake Agent
+  participant Classifier
+  participant Orchestrator
+  participant Vault as Knowledge Vault
+  participant Roles as Role Pool
+
+  User->>Slack: /pdlc Add MFA to mobile login
+  Slack->>Intake: request text + user identity + team
+  Intake->>Vault: retrieve org context (past decisions, conventions)
+  Intake->>Classifier: {type: FEATURE, depth: FULL_PDLC, domain: auth, risk: HIGH}
+  Classifier->>Classifier: pick playbook (FULL_PDLC for security-sensitive work)
+  Classifier->>Orchestrator: playbook + dependency graph + governance tags
+  Orchestrator->>Slack: "Pipeline #P-4821 started. First artifact due from PM."
+  Orchestrator->>Roles: dispatch first role (PM)
+```
+
+Key properties:
+
+- **Slack is the only intake surface for the enterprise deployment.** No new UI to adopt. Approvals happen in-thread.
+- **The classifier is deterministic above the model layer.** The playbook is picked from a fixed library; agents cannot freelance on *which* pipeline to run.
+- **Governance tags are assigned at intake** (PII, PCI, regulated data) and cascade into role behavior — a PCI-tagged request, for example, forces Security to run *before* Implementer, not after.
+
+---
+
+### 4.3 Orchestrator and Choreographer
+
+Two services, two jobs.
+
+- **Orchestrator** — owns the pipeline lifecycle. Reads the playbook, knows the full dependency graph, persists state to the audit log, enforces rework caps (3 iterations max per role), manages human checkpoints, and decides when the pipeline is terminal. It is *not* an LLM — it is deterministic infrastructure.
+- **Choreographer** — given a set of roles the orchestrator says are *ready to run*, the choreographer dispatches them in parallel, collects outputs, and signals the orchestrator when the set is complete. It handles fan-out, timeouts, and partial-failure rejoin policy.
+
+```mermaid
+flowchart LR
+  O["Orchestrator"] -->|"next ready set"| C["Choreographer"]
+  C -->|dispatch| R1["Reviewer"]
+  C -->|dispatch| R2["Tester"]
+  C -->|dispatch| R3["Security"]
+  R1 -->|artifact + status| C
+  R2 -->|artifact + status| C
+  R3 -->|artifact + status| C
+  C -->|"rejoin complete"| O
+  O -->|advance state| O
+```
+
+**Sequential vs. parallel is decided by the playbook, not at runtime.** The classifier picks the playbook; the playbook declares which role groups are parallelizable. This is deliberate: an enterprise cannot have an agent choosing at runtime whether to skip a reviewer.
+
+---
+
+### 4.4 Role Agents and Playbooks
+
+#### The twelve roles
+
+| Role | Produces | Typical human approver |
+|---|---|---|
+| **PM** | Product Requirement Document (PRD) | Product lead |
+| **Researcher** | Competitive / user research summary | PM |
+| **Architect** | Architecture Decision Record (ADR) + system diagram | Staff engineer |
+| **Designer** | UX wireframes / flow (when applicable) | Design lead |
+| **Planner** | Task breakdown + acceptance criteria | Tech lead |
+| **Implementer** | Pull request (code + tests) | — (Reviewer handles) |
+| **Reviewer** | Code review findings | Senior engineer |
+| **Tester** | Test plan + automated test run report | QA lead |
+| **Security Analyst** | Threat model + vulnerability scan + sign-off | InfoSec |
+| **Technical Writer** | Updated docs / changelog / runbook | Doc owner |
+| **DevOps** | Deployment plan + IaC diff + rollback | Platform engineer |
+| **Retro Analyst** | Lessons-learned artifact (auto-committed) | None (auto) |
+
+Every role is a specialized LLM agent with:
+
+- A dedicated system prompt encoding its responsibilities and output contract,
+- A filtered tool set (Implementer gets code tools; Security gets scanners; PM gets neither),
+- A pre-loaded **Map of Content** from the knowledge vault — a hand-maintained index telling that specific role what to care about at the start,
+- A hard token and cost budget enforced by the arbiter.
+
+#### The eight playbooks
+
+Playbooks are declarative dependency graphs, checked into source control.
+
+| Playbook | Role graph |
+|---|---|
+| **FULL_PDLC** | PM → Researcher → Architect → Designer → Planner → Implementer → (Reviewer ∥ Tester ∥ Security) → (Tech Writer ∥ DevOps) → Retro |
+| **BUG_FIX** | Planner → Implementer → (Reviewer ∥ Tester) → DevOps → Retro |
+| **SECURITY_PATCH** | Security → Architect → Implementer → (Reviewer ∥ Tester) → Security (re-review) → DevOps → Retro |
+| **DOCS_ONLY** | Tech Writer → Reviewer → Retro |
+| **INFRA_CHANGE** | Architect → Planner → DevOps → (Security ∥ Tester) → Retro |
+| **REFACTOR** | Architect → Planner → Implementer → Reviewer → Tester → Retro |
+| **SMALL_FEATURE** | PM → Planner → Implementer → (Reviewer ∥ Tester) → DevOps → Retro |
+| **UI_CHANGE** | Designer → Planner → Implementer → Reviewer → Tester → Retro |
+
+Adding a new playbook is a pull request, not a configuration-panel click.
+
+---
+
+### 4.5 Ephemeral Container Isolation
+
+This is the section that unlocks enterprise adoption in financial services.
+
+**Every role runs in a fresh container.** Not a reused one, not a warm pool with state, not a shared VM. Every time a role starts, the platform:
+
+1. **Spawns a new container** (Docker, or a Kubernetes Job in production), tagged with `pipeline_id`, `role`, and `request_id`.
+2. **Creates a scoped workspace** inside the container: a shallow git clone of only the repos the role needs, at the commit the pipeline pinned.
+3. **Issues short-lived, scoped credentials** from vault — only the secrets this role, for this pipeline, on this repo, can use. TTL-bound; expire on teardown.
+4. **Runs the role** — LLM calls go through the arbiter; no direct provider access.
+5. **Collects the artifact** (PRD, ADR, patch, scan report, etc.) to durable storage.
+6. **Destroys the container** — volumes wiped, secrets revoked, workspace gone.
+
+```mermaid
+sequenceDiagram
+  participant OR as Orchestrator
+  participant CE as Container Engine
+  participant WS as Workspace
+  participant VT as Vault
+  participant AG as Role Agent
+  participant AR as Artifact Store
+
+  OR->>CE: start container (role=Implementer, req=P-4821)
+  CE->>WS: shallow clone repos (scoped)
+  CE->>VT: request scoped credentials (TTL=15m)
+  VT-->>CE: short-lived token
+  CE->>AG: boot role agent (prompt + tools + MoC)
+  AG->>AG: perform role work
+  AG->>AR: write artifact (PRD / code / scan / etc.)
+  AG-->>OR: completion signal
+  OR->>CE: destroy container
+  CE->>WS: wipe workspace
+  CE->>VT: revoke credentials
+```
+
+**Why this matters for regulated environments:**
+
+- **No cross-team, cross-domain, or cross-customer context contamination.** A role that ran on card-data code at 09:00 cannot leak anything to a role that runs on HR code at 09:01 — the container is gone.
+- **Every container is an audit unit.** Start, stop, inputs, outputs, secret access — all logged with the pipeline ID and role.
+- **Blast radius is bounded.** If a prompt-injection attack compromised an agent, it could damage only one role's scoped clone for one pipeline. It cannot persist, cannot exfiltrate credentials that are already revoked, cannot touch another team's repos.
+- **Reproducibility.** Because the container recipe, the pinned git commit, the model version, and the artifact are all captured, the run can be reconstructed months later for forensic or regulatory review.
+
+---
+
+### 4.6 Knowledge Base — Three Layers + Wiki-LLM
+
+Enterprises already pay for "AI that writes code." What they under-invest in is **AI that reads its own history and applies it forward.** This layer is where the system compounds.
+
+The knowledge base is organized as **three concentric layers**, each with different owners, cadence, and approval bar:
+
+| Layer | Purpose | Owner | Cadence | Examples |
+|---|---|---|---|---|
+| **1 — Foundational Tech** | Base knowledge every agent needs | Platform architecture | Slow | Languages, frameworks, design patterns, AI/ML foundations |
+| **2 — Organization** | How *our company* does things | Enterprise arch + InfoSec + Compliance | Medium | Coding standards, compliance controls, logging conventions, shared services, security policies |
+| **3 — Domain Remit** | How *this team* does its work | Each team, self-serve | Fast | Domain vocabulary, team ADRs, team-specific tools + skills, custom playbooks |
+
+Layers 1 and 2 are company-wide and read by every pipeline. Layer 3 is **N+ scalable** — each new team gets its own domain-remit node in the vault. The domain remit is the team's plug-in into the system: vocabulary, past decisions, and **custom skills** (tools the team exposes to role agents — "call our billing API," "query our risk-score service," "look up a cardmember profile"). A new team onboards by creating its own remit; no central bottleneck.
+
+```mermaid
+flowchart TB
+  subgraph L1["Layer 1 — Foundational Tech"]
+    direction LR
+    L1a["Languages"]
+    L1b["Frameworks"]
+    L1c["Patterns"]
+    L1d["AI / ML"]
+  end
+
+  subgraph L2["Layer 2 — Organization"]
+    direction LR
+    L2a["Coding standards"]
+    L2b["Compliance (PCI / SOX / SOC 2)"]
+    L2c["Shared services"]
+    L2d["Security policies"]
+  end
+
+  subgraph L3["Layer 3 — Domain Remit (N+ scalable)"]
+    direction LR
+    D1["Cards<br/>vocab · ADRs · skills"]
+    D2["Merchant<br/>vocab · ADRs · skills"]
+    D3["Risk<br/>vocab · ADRs · skills"]
+    Dn["... team N"]
+  end
+
+  WL["Wiki-LLM<br/>curate · index · retrieve"]
+
+  L1 --> WL
+  L2 --> WL
+  L3 --> WL
+  WL --> RA["Role Agent<br/>(layered brief)"]
+```
+
+**Vault layout.** An Obsidian-style git repo of markdown notes with wiki-style `[[links]]`. Each layer has its own top-level folder; within each, the `auto/` · `proposed/` · `approved/` write lifecycle controls human review:
+
+```
+/vault
+  /foundational
+    /languages   /frameworks   /patterns   /ai-ml
+  /organization
+    /coding-standards   /compliance   /security   /shared-services
+  /domains
+    /cards                     ← Cards team remit
+      auto/  proposed/  approved/  moc/  skills/
+    /merchant                  ← Merchant team remit
+      auto/  proposed/  approved/  moc/  skills/
+    /risk                      ← Risk team remit
+      auto/  proposed/  approved/  moc/  skills/
+    /...
+```
+
+**Write path (same three-state lifecycle per layer):**
+
+- `auto/` — safe, factual observations (entities touched, conventions followed, tool-call outcomes). Auto-committed by the Retro Analyst.
+- `proposed/` — judgment-laden learnings. Queued for human review.
+- `approved/` — human-promoted learnings. Become load-bearing context for future runs.
+
+Foundational and Organization changes go through architecture review; Domain changes are approved by the team's own staff engineer. Each layer has its own review SLA.
+
+**Wiki-LLM.** A specialized agent in front of the vault with three jobs:
+
+1. **Curation** — when any agent proposes a new entry, the Wiki-LLM checks for duplicates, merges with existing notes, maintains link integrity.
+2. **Indexing** — embeddings + keyword index so retrieval is semantic, not grep.
+3. **Layered retrieval** — when a role agent is about to start work, the Wiki-LLM:
+   - reads the pipeline's domain tag from intake metadata,
+   - pulls from the **domain-remit** layer first (highest specificity),
+   - fills remaining budget from the **organization** layer,
+   - fills remaining budget from the **foundational** layer,
+   - returns a single focused brief to the role agent (domain wins any conflicts).
+
+The role agent never queries the vault raw — it receives a curated, budget-bounded brief.
+
+**Prior art and inspirations.**
+
+- **Obsidian** — markdown + wikilinks + human-editable graph. The format is open; both humans and agents can read and write it.
+- **Karpathy-style LLM-managed wikis** — an LLM as a first-class curator of a knowledge base (not just a reader). Informs the Wiki-LLM role here.
+- **Agentic research patterns** — multi-agent retrieval + summarization. Informs the layered-retrieval pipeline above.
+
+**Why git?** Auditability. Reversibility. Every learning has an author, timestamp, diff, and PR. A bad learning is a `git revert`, not a database migration — the only accountable shape for a regulated enterprise.
+
+**Why N+ domain remits?** Each team runs their own remit like a mini-wiki. No central bottleneck to add a team. Teams that invest in their remit get more accurate pipelines in return — a self-reinforcing adoption loop.
+
+---
+
+### 4.7 LLM Arbiter (Shared Platform Service)
+
+Every LLM call from every component — intake agent, classifier, each of the 12 role agents, Wiki-LLM, Retro Analyst — routes through a centralized gRPC arbiter that lives in the shared platform, not in the pipeline product.
+
+Responsibilities:
+
+- **Provider routing.** 25+ models across 7 providers. Failover and per-role model pinning.
+- **Three engine types.** `api` for single-turn classification; `agentic` for multi-turn tool loops; `cli` for full CLI-driven coding agents.
+- **Per-request workspace isolation for CLI engines.** `mkdtemp` + shallow clone + execute + teardown.
+- **Credential management.** Provider API keys live in vault and never touch role agents.
+- **Cost and rate enforcement.** Per-request caps, per-pipeline ceilings, per-team monthly budgets.
+- **Telemetry.** Every call logged with cost, latency, tokens, model version — feeds chargeback and the learning layer.
+
+Turning off a provider, rotating a key, or pinning a new model version is a single config change in the arbiter — not a redeploy of 12 role agents.
+
+---
+
+### 4.8 Safety, Governance, and Audit
+
+| Layer | Mechanism |
+|---|---|
+| **Tool-level tiers** | Every tool a role can call is labeled Tier 0 (read-only, auto), Tier 1 (mutation, requires approval), or Tier 2 (financial / production, requires 2FA). Enforced at the tool registry, not the prompt. |
+| **Human gates** | Every role's artifact requires a named human approver before the pipeline advances. Recorded in the audit log with user ID, timestamp, and artifact hash. |
+| **Workspace isolation** | Ephemeral containers, scoped clones, short-lived vault-issued credentials. |
+| **Arbiter-enforced budgets** | Role agents cannot exceed their token or cost budget. Period. |
+| **Full audit log** | Every artifact, every approval, every container lifecycle event, every model call. Append-only, SOX / SOC 2-shaped. |
+| **Playbooks in source control** | Pipeline definitions are code. Review, PR, approval, deployment — same as any other config change. |
+
+---
+
+## 5. Pipeline in Action — A Worked Example
+
+Request: **"Add MFA option to the mobile app login flow."**
+
+Classifier picks **FULL_PDLC** — the request touches authentication (security-sensitive) and the mobile client (user-facing).
+
+```mermaid
+flowchart TB
+  S["Slack<br/>/pdlc Add MFA to mobile login"] --> I["Intake"]
+  I --> C["Classifier → FULL_PDLC"]
+  C --> PM["PM<br/>→ PRD.md"]
+  PM -->|approved| RS["Researcher<br/>→ research-summary.md"]
+  RS -->|approved| AR["Architect<br/>→ ADR-0042.md + diagram"]
+  AR -->|approved| DS["Designer<br/>→ wireframes.pdf"]
+  DS -->|approved| PL["Planner<br/>→ task-list.md + acceptance criteria"]
+  PL -->|approved| IM["Implementer<br/>→ PR #8812"]
+  IM --> PAR{"Parallel fan-out"}
+  PAR --> RV["Reviewer<br/>→ review-notes.md"]
+  PAR --> TS["Tester<br/>→ test-report.html"]
+  PAR --> SC["Security<br/>→ threat-model.md + scan.json"]
+  RV -->|approved| J1["rejoin"]
+  TS -->|approved| J1
+  SC -->|approved| J1
+  J1 --> PAR2{"Parallel fan-out"}
+  PAR2 --> TW["Tech Writer<br/>→ docs + changelog"]
+  PAR2 --> DO["DevOps<br/>→ deploy-plan.md + IaC diff"]
+  TW -->|approved| J2["rejoin"]
+  DO -->|approved| J2
+  J2 --> DP["Deploy"]
+  DP --> RE["Retro Analyst<br/>→ lessons.md (auto-committed)"]
+```
+
+What each phase produces, and who reviews it:
+
+| # | Role | Artifact | Posted where | Approver |
+|---|---|---|---|---|
+| 1 | PM | `PRD.md` — problem, goal, scope, non-goals, success criteria | Slack thread + Confluence | Product lead |
+| 2 | Researcher | `research-summary.md` — competitor analysis + relevant past vault entries | Slack thread | PM |
+| 3 | Architect | `ADR-0042.md` + system-context diagram | Slack + ADR repo | Staff engineer |
+| 4 | Designer | `wireframes.pdf` — auth flow screens and states | Slack + Figma link | Design lead |
+| 5 | Planner | `task-list.md` — ordered subtasks with acceptance criteria | Slack thread | Tech lead |
+| 6 | Implementer | `PR #8812` — code + unit tests (runs in ephemeral container) | GitHub Enterprise | (Reviewer) |
+| 7 | Reviewer | `review-notes.md` — findings, requested changes | GitHub + Slack | Senior engineer |
+| 8 | Tester | `test-report.html` — plan + automated run results + coverage | Slack + CI dashboard | QA lead |
+| 9 | Security | `threat-model.md` + `scan.json` (SAST + dependency scan) | Slack + InfoSec tooling | InfoSec reviewer |
+| 10 | Tech Writer | `docs-update.md` + `CHANGELOG.md` diff | Slack + docs repo | Doc owner |
+| 11 | DevOps | `deploy-plan.md` + IaC diff + rollback procedure | Slack + Terraform PR | Platform engineer |
+| 12 | Retro Analyst | `lessons.md` written to `vault/auto/` and `vault/proposed/` | Vault git commit | (auto) |
+
+At every human-gated step the reviewer sees the artifact in Slack with three buttons: **Approve · Request Changes · Escalate.** Approve advances the pipeline. Request Changes kicks off a rework loop (3 iterations max; after that, the pipeline pauses for human intervention). Escalate notifies the team lead.
+
+---
+
+## 6. Human-in-the-Loop Review Model
+
+```mermaid
+flowchart LR
+  A["Role produces artifact"] --> B["Posted to Slack thread<br/>with approver @-mention"]
+  B --> C{"Human reviews"}
+  C -->|Approve| D["Orchestrator advances<br/>next role or parallel fan-out"]
+  C -->|Request changes| E["Role re-runs with reviewer feedback<br/>(max 3 iterations)"]
+  E --> A
+  C -->|Escalate| F["Pipeline pauses<br/>team lead notified"]
+  C -->|No response in SLA| G["Auto-nudge → team lead → VP escalation"]
+```
+
+Principles:
+
+- **No gate is AI-only.** Every approval is a named human with a recorded decision.
+- **Approval is cheap** because the artifact arrives complete and well-formatted. The reviewer reads, not writes.
+- **Rework is bounded.** Three iterations; after that, a human-to-human escalation path engages.
+- **SLAs per role.** Default: PM 4h, Architect 8h, Reviewer 4h, Security 8h, DevOps 4h. Configurable per team.
+- **Every action is audited.** Approve, reject, rework, escalate — all logged with identity and timestamp.
+
+---
+
+## 7. Observability & Metrics
+
+Every pipeline emits structured events that populate a standard set of dashboards. Figures below are illustrative mocks of the post-rollout steady state.
+
+### 7.1 Executive View — "Is this working?"
+
+| Metric | This period | Prior | Δ |
+|---|---|---|---|
+| Total pipelines completed | 487 | 364 | +34% |
+| Avg cycle time (all playbooks) | 1.2 days | 1.8 days | −33% |
+| % stages auto-approved (no rework) | 78% | 64% | +14 pp |
+| Production rollback rate (pipeline-delivered) | 2.1% | 2.4% | −0.3 pp |
+| Cost per pipeline | $9.90 | $11.29 | **−12%** |
+
+**Pipelines completed per week (last 4 weeks)**
+
+```
+Wk 1  ████████████                     42
+Wk 2  ████████████████                 58
+Wk 3  █████████████████████            76
+Wk 4  ██████████████████████████       92
+```
+
+**Cycle time distribution — FULL_PDLC playbook**
+
+```
+p50   ▇▇▇▇▇▇▇▇                          14h
+p90   ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇                  26h
+p99   ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇        43h
+```
+
+### 7.2 Rework Heatmap — "Which role is stuck?"
+
+Rework rate = % of role invocations that got "Request Changes" from the reviewer.
+
+| Role | Rework rate | 3-iter cap hits | Avg iterations |
+|---|---|---|---|
+| PM | 18% | 2 | 1.2 |
+| Researcher | 12% | 0 | 1.1 |
+| Architect | **24%** | 5 | 1.4 |
+| Designer | 11% | 1 | 1.1 |
+| Planner | 9% | 0 | 1.0 |
+| Implementer | **31%** | 12 | 1.6 |
+| Tester | 14% | 1 | 1.2 |
+| Security | 22% | 3 | 1.3 |
+| Tech Writer | 7% | 0 | 1.0 |
+| DevOps | 19% | 2 | 1.2 |
+
+**Insight:** Implementer shows the highest rework rate and cap-hit count. Root cause is almost always an incomplete task breakdown from Planner. The Wiki-LLM surfaces this as a high-priority learning candidate for Planner's Map of Content.
+
+### 7.3 Gate Approval SLA — "Are humans keeping up?"
+
+| Role gate | Target SLA | p50 | p90 | % on-time |
+|---|---|---|---|---|
+| PM → Product lead | 4h | 1.2h | 5.1h | 88% |
+| Architect → Staff eng | 8h | 3.4h | 9.8h | 84% |
+| Reviewer → Senior eng | 4h | 2.1h | 6.4h | 81% |
+| Security → InfoSec | 8h | 5.2h | 13.1h | **68%** |
+| DevOps → Platform eng | 4h | 1.8h | 7.2h | 79% |
+
+**Insight:** Security approval is the SLA bottleneck. Two plays: (a) expand the InfoSec approver pool, (b) adopt SECURITY_PATCH-style playbooks that run Security earlier, in parallel with Architect.
+
+### 7.4 Cost & Budget
+
+| Metric | This month | Prior | Δ |
+|---|---|---|---|
+| LLM cost (total) | $4,820 | $4,110 | +17% |
+| Container-hours consumed | 1,240 | 980 | +27% |
+| Cost per pipeline | $9.90 | $11.29 | **−12%** |
+| % pipelines breaching cost cap | 0.4% | 1.1% | ↓ |
+
+Cost-per-pipeline drops as the vault matures — roles need less retrieval context and converge faster.
+
+### 7.5 Knowledge Vault Health
+
+| Metric | Value |
+|---|---|
+| Foundational entries (L1) | 240 |
+| Organization entries (L2) | 420 |
+| Domain-remit entries (L3, all teams) | 1,116 |
+| `auto/` committed (last 30d) | 1,482 |
+| `proposed/` pending human review | 87 |
+| `proposed → approved` rate (last 30d) | 82% |
+| Vault commits (last 30d) | 512 |
+| Retrieval hits per pipeline (avg) | 6.3 |
+
+### 7.6 Per-Team Adoption Funnel
+
+| Team | BUG_FIX | SMALL_FEATURE | FULL_PDLC | Total |
+|---|---|---|---|---|
+| Cards — Auth | 42 | 28 | 14 | 84 |
+| Cards — Billing | 31 | 19 | 7 | 57 |
+| Merchant — Onboarding | 18 | 12 | 3 | 33 |
+| Risk — Fraud | 22 | 9 | 1 | 32 |
+| Platform — Infra | 8 | — | — | 8 |
+
+**Insight:** Teams in early rollout use BUG_FIX first, graduate to SMALL_FEATURE in ~4 weeks, and unlock FULL_PDLC after ~8 weeks. This curve drives rollout-wave planning in §10.
+
+---
+
+## 8. Comparison with Market
+
+| Capability | This pipeline | GitHub Copilot / Workspace | Cursor / Codeium Enterprise | Devin | Traditional CI + review |
+|---|---|---|---|---|---|
+| Full PDLC (PM → deploy) | **Yes** | Partial (plan + code) | No (editor) | Partial | Manual |
+| 12 specialized role agents | **Yes** | No | No | Single agent | No |
+| Slack-native intake + approvals | **Yes** | No | No | Partial | External |
+| Per-role ephemeral containers | **Yes** | No | Editor-local | Single sandbox | N/A |
+| Per-request workspace isolation | **Yes** | No | No | Partial | N/A |
+| Central LLM arbiter (cost, rotation, routing) | **Yes** | Provider-locked | Provider-locked | Provider-locked | N/A |
+| Human approval gate at every phase | **Yes** | Only at PR | Only at PR | No | Yes (slow) |
+| Audit log of every artifact + approval + model call | **Yes** | PR history only | PR history only | Limited | Partial |
+| Git-managed learning vault with human review | **Yes** | No | No | Opaque memory | No |
+| Per-role Maps of Content for targeted context | **Yes** | No | No | No | No |
+| Playbooks in source control | **Yes** | No | No | No | Partial |
+| Usable in regulated (PCI / SOX / SOC 2) environments | **Yes** | Conditional | Conditional | No | Yes |
+| Cost ceilings enforced at infra layer | **Yes** | Seat-based only | Seat-based only | No | N/A |
+
+### Positioning
+
+- **Against coding assistants** (Copilot, Cursor) — they accelerate one stage: typing code. This accelerates the *pipeline*, which is 80% of the lost time in a large enterprise.
+- **Against autonomous coding agents** (Devin) — they promise end-to-end autonomy but cannot pass enterprise governance. This gives up some autonomy by design to gain auditability, human approval gates, and compliance.
+- **Against traditional CI + review** — this doesn't replace CI; it sits on top. CI still runs in the Implementer and Tester stages. What's new is the specialized agents and the structured pre-implementation phases.
+
+### Moats for an enterprise deployment
+
+1. **Governance-native design.** The pipeline *is* the audit trail. Competitors bolt audit on; we start with it.
+2. **The learning vault.** A per-team, per-domain knowledge asset that gets more valuable every week — and stays with the team when vendors are swapped.
+3. **Container isolation + arbiter.** Two infrastructure pieces most competitors don't have the shape to build, because their product is the model, not the routing and isolation layer.
+4. **Playbooks-in-code.** Pipeline definitions are reviewable, versioned, and owned by the enterprise, not the vendor.
+
+---
+
+## 9. Deployment Inside the Enterprise
+
+- **Network.** Runs inside the enterprise VPC. Arbiter and vault are internal; no agent traffic to public internet except through sanctioned egress.
+- **Identity.** SSO-integrated. Every approver and every audit event is tied to enterprise identity.
+- **Secrets.** Uses the existing enterprise vault (CyberArk / HashiCorp Vault / cloud-native KMS) — no new secrets store.
+- **Source control.** GitHub Enterprise or Bitbucket Data Center. Role agents authenticate via short-lived app tokens.
+- **CI.** Jenkins, GitHub Actions, or the existing CI platform — the pipeline integrates as a consumer, does not replace.
+- **Compliance posture.** SOC 2 Type II, PCI-DSS scope reviewed, SOX change-management compatible (each deploy is a fully-documented change record).
+- **Rollout.** Start with one team, one playbook (e.g., BUG_FIX only). Expand to FULL_PDLC after 4–6 weeks of measured runs. Add teams one playbook at a time.
+
+---
+
+## 10. Implementation Roadmap
+
+Single-person-led rollout inside a regulated enterprise. Timeline assumes I am the initial DRI — securing sponsorship, building the POC, and growing a small team to 8–10 engineers over ~18 months.
+
+### 10.1 Gantt
+
+```mermaid
+gantt
+  title Enterprise PDLC Pipeline — Rollout Plan
+  dateFormat YYYY-MM-DD
+  axisFormat %b %Y
+
+  section Phase 0 — Alignment
+  Architecture doc + deck         :p0a, 2026-05-01, 21d
+  ARB + sponsor pitch             :p0b, 2026-05-15, 30d
+  InfoSec + compliance briefing   :p0c, 2026-06-01, 30d
+  Sponsor + pilot team secured    :milestone, p0m, 2026-06-30, 0d
+
+  section Phase 1 — POC
+  Slack intake + orchestrator     :p1a, 2026-07-01, 30d
+  Three roles + BUG_FIX playbook  :p1b, 2026-07-15, 45d
+  Container isolation v1          :p1c, 2026-08-01, 30d
+  Arbiter v1 (single provider)    :p1d, 2026-08-15, 30d
+  Audit log v1                    :p1e, 2026-08-15, 30d
+  Pilot-team POC runs             :p1f, 2026-09-01, 30d
+  Leadership demo                 :milestone, p1m, 2026-09-30, 0d
+
+  section Phase 2 — Alpha
+  Roles expanded (+4 = 7 total)   :p2a, 2026-10-01, 45d
+  Three playbooks live            :p2b, 2026-10-15, 45d
+  Knowledge vault v1 (L1 + L2)    :p2c, 2026-11-01, 45d
+  Wiki-LLM v1                     :p2d, 2026-11-15, 30d
+  SOC 2 scope review              :p2e, 2026-11-01, 60d
+  Alpha with pilot team           :milestone, p2m, 2026-12-31, 0d
+
+  section Phase 3 — Beta
+  All 12 roles                    :p3a, 2027-01-01, 45d
+  All 8 playbooks                 :p3b, 2027-01-15, 45d
+  Domain-remit layer (3 teams)    :p3c, 2027-01-15, 60d
+  Wiki-LLM embeddings             :p3d, 2027-02-01, 30d
+  SOC 2 evidence collected        :p3e, 2027-02-01, 60d
+  Five teams onboarded            :milestone, p3m, 2027-03-31, 0d
+
+  section Phase 4 — GA
+  Wave 1 (5 teams)                :p4a, 2027-04-01, 60d
+  Wave 2 (10 teams)               :p4b, 2027-06-01, 90d
+  Chargeback model live           :p4c, 2027-07-01, 60d
+  Dedicated platform team (8-10)  :p4d, 2027-05-01, 180d
+  Broad adoption                  :milestone, p4m, 2027-10-01, 0d
+```
+
+### 10.2 Phase-by-phase summary
+
+| Phase | Dates | Duration | Staff | Key outcome |
+|---|---|---|---|---|
+| **0 — Alignment** | May – Jun 2026 | 8 weeks | 0.5 FTE (me, part-time) | Sponsor + pilot team secured; ARB green light |
+| **1 — POC** | Jul – Sep 2026 | 12 weeks | 1 FTE + part-time help | 3 roles, BUG_FIX only, pilot team 10–20 runs |
+| **2 — Alpha** | Oct – Dec 2026 | 12 weeks | 3 FTE | 7 roles, 3 playbooks, L1+L2 vault, SOC 2 scope complete |
+| **3 — Beta** | Jan – Mar 2027 | 12 weeks | 6 FTE | All 12 roles, all 8 playbooks, 5 teams, SOC 2 evidence |
+| **4 — GA** | Apr 2027 → ongoing | — | 8–10 FTE | Wave rollout; 20+ teams by Q4 2027 |
+
+### 10.3 Milestone summary
+
+| Date | Milestone |
+|---|---|
+| **Jun 30, 2026** | Executive sponsor committed, pilot team signed up |
+| **Sep 30, 2026** | POC demoed to leadership — end-to-end BUG_FIX through the pipeline |
+| **Dec 31, 2026** | Alpha live with pilot team on 3 playbooks; SOC 2 scope reviewed |
+| **Mar 31, 2027** | Beta complete — 5 teams, all 12 roles, all 8 playbooks |
+| **Oct 1, 2027** | Broad adoption — 20+ teams, chargeback active |
+
+### 10.4 Risks and mitigations
+
+| Risk | Mitigation |
+|---|---|
+| InfoSec review takes 6+ months | Brief InfoSec in Phase 0 *before* building; design container isolation to pre-empt their top-5 objections |
+| No sponsor materializes | Target 3 candidate VPs in parallel during Phase 0; pick the fastest yes |
+| Pilot team disengages | Choose a team with a clear pain point (rework-heavy domain); require written buy-in before Phase 1 starts |
+| Compliance audit delays GA | Start SOC 2 scope work in Phase 2, not Phase 4 — earliest evidence collection |
+| Platform team hiring slow | Use Phase 2 to build a vendor-independent blueprint; Phase 3 hire through internal platform-eng rotations |
+| Cost overruns | Arbiter enforces per-team monthly caps from day 1; chargeback visible from Phase 2 onward |
+| Vendor / model lock-in | Arbiter's 7-provider routing keeps any single-provider outage or price change a non-event |
+
+### 10.5 First 90 days — single-person checklist
+
+**Weeks 1–2 (May 1–14, 2026)**
+- Finalize architecture brief + deck (this document → slides)
+- Identify 3 candidate sponsor VPs; secure 30-min slot with each
+- Book ARB pitch slot
+
+**Weeks 3–4 (May 15–28, 2026)**
+- Deliver sponsor pitches; pick one
+- ARB pitch delivered; capture top-5 objections
+- Initial InfoSec conversation (30 min, no formal review yet)
+
+**Weeks 5–6 (May 29 – Jun 11, 2026)**
+- Draft pilot-team shortlist (3 candidates)
+- Draft compliance-scope memo (what's in scope / out of scope)
+- Open requisition for first engineer hire
+
+**Weeks 7–8 (Jun 12 – Jun 30, 2026)**
+- Pilot team selected + written buy-in
+- POC scope frozen
+- Dev environment provisioned
+- First engineer offer out
+
+**End of Day 90:** Sponsor committed, pilot team signed up, POC scope frozen, first hire in flight, InfoSec aware and not blocking.
+
+---
+
+## Appendix A — Glossary
+
+- **Pipeline run** — a single request taken from Slack intake through deploy and retrospective. Given a unique ID (e.g., P-4821).
+- **Playbook** — a named, declarative dependency graph of roles. Picked at classification time.
+- **Role agent** — a specialized LLM agent for one stage (PM, Architect, etc.) with its own prompt, tools, and Map of Content.
+- **Map of Content (MoC)** — a per-role index into the knowledge vault. Tells the role what to read before starting.
+- **Knowledge vault** — git-managed Obsidian-style markdown repo. `auto/`, `proposed/`, `approved/`.
+- **Wiki-LLM** — curator / indexer / retriever sitting in front of the vault.
+- **Arbiter** — central gRPC service routing every LLM call. Lives in the shared platform, not in the pipeline product.
+- **Ephemeral container** — Docker / k8s Job that runs a single role once, then is destroyed.
+
+---
+
+End of brief. Every section maps to 1–3 deck slides.

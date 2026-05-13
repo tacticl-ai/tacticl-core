@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Brief</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #5a5a5a;
+    --accent: #2563eb;
+    --border: #e5e7eb;
+    --code-bg: #f6f8fa;
+    --table-alt: #fafafa;
+    --highlight: #fef3c7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115;
+      --fg: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #60a5fa;
+      --border: #2a2f38;
+      --code-bg: #161a21;
+      --table-alt: #14171d;
+      --highlight: #3a2f0b;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+  }
+  main {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 6rem;
+  }
+  h1 {
+    font-size: 2.25rem;
+    line-height: 1.2;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.02em;
+  }
+  h2 {
+    font-size: 1.6rem;
+    line-height: 1.3;
+    margin: 3rem 0 1rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: -0.01em;
+  }
+  h3 {
+    font-size: 1.2rem;
+    margin: 2rem 0 0.75rem;
+    letter-spacing: -0.005em;
+  }
+  h4 {
+    font-size: 1.05rem;
+    margin: 1.5rem 0 0.5rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  p { margin: 0.75rem 0; }
+  .lede {
+    font-size: 1.15rem;
+    color: var(--muted);
+    margin: 0.5rem 0 2rem;
+    max-width: 70ch;
+  }
+  hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 2.5rem 0;
+  }
+  ul, ol { padding-left: 1.5rem; }
+  li { margin: 0.3rem 0; }
+  strong { color: var(--fg); }
+  em { color: var(--muted); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9em;
+    background: var(--code-bg);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  pre code {
+    background: transparent;
+    padding: 0;
+    font-size: inherit;
+  }
+  blockquote {
+    margin: 1rem 0;
+    padding: 0.5rem 1rem;
+    border-left: 3px solid var(--accent);
+    color: var(--muted);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.25rem 0;
+    font-size: 0.93rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 0.6rem 0.8rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    background: var(--code-bg);
+    font-weight: 600;
+  }
+  tr:nth-child(even) td { background: var(--table-alt); }
+  .toc {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    margin: 2rem 0;
+  }
+  .toc h4 {
+    margin-top: 0;
+    color: var(--fg);
+  }
+  .toc ol { margin: 0; padding-left: 1.25rem; }
+  .toc li { margin: 0.2rem 0; }
+  .badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 12px;
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  @media (max-width: 640px) {
+    main { padding: 2rem 1rem 4rem; }
+    h1 { font-size: 1.75rem; }
+    h2 { font-size: 1.35rem; }
+    table { font-size: 0.85rem; }
+    th, td { padding: 0.45rem 0.5rem; }
+  }
+  @media print {
+    body { font-size: 11pt; }
+    main { max-width: none; padding: 0; }
+    h2 { page-break-after: avoid; }
+    pre, table { page-break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Product Brief</h1>
+<p class="lede">A personal AI assistant that remotes into the user's devices and executes work across them — social automation, research, content/video generation, reminders, and full software development lifecycles.</p>
+
+<div class="toc">
+  <h4>Contents</h4>
+  <ol>
+    <li><a href="#problem">Problem</a></li>
+    <li><a href="#solution">Solution</a></li>
+    <li><a href="#vision">Vision and Measures of Success</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#market">Comparison with Market</a></li>
+  </ol>
+</div>
+
+<hr>
+
+<h2 id="problem">1. Problem</h2>
+<p>Modern "AI assistants" fall into two camps, and both fail the user:</p>
+<ol>
+  <li><strong>Chatbots with tools</strong> — Clever at conversation, weak at execution. They can draft a post but can't actually publish it across six accounts on a schedule. They can suggest code but can't ship it end-to-end. They live inside one app and never touch the user's real environment.</li>
+  <li><strong>Rigid automation platforms</strong> (Zapier, n8n, Make) — Can execute, but require the user to become a workflow engineer. Every new capability is a configuration project. No reasoning, no adaptation, no memory of what worked last time.</li>
+</ol>
+<p>The gap is a single agent that can:</p>
+<ul>
+  <li><strong>Understand intent</strong> from a voice or chat message,</li>
+  <li><strong>Classify the depth</strong> of work required (a tweet vs. a new product feature),</li>
+  <li><strong>Orchestrate multiple specialized agents</strong> when the task is complex,</li>
+  <li><strong>Execute on the user's own devices</strong> (phone, desktop) when the work needs local context, credentials, or browser state — and execute in the cloud otherwise,</li>
+  <li><strong>Learn from every run</strong> so the next one is cheaper, faster, and better.</li>
+</ul>
+<p>No single product covers all five. Users stitch together ChatGPT, Zapier, Claude Code, Buffer, and three browser extensions — and still can't leave the loop.</p>
+
+<hr>
+
+<h2 id="solution">2. Solution</h2>
+<p>A unified agent platform structured as <strong>four collaborating layers</strong>:</p>
+<ol>
+  <li><strong>Conversation layer</strong> — Chat and push-to-talk. The <em>only</em> input surface. Every command becomes a first-class "spark" (a tracked unit of intent).</li>
+  <li><strong>Classification + orchestration layer</strong> — A two-stage classifier decides the <em>type</em> (social, research, code, devops, creative, data) and the <em>depth</em> (single-agent loop, named playbook, or full multi-role pipeline). An orchestrator then manages the lifecycle of the spark through to completion.</li>
+  <li><strong>Execution layer</strong> — A pool of specialized <strong>role agents</strong> (Product Manager, Architect, Implementer, Reviewer, Tester, DevOps, Security, Technical Writer, etc.) for complex work, or a single-agent tool loop for simple work. Execution can happen in the cloud <em>or</em> be dispatched to one of the user's own devices over WebSocket.</li>
+  <li><strong>Learning layer</strong> — A git-managed knowledge vault and a dedicated retrospective agent that captures lessons from every run. Knowledge is both machine-readable (for future agent runs) and human-readable (for user oversight).</li>
+</ol>
+<p>Underneath these layers sits a <strong>centralized LLM arbiter</strong> (a separate platform service) that routes every model call, isolates workspaces, handles credentials, and tracks cost. No agent in the product talks to a model provider directly.</p>
+<p>The result is one assistant that can handle <em>"post this video to Instagram and X at 6pm"</em> and <em>"build and ship a new billing feature"</em> — and treats them as the same shape of problem at different depths.</p>
+
+<hr>
+
+<h2 id="vision">3. Vision and Measures of Success</h2>
+
+<h3>Vision</h3>
+<p><strong>"One assistant, every device, every task."</strong> The user speaks or types once. The system figures out what kind of work it is, where it should run, which specialists to involve, and how to verify the result — and it gets measurably better at the user's specific style every week.</p>
+
+<h3>Measures of Success</h3>
+
+<h4>Product health</h4>
+<table>
+  <thead><tr><th>Metric</th><th>Target</th></tr></thead>
+  <tbody>
+    <tr><td>Time from intent to first useful action</td><td>&lt; 3 seconds (sync path), &lt; 30 seconds (async pipelines)</td></tr>
+    <tr><td>% of commands resolved without user re-clarification</td><td>≥ 85%</td></tr>
+    <tr><td>% of complex tasks completed without human-checkpoint escalation</td><td>≥ 70% at steady state</td></tr>
+    <tr><td>Device execution success rate (when a device is online)</td><td>≥ 95%</td></tr>
+  </tbody>
+</table>
+
+<h4>Learning</h4>
+<table>
+  <thead><tr><th>Metric</th><th>Target</th></tr></thead>
+  <tbody>
+    <tr><td>Cost per completed pipeline, month over month</td><td>Monotonically decreasing for steady-state task types</td></tr>
+    <tr><td>Rework rate per role</td><td>&lt; 15% with 3-iteration hard cap</td></tr>
+    <tr><td>Knowledge-vault entries auto-written per pipeline</td><td>≥ 1 on average</td></tr>
+    <tr><td>User-approved vs. user-rejected auto-learnings</td><td>≥ 80% approved</td></tr>
+  </tbody>
+</table>
+
+<h4>Trust</h4>
+<table>
+  <thead><tr><th>Metric</th><th>Target</th></tr></thead>
+  <tbody>
+    <tr><td>Tier-1 (mutating) actions executed without user confirmation</td><td><strong>0</strong></td></tr>
+    <tr><td>Tier-2 (financial) actions executed without 2FA</td><td><strong>0</strong></td></tr>
+    <tr><td>Unauthorized domain access</td><td><strong>0</strong></td></tr>
+  </tbody>
+</table>
+
+<h4>Business</h4>
+<table>
+  <thead><tr><th>Metric</th><th>Target</th></tr></thead>
+  <tbody>
+    <tr><td>Weekly active users running ≥ 1 multi-role pipeline</td><td>Leading indicator of power-user depth</td></tr>
+    <tr><td>Devices paired per user</td><td>Indicator of platform lock-in and utility</td></tr>
+    <tr><td>Monthly spend ceiling adoption</td><td>Indicator that users trust the assistant with money</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2 id="architecture">4. Architecture</h2>
+
+<h3>4.1 System Shape</h3>
+<pre><code> ┌──────────────────────────────────────────────────────────────┐
+ │                      CONVERSATION LAYER                      │
+ │       Mobile app  ·  Web dashboard  ·  Push-to-talk          │
+ └─────────────────────────┬────────────────────────────────────┘
+                           │  POST /v1/agent/command
+                           ▼
+ ┌──────────────────────────────────────────────────────────────┐
+ │                CLASSIFICATION + ORCHESTRATION                │
+ │  Spark Service  →  Type Classifier  →  Depth Classifier      │
+ │                                                              │
+ │  Depth = SIMPLE  ─────────────►  Single-agent loop           │
+ │  Depth = PLAYBOOK ────────────►  Named workflow (subset)     │
+ │  Depth = FULL_PIPELINE ───────►  12-role multi-agent         │
+ └─────────────────────────┬────────────────────────────────────┘
+                           │
+         ┌─────────────────┴─────────────────┐
+         ▼                                   ▼
+ ┌───────────────────┐              ┌────────────────────┐
+ │  CLOUD EXECUTION  │              │  DEVICE EXECUTION  │
+ │  Role agents run  │              │  WebSocket dispatch│
+ │  on managed infra │              │  to user's device  │
+ └─────────┬─────────┘              └──────────┬─────────┘
+           │                                   │
+           └────────────────┬──────────────────┘
+                            ▼
+ ┌──────────────────────────────────────────────────────────────┐
+ │          SHARED PLATFORM  (separate repo — cidadel)          │
+ │   LLM Arbiter (gRPC)  ·  Auth  ·  Token issuance  ·  Vault   │
+ │   — Routes ALL model calls, isolates workspaces, tracks cost │
+ └──────────────────────────────────────────────────────────────┘
+                            ▲
+                            │ reads / writes
+ ┌──────────────────────────┴───────────────────────────────────┐
+ │                       LEARNING LAYER                         │
+ │  Retrospective agent  ·  Git-managed knowledge vault         │
+ │  Per-role Maps of Content  ·  Rework + cost telemetry        │
+ └──────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3>4.2 Spark Lifecycle</h3>
+<p>Every chat message is a <strong>spark</strong>. There is no other way to create one — no manual form, no API shortcut. This gives the system a single audit log and a single unit of cost accounting.</p>
+<pre><code>chat / voice input
+      │
+      ▼
+ [ Spark created ]   ── state: PENDING
+      │
+      ▼
+ [ Type classifier ]   → social | research | code | devops | creative | data
+      │
+      ▼
+ [ Depth classifier ]  → SIMPLE | PLAYBOOK | FULL_PIPELINE
+      │                   (six-dimension rubric: scope, risk, domain breadth,
+      │                    integration surface, test complexity, reversibility)
+      ▼
+ [ Routing decision ]  → cloud or user's device?
+      │                   (based on user's execution preference + device online state)
+      ▼
+ [ Execution ]         → single-agent loop  OR  multi-role pipeline
+      │
+      ▼
+ [ Checkpoints ]       → Tier 1 mutations / Tier 2 financial → user approval
+      │
+      ▼
+ [ Retrospective ]     → lessons written to knowledge vault (always runs)
+      │
+      ▼
+ [ Completed ]         → result returned to chat, receipt stored
+</code></pre>
+
+<h3>4.3 The Three Execution Shapes</h3>
+<table>
+  <thead><tr><th>Shape</th><th>When</th><th>How</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>SIMPLE</strong> (single-agent loop)</td>
+      <td>One-off tasks that fit in a single LLM turn with tools — post a tweet, summarize a page, set a reminder.</td>
+      <td>One orchestrator, one LLM, a tool registry (~20+ skills), at most a few tool-use rounds. Sync-with-timeout: if it runs long, it flips to async and streams back over WebSocket.</td>
+    </tr>
+    <tr>
+      <td><strong>PLAYBOOK</strong></td>
+      <td>Recurring structured flows — bug fix, small feature, UI change, docs-only, infra change, security patch.</td>
+      <td>A subset of role agents configured as a named workflow. Data-driven — playbook definitions are config, not code.</td>
+    </tr>
+    <tr>
+      <td><strong>FULL_PIPELINE</strong></td>
+      <td>Net-new features or systems with real risk and cross-cutting impact.</td>
+      <td>All 12 role agents — Product Manager, Researcher, Architect, Designer, Planner, Implementer, Reviewer, Tester, Security Analyst, Technical Writer, DevOps, Retrospective Analyst — with rework loops, quality gates, and mandatory human checkpoints for mutating or financial actions.</td>
+    </tr>
+  </tbody>
+</table>
+<p>The depth classifier <strong>cannot</strong> route code or devops work to SIMPLE — that class of work always gets at least a PLAYBOOK, as a safety floor.</p>
+
+<h3>4.4 The Orchestrator / Role Agents Relationship</h3>
+<p>The <strong>orchestrator</strong> is a lifecycle engine, not an agent. It:</p>
+<ul>
+  <li>Reads the playbook config,</li>
+  <li>Runs roles in dependency order (with parallel groups where declared),</li>
+  <li>Persists every role's output as an artifact,</li>
+  <li>Enforces a 3-iteration rework cap per role,</li>
+  <li>Surfaces checkpoints to the user,</li>
+  <li>Emits events over WebSocket and push for live UI updates,</li>
+  <li>Never makes product decisions — those belong to roles.</li>
+</ul>
+<p>Each <strong>role agent</strong> is a specialized LLM instance with a dedicated system prompt, a filtered tool set, and a pre-loaded "Map of Content" (its personal index into the knowledge vault). A role sees only what it needs to see, which keeps cost and context low and makes the pipeline genuinely composable.</p>
+
+<h3>4.5 Cloud vs. Device Execution</h3>
+<p>The product is explicit that <strong>cloud and device are peers</strong> — neither is a fallback:</p>
+<ul>
+  <li><strong>Cloud execution</strong> runs on managed infrastructure with browser automation, web search, web-page readers, social-platform clients, and a video-generation pipeline. Used when no device is online, or when the user prefers cloud.</li>
+  <li><strong>Device execution</strong> dispatches the spark over WebSocket to one of the user's own desktops or phones. The device can decompose it into sub-tasks ("tactics"), execute locally (terminal commands, browser clicks, file ops), request credentials, and report progress. Desktops can additionally run a CLI-driven coding agent in-place with per-task workspace isolation.</li>
+</ul>
+<p>Routing is controlled by a user preference (<code>CLOUD_ONLY</code>, <code>CLOUD_FIRST</code>, <code>DEVICE_FIRST</code>) and a device-scoring function (charging state, battery, device type, capability match).</p>
+
+<h3>4.6 The Arbiter <span class="badge">LIVES IN SHARED PLATFORM</span></h3>
+<p>The <strong>LLM Arbiter</strong> is a <strong>platform-level service in the cidadel shared platform</strong> — not part of the product codebase. Every model call from every agent, every role, every classifier goes through it over gRPC. It provides:</p>
+<ul>
+  <li><strong>Unified routing</strong> across 25+ models / 7 providers (Anthropic, OpenAI, Grok, Gemini, Llama, Mistral, Cohere),</li>
+  <li><strong>Three engine types</strong> — <code>api</code> (single-turn), <code>agentic</code> (multi-turn tool loop), <code>cli</code> (full CLI-driven coding agent),</li>
+  <li><strong>Per-request workspace isolation</strong> for CLI engines (<code>mkdtemp</code> + shallow clone + execute + teardown), so concurrent pipelines never leak context into each other,</li>
+  <li><strong>Credential management</strong> (Vault-backed),</li>
+  <li><strong>Cost tracking and budget enforcement</strong> (per-request <code>--max-cost</code>, per-pipeline ceiling, per-user monthly spend limit),</li>
+  <li><strong>Rate limiting</strong> and circuit breaking.</li>
+</ul>
+<p>Because the arbiter is shared infrastructure, <em>every</em> product built on the platform benefits from the same routing, cost model, and credential hygiene. The product does not ship its own LLM clients.</p>
+
+<h3>4.7 The Learning Layer</h3>
+<p>Learning is not a "nice to have" bolt-on — it is a first-class role in the pipeline.</p>
+<p><strong>Retrospective agent (always runs).</strong> After every pipeline, a dedicated role reviews the run and writes two kinds of output:</p>
+<ol>
+  <li><strong>Auto-committed facts</strong> — safe, factual observations (conventions observed, entities touched, tool-call outcomes) go directly into an <code>auto/</code> folder of the knowledge vault.</li>
+  <li><strong>Proposed learnings</strong> — judgment-laden lessons ("this kind of task benefits from skipping the Designer role") go into a <code>proposed/</code> folder for human review.</li>
+</ol>
+<p>Human-approved learnings graduate to an <code>approved/</code> folder and become load-bearing context for future runs.</p>
+<p><strong>Knowledge vault.</strong> A git-managed wiki (Obsidian-style markdown with wikilinks). Each role has its own <strong>Map of Content</strong> — a hand-maintained index telling the role <em>what to care about</em> before it starts work. The vault grows incrementally; bad entries are reverted via git, which keeps accountability cheap.</p>
+<p><strong>Telemetry-driven learning.</strong> Separate from the vault, the system stores:</p>
+<ul>
+  <li><strong>Rework events</strong> — which role asked for another pass, why, how many iterations,</li>
+  <li><strong>Checkpoint outcomes</strong> — what the user approved, rejected, modified,</li>
+  <li><strong>Cost per role per task type</strong> — feeds the classifier's future routing decisions.</li>
+</ul>
+<p>Over time the classifier itself is expected to consume this telemetry to improve depth and routing decisions.</p>
+
+<h3>4.8 Safety Tiers</h3>
+<p>Every action the agent can take is labeled:</p>
+<table>
+  <thead><tr><th>Tier</th><th>Examples</th><th>Policy</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Tier 0</strong> — read-only</td><td>Search, browse, check schedule, read photos</td><td>Auto-execute</td></tr>
+    <tr><td><strong>Tier 1</strong> — mutations</td><td>Publish post, send message, edit, delete, git push</td><td>Requires user confirmation</td></tr>
+    <tr><td><strong>Tier 2</strong> — financial</td><td>Purchases, subscriptions, spend over threshold</td><td>Requires 2FA, gated by monthly spend limit (default $0)</td></tr>
+  </tbody>
+</table>
+<p>Safety tiers are enforced at the tool-registry level — not as a prompt instruction to the agent. An agent that <em>wants</em> to skip a checkpoint cannot.</p>
+
+<hr>
+
+<h2 id="market">5. Comparison with Market</h2>
+<div style="overflow-x: auto;">
+<table>
+  <thead>
+    <tr>
+      <th>Capability</th>
+      <th>This product</th>
+      <th>ChatGPT / Claude (chat)</th>
+      <th>Claude Code / Cursor</th>
+      <th>Zapier / n8n / Make</th>
+      <th>Buffer / Hootsuite</th>
+      <th>Rabbit / Humane</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Natural-language entry</td><td>Yes</td><td>Yes</td><td>Partial (code focus)</td><td>No — flow-builder UI</td><td>No</td><td>Yes</td></tr>
+    <tr><td>Executes on user's own devices</td><td><strong>Yes</strong> (paired desktop + mobile)</td><td>No</td><td>Local only, single machine</td><td>No</td><td>No</td><td>Device-local only</td></tr>
+    <tr><td>Cloud execution fallback</td><td><strong>Yes</strong></td><td>N/A</td><td>No</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+    <tr><td>Multi-role pipelines (PM → Arch → Impl → Review → Test)</td><td><strong>Yes</strong> (12 roles, 8 playbooks)</td><td>No</td><td>No</td><td>No — no notion of role</td><td>No</td><td>No</td></tr>
+    <tr><td>Depth classifier (routes simple vs. complex)</td><td><strong>Yes</strong></td><td>No</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
+    <tr><td>Centralized LLM arbiter (multi-provider, cost-tracked)</td><td><strong>Yes</strong> (via shared platform)</td><td>Single provider</td><td>Single provider</td><td>N/A</td><td>N/A</td><td>Single provider</td></tr>
+    <tr><td>Per-request workspace isolation for coding</td><td><strong>Yes</strong></td><td>No</td><td>Partial</td><td>N/A</td><td>N/A</td><td>No</td></tr>
+    <tr><td>Social publishing across platforms</td><td>Yes</td><td>Via plugin</td><td>No</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+    <tr><td>AI video generation</td><td>Yes</td><td>No</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
+    <tr><td>Git-managed learning vault with human review</td><td><strong>Yes</strong></td><td>No (opaque memory)</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
+    <tr><td>Per-role Maps of Content (targeted context)</td><td><strong>Yes</strong></td><td>No</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
+    <tr><td>Safety tiers enforced at tool layer (not prompt)</td><td><strong>Yes</strong></td><td>Prompt-level only</td><td>Prompt-level only</td><td>N/A — no agency</td><td>N/A</td><td>Prompt-level</td></tr>
+    <tr><td>Per-pipeline + monthly spend ceilings</td><td><strong>Yes</strong></td><td>No</td><td>Partial</td><td>No</td><td>No</td><td>No</td></tr>
+    <tr><td>Device routing intelligence (battery, charging, capability)</td><td><strong>Yes</strong></td><td>No</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Positioning</h3>
+<ul>
+  <li><strong>Against chat assistants</strong> — They reason; we reason <em>and</em> execute across the user's devices, with real cost controls and real safety tiers.</li>
+  <li><strong>Against coding agents</strong> — They ship code from one machine; we ship outcomes across the user's life (code, content, social, research) through a consistent pipeline architecture, with coding as one vertical.</li>
+  <li><strong>Against workflow automation</strong> — They require the user to design the workflow; we classify intent and select the workflow automatically, while still letting power users define custom playbooks.</li>
+  <li><strong>Against social-media schedulers</strong> — They queue posts; we generate, schedule, publish, <em>and</em> retrospect on performance — all as one spark.</li>
+  <li><strong>Against AI hardware (Rabbit, Humane)</strong> — They tie the assistant to one device; we treat every device the user already owns as a worker in a pool.</li>
+</ul>
+
+<h3>Moats</h3>
+<ol>
+  <li><strong>The arbiter + workspace isolation</strong> — infra most competitors don't have the shape to build, because their product is the model rather than the routing layer.</li>
+  <li><strong>The multi-role pipeline</strong> — requires a library of role-specific prompts, tools, and knowledge that compounds with usage.</li>
+  <li><strong>The learning vault</strong> — a per-user, per-team knowledge asset that gets more valuable every week and is hard to replicate after the fact.</li>
+  <li><strong>Device pairing</strong> — two-sided: once users pair three devices, switching cost is substantial.</li>
+</ol>
+
+</main>
+</body>
+</html>

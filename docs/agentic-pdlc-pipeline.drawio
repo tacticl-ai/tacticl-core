@@ -1,0 +1,586 @@
+<mxGraphModel dx="3400" dy="1900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3400" pageHeight="1900" math="0" shadow="0" adaptiveColors="auto">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <mxCell id="title" value="Agentic PDLC Pipeline" style="text;html=1;align=center;verticalAlign=middle;fontSize=28;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="80" y="20" width="3260" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="subtitle" value="11 specialized agent roles · 8 playbooks · AI engine routing · HITL checkpoints · cost &amp; rework governance" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=2" vertex="1" parent="1">
+      <mxGeometry x="80" y="55" width="3260" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="ph-init" value="INITIATE" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=16;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="80" y="90" width="380" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="ph-disc" value="DISCOVERY" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=16;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="480" y="90" width="380" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="ph-des" value="DESIGN" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=16;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="880" y="90" width="780" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="ph-build" value="BUILD" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=16;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="1680" y="90" width="380" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="ph-test" value="TEST" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=16;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="2080" y="90" width="380" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="ph-dep" value="DEPLOY" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=16;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="2480" y="90" width="380" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="ph-op" value="OPERATE" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=16;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="2880" y="90" width="380" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lane-hum-bg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EAF7EA;strokeColor=#82B366;dashed=1" vertex="1" parent="1">
+      <mxGeometry x="80" y="150" width="3260" height="100" as="geometry"/>
+    </mxCell>
+    <mxCell id="lane-hum-label" value="Humans in&#10;the Loop" style="text;align=center;verticalAlign=middle;rotation=-90;fontSize=12;fontStyle=1;fontColor=#3D7A3D" vertex="1" parent="1">
+      <mxGeometry x="15" y="180" width="60" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="hum-init" value="Requester / End User&#10;(submits intent · approves)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="100" y="165" width="340" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="hum-disc" value="Product Owner&#10;(scope · acceptance criteria)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="500" y="165" width="340" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="hum-des" value="Architect · UX Designer&#10;(ADR review · UX sign-off)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="900" y="165" width="340" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="hum-plan" value="Tech Lead / Eng Manager&#10;(plan approval · skip-role decisions)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="1300" y="165" width="340" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="hum-build" value="Engineer&#10;(pairs with implementer · PR owner)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="1700" y="165" width="340" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="hum-test" value="QA Lead · Security Engineer&#10;(rework escalation · risk gate)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="2100" y="165" width="340" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="hum-dep" value="SRE / Release Manager&#10;(prod gate · change approval)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="2500" y="165" width="340" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="hum-op" value="On-call · Product Owner&#10;(incident · retro accept)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="2900" y="165" width="340" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lane1-bg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF4F4;strokeColor=#E0B0B0;dashed=1" vertex="1" parent="1">
+      <mxGeometry x="80" y="270" width="3260" height="100" as="geometry"/>
+    </mxCell>
+    <mxCell id="lane1-label" value="HITL&#10;Checkpoints" style="text;align=center;verticalAlign=middle;rotation=-90;fontSize=12;fontStyle=1;fontColor=#B85450" vertex="1" parent="1">
+      <mxGeometry x="15" y="300" width="60" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="hitl-spark" value="User submits Request&#10;(chat / voice / scheduled)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="100" y="285" width="340" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="hitl-scope" value="Scope confirmation&#10;(FULL_PDLC · skip-required-roles)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="500" y="285" width="340" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="hitl-design" value="Design approval gate&#10;(ADR / UX sign-off)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="900" y="285" width="340" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="hitl-cost" value="Plan + cost approval&#10;(skip-roles · cost ceiling)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="1300" y="285" width="340" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="hitl-rework" value="Rework escalation&#10;(threshold reached)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="2100" y="285" width="340" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="hitl-deploy" value="Production deploy gate&#10;(Tier-2 confirmation · MFA)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="2500" y="285" width="340" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="hitl-knowledge" value="Knowledge accept&#10;(retro adds to role_knowledge)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="2900" y="285" width="340" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lane2-bg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F8FF;strokeColor=#A0B8DA;dashed=1" vertex="1" parent="1">
+      <mxGeometry x="80" y="390" width="3260" height="240" as="geometry"/>
+    </mxCell>
+    <mxCell id="lane2-label" value="Agent Roles" style="text;align=center;verticalAlign=middle;rotation=-90;fontSize=12;fontStyle=1;fontColor=#3F6FAB" vertex="1" parent="1">
+      <mxGeometry x="15" y="495" width="60" height="30" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="ag-user" value="User Input&#10;(chat · voice · cron)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="100" y="410" width="340" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="ag-classifier" value="Request + Pipeline Classifier&#10;(small LLM · tier · playbook)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="100" y="500" width="340" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="ag-pm" value="PM Agent&#10;(intent · scope · acceptance)&#10;skills: web search · URL extraction · context fetch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="500" y="450" width="340" height="100" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="ag-architect" value="Architect Agent&#10;(system design · ADR)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="900" y="410" width="340" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="ag-designer" value="Designer Agent&#10;(UX spec · component plan)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="900" y="500" width="340" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="ag-planner" value="Planner Agent&#10;(decompose · sequence · estimate)&#10;Playbook Registry → tasks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="1300" y="450" width="340" height="90" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="ag-impl" value="Implementer Agent&#10;(coding agent CLI · PR)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="1700" y="410" width="340" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="ag-tw" value="Technical Writer Agent&#10;(README · API docs · changelogs)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="1700" y="500" width="340" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="ag-rev" value="Reviewer Agent&#10;(diff review · style · standards)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="2100" y="400" width="340" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="ag-test" value="Tester Agent&#10;(unit · integration · e2e)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="2100" y="470" width="340" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="ag-sec" value="Security Analyst Agent&#10;(SAST · secrets · authz review)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="2100" y="540" width="340" height="60" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="ag-devops" value="DevOps Agent&#10;(CI/CD · runtime release)&#10;Change ticket (ITSM)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="2500" y="450" width="340" height="90" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="ag-retro" value="Retro Analyst Agent&#10;(post-mortem · learnings)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="2900" y="410" width="340" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="ag-monitor" value="Monitor&#10;(SLOs · alerts · oncall)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="2900" y="500" width="340" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lane3-bg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFCEF;strokeColor=#D6B656;dashed=1" vertex="1" parent="1">
+      <mxGeometry x="80" y="650" width="3260" height="170" as="geometry"/>
+    </mxCell>
+    <mxCell id="lane3-label" value="Artifacts" style="text;align=center;verticalAlign=middle;rotation=-90;fontSize=12;fontStyle=1;fontColor=#B68A2E" vertex="1" parent="1">
+      <mxGeometry x="15" y="725" width="60" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="art-spark" value="Request&#10;requests/" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="100" y="665" width="160" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="art-runs" value="Pipeline Run&#10;runs/" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="280" y="665" width="160" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="art-logs" value="Execution Logs&#10;execution_logs/" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="100" y="735" width="340" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="art-brief" value="Product Brief&#10;artifacts/ (PM)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="500" y="665" width="340" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="art-research" value="Research Notes + Citations&#10;artifacts/ (PM web-search skill)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="500" y="735" width="340" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="art-adr" value="ADR + System Design&#10;artifacts/ (ARCHITECT)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="900" y="665" width="340" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="art-ux" value="UX Spec / Wireframes&#10;artifacts/ (DESIGNER)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="900" y="735" width="340" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="art-plan" value="Task Graph&#10;PlaybookConfig + tasks" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="1300" y="665" width="340" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="art-skip" value="Role-skip decisions&#10;Role Skip Parser output" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="1300" y="735" width="340" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="art-pr" value="Pull Request + Commits&#10;Git host (manage_repo)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="1700" y="665" width="340" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="art-docs" value="Docs / Changelog / Runbooks&#10;markdown in repo" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="1700" y="735" width="340" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="art-rev" value="Review report + Test plan&#10;artifacts/ (REVIEWER · TESTER)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="2100" y="665" width="340" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="art-secrep" value="Security report&#10;artifacts/ (SECURITY_ANALYST)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="2100" y="735" width="340" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="art-release" value="Release / Deploy manifest&#10;runtime revision · image tag" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="2500" y="665" width="340" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="art-rfc" value="Change ticket (ITSM)&#10;RFC / change request" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="2500" y="735" width="340" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="art-tele" value="Telemetry · events/&#10;APM · push notifications" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="2900" y="665" width="340" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="art-knowledge" value="Retro Report → role_knowledge/&#10;feeds Discovery on next request" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="2900" y="735" width="340" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lane4-bg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F8F8F8;strokeColor=#999999;dashed=1" vertex="1" parent="1">
+      <mxGeometry x="80" y="840" width="3260" height="240" as="geometry"/>
+    </mxCell>
+    <mxCell id="lane4-label" value="Tools &amp; Services" style="text;align=center;verticalAlign=middle;rotation=-90;fontSize=12;fontStyle=1;fontColor=#444444" vertex="1" parent="1">
+      <mxGeometry x="10" y="945" width="70" height="30" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="t-init" value="Initiate Surface" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EFEFEF;strokeColor=#666666;fontSize=11;fontStyle=1;verticalAlign=top" vertex="1" parent="1">
+      <mxGeometry x="100" y="855" width="340" height="210" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-init-1" value="Agent Controller · /v1/agent/command" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="110" y="880" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-init-2" value="Request Service · lifecycle + dispatch" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="110" y="915" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-init-3" value="Request Classifier (small LLM)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="110" y="950" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-init-4" value="Pipeline Classifier (tier + playbook)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="110" y="985" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-init-5" value="Speech-to-text (push-to-talk)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="110" y="1020" width="320" height="30" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="t-disc" value="Discovery Sources (PM skills)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EFEFEF;strokeColor=#666666;fontSize=11;fontStyle=1;verticalAlign=top" vertex="1" parent="1">
+      <mxGeometry x="500" y="855" width="340" height="210" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-disc-1" value="Web Search API · independent index" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="510" y="880" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-disc-2" value="URL → Markdown reader" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="510" y="915" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-disc-3" value="role_knowledge/ (prior learnings)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="510" y="950" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-disc-4" value="user_memory/ (per-user context)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="510" y="985" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-disc-5" value="Git repo read (manage_repo)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="510" y="1020" width="320" height="30" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="t-des" value="Design Repository" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EFEFEF;strokeColor=#666666;fontSize=11;fontStyle=1;verticalAlign=top" vertex="1" parent="1">
+      <mxGeometry x="900" y="855" width="340" height="210" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-des-1" value="Architecture Metamodel (whiteboard / docs)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="910" y="880" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-des-2" value="ADR Library (docs/architecture)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="910" y="915" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-des-3" value="Design System MCP · component library" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="910" y="950" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-des-4" value="Frontend Design skill" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="910" y="985" width="320" height="30" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="t-plan" value="Planning Engine" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EFEFEF;strokeColor=#666666;fontSize=11;fontStyle=1;verticalAlign=top" vertex="1" parent="1">
+      <mxGeometry x="1300" y="855" width="340" height="210" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-plan-1" value="Pipeline Orchestrator (async)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="1310" y="880" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-plan-2" value="Playbook Registry · 8 playbooks" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="1310" y="915" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-plan-3" value="State Manager · datastore writes" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="1310" y="950" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-plan-4" value="Role Skip Parser · skip directives" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="1310" y="985" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-plan-5" value="Artifact Service" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="1310" y="1020" width="320" height="30" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="t-build" value="Execution Engines" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EFEFEF;strokeColor=#666666;fontSize=11;fontStyle=1;verticalAlign=top" vertex="1" parent="1">
+      <mxGeometry x="1700" y="855" width="340" height="210" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-build-1" value="Coding Agent CLI (desktop · cloud image)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="1710" y="880" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-build-2" value="Alt Coding Agent CLI · alternate engine" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="1710" y="915" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-build-3" value="Tool Registry · agent skills" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="1710" y="950" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-build-4" value="Browser automation (headless)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="1710" y="985" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-build-5" value="Git host · branch · PR · merge" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="1710" y="1020" width="320" height="30" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="t-test" value="Verification Stack" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EFEFEF;strokeColor=#666666;fontSize=11;fontStyle=1;verticalAlign=top" vertex="1" parent="1">
+      <mxGeometry x="2100" y="855" width="340" height="210" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-test-1" value="Unit / integration test framework" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="2110" y="880" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-test-2" value="Code quality scanner" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="2110" y="915" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-test-3" value="Test management · plans" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="2110" y="950" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-test-4" value="Code reviewer subagent" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="2110" y="985" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-test-5" value="Security review skill · SAST" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="2110" y="1020" width="320" height="30" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="t-dep" value="Release Plane" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EFEFEF;strokeColor=#666666;fontSize=11;fontStyle=1;verticalAlign=top" vertex="1" parent="1">
+      <mxGeometry x="2500" y="855" width="340" height="210" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-dep-1" value="CI/CD · QA + prod pipelines" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="2510" y="880" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-dep-2" value="Container runtime · QA + prod" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="2510" y="915" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-dep-3" value="Container registry" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="2510" y="950" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-dep-4" value="ITSM · change ticket" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="2510" y="985" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-dep-5" value="Edge hosting · reverse proxy" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="2510" y="1020" width="320" height="30" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="t-op" value="Operate &amp; Feedback" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EFEFEF;strokeColor=#666666;fontSize=11;fontStyle=1;verticalAlign=top" vertex="1" parent="1">
+      <mxGeometry x="2900" y="855" width="340" height="210" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-op-1" value="events/ · timeline" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="2910" y="880" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-op-2" value="WebSocket fan-out · live UI" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="2910" y="915" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-op-3" value="Push notifications · mobile + desktop" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="2910" y="950" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-op-4" value="APM · OTEL · log aggregation" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="2910" y="985" width="320" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="t-op-5" value="audit_log/ · all commands" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10" vertex="1" parent="1">
+      <mxGeometry x="2910" y="1020" width="320" height="30" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lane5-bg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF5EB;strokeColor=#D79B00;dashed=1" vertex="1" parent="1">
+      <mxGeometry x="80" y="1100" width="3260" height="100" as="geometry"/>
+    </mxCell>
+    <mxCell id="lane5-label" value="Pipeline Governance (cross-cutting)" style="text;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#A66400" vertex="1" parent="1">
+      <mxGeometry x="100" y="1105" width="400" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="g-cost" value="Cost Manager&#10;per-run cost ceiling · monthly spending limit (default blocked until enabled)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="100" y="1130" width="780" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="g-rework" value="Rework Tracker&#10;iteration cap per role · escalate to HITL on overflow" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="900" y="1130" width="780" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="g-events" value="Event Emitter&#10;datastore (events/) → WebSocket → push notifications" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="1700" y="1130" width="780" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="g-recovery" value="Recovery Job (startup) · Watchdog (60s scheduled)&#10;30-min stale claim threshold · per-role timeout enforcement" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="2500" y="1130" width="740" height="60" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lane6-bg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F1EBF7;strokeColor=#9673A6;dashed=1" vertex="1" parent="1">
+      <mxGeometry x="80" y="1220" width="3260" height="120" as="geometry"/>
+    </mxCell>
+    <mxCell id="lane6-label" value="AI Engine Routing (cross-cutting under every agent)" style="text;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#6B4A8A" vertex="1" parent="1">
+      <mxGeometry x="100" y="1225" width="700" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="ai-router" value="LLM Router&#10;step + role resolution" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="100" y="1250" width="380" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="ai-roles" value="role_overrides/&#10;admin API per role" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="500" y="1250" width="380" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="ai-steps" value="SDLC Step Defaults&#10;19 SDLC steps · programmatic" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="900" y="1250" width="380" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="ai-llm" value="LLM Providers&#10;multi-vendor (26+ models)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="1300" y="1250" width="540" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="ai-cli" value="CLI Engines&#10;multiple coding agent CLIs" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="1860" y="1250" width="540" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="ai-arb" value="Routing Arbiter (gRPC)&#10;centralized routing across products" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="2420" y="1250" width="820" height="80" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="e1" style="endArrow=classic;html=1;rounded=0;strokeColor=#3F6FAB;strokeWidth=2" edge="1" parent="1" source="ag-user" target="ag-classifier">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e2" style="endArrow=classic;html=1;rounded=0;strokeColor=#3F6FAB;strokeWidth=2" edge="1" parent="1" source="ag-classifier" target="ag-pm">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e3" style="endArrow=classic;html=1;rounded=0;strokeColor=#3F6FAB;strokeWidth=2" edge="1" parent="1" source="ag-pm" target="ag-architect">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e5" style="endArrow=classic;html=1;rounded=0;strokeColor=#3F6FAB;strokeWidth=2" edge="1" parent="1" source="ag-architect" target="ag-designer">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e6" style="endArrow=classic;html=1;rounded=0;strokeColor=#3F6FAB;strokeWidth=2" edge="1" parent="1" source="ag-designer" target="ag-planner">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e7" style="endArrow=classic;html=1;rounded=0;strokeColor=#3F6FAB;strokeWidth=2" edge="1" parent="1" source="ag-planner" target="ag-impl">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e8" style="endArrow=classic;html=1;rounded=0;strokeColor=#3F6FAB;strokeWidth=2" edge="1" parent="1" source="ag-impl" target="ag-tw">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e9" style="endArrow=classic;html=1;rounded=0;strokeColor=#3F6FAB;strokeWidth=2" edge="1" parent="1" source="ag-impl" target="ag-rev">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e10" style="endArrow=classic;html=1;rounded=0;strokeColor=#3F6FAB;strokeWidth=2" edge="1" parent="1" source="ag-rev" target="ag-test">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e11" style="endArrow=classic;html=1;rounded=0;strokeColor=#3F6FAB;strokeWidth=2" edge="1" parent="1" source="ag-test" target="ag-sec">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e12" style="endArrow=classic;html=1;rounded=0;strokeColor=#3F6FAB;strokeWidth=2" edge="1" parent="1" source="ag-sec" target="ag-devops">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e13" style="endArrow=classic;html=1;rounded=0;strokeColor=#3F6FAB;strokeWidth=2" edge="1" parent="1" source="ag-devops" target="ag-retro">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e14" style="endArrow=classic;html=1;rounded=0;strokeColor=#3F6FAB;strokeWidth=2" edge="1" parent="1" source="ag-retro" target="ag-monitor">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="er1" value="rework" style="endArrow=classic;html=1;rounded=0;curved=1;strokeColor=#B85450;strokeWidth=2;dashed=1;fontSize=10;fontColor=#B85450;exitX=0;exitY=0.5;entryX=1;entryY=0.5;exitDx=0;exitDy=0;entryDx=0;entryDy=0" edge="1" parent="1" source="ag-rev" target="ag-impl">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="2080" y="380"/>
+          <mxPoint x="2040" y="380"/>
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="er2" value="rework" style="endArrow=classic;html=1;rounded=0;curved=1;strokeColor=#B85450;strokeWidth=2;dashed=1;fontSize=10;fontColor=#B85450;exitX=0;exitY=0.5;entryX=1;entryY=0.7;exitDx=0;exitDy=0;entryDx=0;entryDy=0" edge="1" parent="1" source="ag-test" target="ag-impl">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="2070" y="600"/>
+          <mxPoint x="2050" y="600"/>
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="er3" value="security rework" style="endArrow=classic;html=1;rounded=0;curved=1;strokeColor=#B85450;strokeWidth=2;dashed=1;fontSize=10;fontColor=#B85450;exitX=0;exitY=0.5;entryX=1;entryY=0.85;exitDx=0;exitDy=0;entryDx=0;entryDy=0" edge="1" parent="1" source="ag-sec" target="ag-impl">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="2080" y="620"/>
+          <mxPoint x="2060" y="620"/>
+        </Array>
+      </mxGeometry>
+    </mxCell>
+
+    <mxCell id="ek" value="knowledge feedback&#10;(retro → role_knowledge → next request Discovery)" style="endArrow=classic;html=1;rounded=0;curved=1;strokeColor=#82B366;strokeWidth=2;dashed=1;fontSize=11;fontColor=#3D7A3D;exitX=0.5;exitY=0;entryX=0.5;entryY=0;exitDx=0;exitDy=0;entryDx=0;entryDy=0" edge="1" parent="1" source="ag-retro" target="ag-pm">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="3070" y="380"/>
+          <mxPoint x="670" y="380"/>
+        </Array>
+      </mxGeometry>
+    </mxCell>
+
+    <mxCell id="legend-box" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999" vertex="1" parent="1">
+      <mxGeometry x="80" y="1370" width="3260" height="100" as="geometry"/>
+    </mxCell>
+    <mxCell id="legend-title" value="Legend" style="text;align=left;verticalAlign=middle;fontSize=14;fontStyle=1" vertex="1" parent="1">
+      <mxGeometry x="100" y="1375" width="200" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lg-hum" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366" vertex="1" parent="1">
+      <mxGeometry x="100" y="1410" width="40" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="lg-hum-l" value="Human in the loop" style="text;align=left;verticalAlign=middle;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="148" y="1410" width="160" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lg-agent" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF" vertex="1" parent="1">
+      <mxGeometry x="320" y="1410" width="40" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="lg-agent-l" value="Agent role" style="text;align=left;verticalAlign=middle;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="368" y="1410" width="140" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lg-art" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656" vertex="1" parent="1">
+      <mxGeometry x="520" y="1410" width="40" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="lg-art-l" value="Artifact (datastore / SCM)" style="text;align=left;verticalAlign=middle;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="568" y="1410" width="220" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lg-tool" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999" vertex="1" parent="1">
+      <mxGeometry x="800" y="1410" width="40" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="lg-tool-l" value="Tool / Service" style="text;align=left;verticalAlign=middle;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="848" y="1410" width="140" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lg-hitl" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450" vertex="1" parent="1">
+      <mxGeometry x="1000" y="1410" width="40" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="lg-hitl-l" value="HITL checkpoint" style="text;align=left;verticalAlign=middle;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="1048" y="1410" width="160" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lg-gov" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00" vertex="1" parent="1">
+      <mxGeometry x="1220" y="1410" width="40" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="lg-gov-l" value="Governance (cross-cutting)" style="text;align=left;verticalAlign=middle;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="1268" y="1410" width="220" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lg-ai" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6" vertex="1" parent="1">
+      <mxGeometry x="1500" y="1410" width="40" height="20" as="geometry"/>
+    </mxCell>
+    <mxCell id="lg-ai-l" value="AI engine routing layer" style="text;align=left;verticalAlign=middle;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="1548" y="1410" width="200" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lg-arrow1" style="endArrow=classic;html=1;rounded=0;strokeColor=#3F6FAB;strokeWidth=2" edge="1" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="1770" y="1420" as="sourcePoint"/>
+        <mxPoint x="1830" y="1420" as="targetPoint"/>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="lg-arrow1-l" value="Forward flow" style="text;align=left;verticalAlign=middle;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="1840" y="1410" width="140" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lg-arrow2" style="endArrow=classic;html=1;rounded=0;strokeColor=#B85450;strokeWidth=2;dashed=1" edge="1" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="2000" y="1420" as="sourcePoint"/>
+        <mxPoint x="2060" y="1420" as="targetPoint"/>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="lg-arrow2-l" value="Rework loop" style="text;align=left;verticalAlign=middle;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="2070" y="1410" width="160" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lg-arrow3" style="endArrow=classic;html=1;rounded=0;strokeColor=#82B366;strokeWidth=2;dashed=1" edge="1" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <mxPoint x="2240" y="1420" as="sourcePoint"/>
+        <mxPoint x="2300" y="1420" as="targetPoint"/>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="lg-arrow3-l" value="Knowledge feedback (Operate → Discovery)" style="text;align=left;verticalAlign=middle;fontSize=11" vertex="1" parent="1">
+      <mxGeometry x="2310" y="1410" width="360" height="20" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="lg-note" value="Playbooks: FULL_PDLC · BUG_FIX · SMALL_FEATURE · REFACTOR · INFRA_CHANGE · DOCS_ONLY · UI_CHANGE · SECURITY_PATCH    |    Tiers: SIMPLE (single agent) · PLAYBOOK (subset) · FULL_PDLC (11 roles)    |    Confirmation tiers: 0 read-only · 1 mutation · 2 financial / MFA" style="text;align=left;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#444444" vertex="1" parent="1">
+      <mxGeometry x="100" y="1440" width="3140" height="20" as="geometry"/>
+    </mxCell>
+
+  </root>
+</mxGraphModel>
