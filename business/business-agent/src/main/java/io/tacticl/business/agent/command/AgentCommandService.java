@@ -34,6 +34,7 @@ public class AgentCommandService {
     private static final Logger log = LoggerFactory.getLogger(AgentCommandService.class);
 
     private static final String DEFAULT_MODEL = "claude-sonnet-4-6";
+    // Effectively uncapped during pre-production rollout — mirrored by ConversationService.
     private static final double DEFAULT_COST_CEILING_USD = 10_000.0;
     private static final String SYSTEM_PROMPT = """
             You are Tacticl, a personal AI assistant that can remote into devices and automate tasks.
