@@ -31,6 +31,8 @@ public class ConversationService {
     private static final String PROPOSE_MARKER = "<<<PROPOSE>>>";
     private static final String START_MARKER = "<<<START>>>";
     private static final String CONVERSATION_MODEL = "claude-sonnet-4-6";
+    // Effectively uncapped for testing — kept in sync with AgentCommandService default ceiling.
+    private static final double DEFAULT_COST_CEILING_USD = 10_000.0;
 
     private static final String GATHERING_SYSTEM_PROMPT = """
             You are Tacticl, a personal AI assistant gathering requirements before starting work.
@@ -183,11 +185,18 @@ public class ConversationService {
 
         if (sparkType == SparkType.CODE || sparkType == SparkType.DEVOPS) {
             Optional<PipelineRun> runOpt = pdlcRouter.route(
-                    userId, spark.getId(), sparkInput, null, sparkType, List.of(), null, 50.0);
+                    userId,
+                    spark.getId(),
+                    sparkInput,
+                    session.getRepoUrl(),
+                    sparkType,
+                    List.of(),
+                    null,
+                    DEFAULT_COST_CEILING_USD);
             if (runOpt.isPresent()) {
                 sparkService.markExecuting(spark.getId(), userId, SparkRoute.CLOUD, null);
-                log.info("Conversation {} routed spark {} to pipeline run {}",
-                        session.getId(), spark.getId(), runOpt.get().getId());
+                log.info("Conversation {} routed spark {} to pipeline run {} repo={}",
+                        session.getId(), spark.getId(), runOpt.get().getId(), session.getRepoUrl());
                 return new StartResult(spark.getId(), runOpt.get().getId());
             }
         }

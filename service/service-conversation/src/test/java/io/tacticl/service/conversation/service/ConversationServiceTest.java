@@ -115,6 +115,39 @@ class ConversationServiceTest {
     }
 
     @Test
+    void startImplementationPassesRepoUrlAndHighCeilingToPdlcRouter() {
+        ConversationSession session = ConversationSession.createForTelegramGroup(
+            "user-1", "proj-1", "build X");
+        session.markProposing("CODE", "Plan summary");
+        session.setRepoUrl("https://github.com/owner/repo");
+        when(sessionRepository.findByIdAndUserId("sid", "user-1")).thenReturn(Optional.of(session));
+        when(sessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        LlmResponse llm = mockLlmResponse("Got it, starting now. <<<START>>>");
+        when(anthropicClient.generateContent(eq("claude-sonnet-4-6"), anyList(), anyString()))
+            .thenReturn(llm);
+
+        Spark spark = mock(Spark.class);
+        when(spark.getId()).thenReturn("spark-1");
+        when(sparkService.create("user-1", "Plan summary")).thenReturn(spark);
+        when(sparkService.classify("spark-1", "user-1", SparkType.CODE)).thenReturn(spark);
+
+        PipelineRun run = mock(PipelineRun.class);
+        when(run.getId()).thenReturn("run-1");
+        when(pdlcRouter.route(eq("user-1"), eq("spark-1"), eq("Plan summary"),
+                eq("https://github.com/owner/repo"), eq(SparkType.CODE),
+                eq(java.util.List.of()), isNull(), eq(10_000.0))).thenReturn(Optional.of(run));
+
+        MessageResponse resp = service.sendMessage("sid", "user-1", "go");
+
+        assertThat(resp.getSparkId()).isEqualTo("spark-1");
+        assertThat(resp.getPipelineRunId()).isEqualTo("run-1");
+        verify(pdlcRouter).route(eq("user-1"), eq("spark-1"), eq("Plan summary"),
+                eq("https://github.com/owner/repo"), eq(SparkType.CODE),
+                eq(java.util.List.of()), isNull(), eq(10_000.0));
+    }
+
+    @Test
     void sendMessage_sessionNotFound_throwsException() {
         when(sessionRepository.findByIdAndUserId("missing", "user-1")).thenReturn(Optional.empty());
 
