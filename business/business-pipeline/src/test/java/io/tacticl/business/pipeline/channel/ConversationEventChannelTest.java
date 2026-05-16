@@ -92,4 +92,46 @@ class ConversationEventChannelTest {
 
         verify(sessionRepo, never()).save(any());
     }
+
+    @Test
+    void checkpointRequested_appendsButDoesNotMarkCompleted() {
+        ConversationSession session = ConversationSession.createForTelegramGroup(
+            "u-1", "p-1", "build X");
+        session.markProposing("CODE", "plan");
+        session.markActive("spark-1");
+        PipelineRun run = mock(PipelineRun.class);
+        when(run.getSparkId()).thenReturn("spark-1");
+        when(runRepo.findById("run-1")).thenReturn(Optional.of(run));
+        when(sessionRepo.findBySparkId("spark-1")).thenReturn(Optional.of(session));
+
+        channel.emit(new PipelineCallbackEvent(
+            "run-1", "CHECKPOINT_REQUESTED", "REVIEWER", "REVIEWER", null));
+
+        ConversationMessage last = session.getMessages().get(session.getMessages().size() - 1);
+        assertThat(last.getContent()).contains("Checkpoint").contains("REVIEWER");
+        assertThat(session.getStatus()).isEqualTo(SessionStatus.ACTIVE);
+        verify(sessionRepo).save(session);
+    }
+
+    @Test
+    void terminalRedeliveryOnAlreadyCompletedSession_appendsMessageButDoesNotReassertStatus() {
+        ConversationSession session = ConversationSession.createForTelegramGroup(
+            "u-1", "p-1", "build X");
+        session.markProposing("CODE", "plan");
+        session.markActive("spark-1");
+        session.markCompleted();
+        java.time.Instant priorUpdatedAt = session.getUpdatedAt();
+        PipelineRun run = mock(PipelineRun.class);
+        when(run.getSparkId()).thenReturn("spark-1");
+        when(runRepo.findById("run-1")).thenReturn(Optional.of(run));
+        when(sessionRepo.findBySparkId("spark-1")).thenReturn(Optional.of(session));
+
+        channel.emit(new PipelineCallbackEvent(
+            "run-1", "PIPELINE_COMPLETED", null, null, null));
+
+        // Status stays COMPLETED, message still appended for audit trail
+        assertThat(session.getStatus()).isEqualTo(SessionStatus.COMPLETED);
+        assertThat(session.getUpdatedAt()).isAfterOrEqualTo(priorUpdatedAt);
+        verify(sessionRepo).save(session);
+    }
 }

@@ -50,6 +50,8 @@ public class ConversationEventChannel implements PipelineEventChannel {
             session.markCompleted();
         }
         sessionRepo.save(session);
+        log.debug("Mirrored pipeline event {} (run={}, session={}) into conversation",
+                event.eventType(), event.pipelineRunId(), session.getId());
     }
 
     @Override
