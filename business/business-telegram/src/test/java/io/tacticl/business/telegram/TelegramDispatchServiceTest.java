@@ -1,5 +1,6 @@
 package io.tacticl.business.telegram;
 
+import io.tacticl.business.telegram.conversation.TelegramConversationAdapter;
 import io.tacticl.business.telegram.dedup.TelegramUpdateDedupCache;
 import io.tacticl.business.telegram.event.CallbackQueryHandler;
 import io.tacticl.business.telegram.event.GroupMembershipHandler;
@@ -9,7 +10,6 @@ import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.identity.TelegramUsernameCache;
 import io.tacticl.business.telegram.router.CommandContext;
 import io.tacticl.business.telegram.router.TelegramCommandRouter;
-import io.tacticl.business.telegram.spark.TelegramSparkInitiator;
 import io.tacticl.client.telegram.TelegramBotClient;
 import io.tacticl.client.telegram.config.TelegramConfig;
 import io.tacticl.client.telegram.dto.CallbackQuery;
@@ -37,7 +37,6 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -52,7 +51,7 @@ class TelegramDispatchServiceTest {
     private TelegramBotClient bot;
     private TelegramCommandRouter commandRouter;
     private TelegramUsernameCache usernameCache;
-    private TelegramSparkInitiator sparkInitiator;
+    private TelegramConversationAdapter conversationAdapter;
     private TelegramProjectLinkRepository projectRepo;
     private TelegramIdentityResolver identity;
     private TelegramConfig telegramConfig;
@@ -70,7 +69,7 @@ class TelegramDispatchServiceTest {
         bot = mock(TelegramBotClient.class);
         commandRouter = mock(TelegramCommandRouter.class);
         usernameCache = mock(TelegramUsernameCache.class);
-        sparkInitiator = mock(TelegramSparkInitiator.class);
+        conversationAdapter = mock(TelegramConversationAdapter.class);
         projectRepo = mock(TelegramProjectLinkRepository.class);
         identity = mock(TelegramIdentityResolver.class);
         telegramConfig = new TelegramConfig();
@@ -83,7 +82,7 @@ class TelegramDispatchServiceTest {
         nextUpdateId = 1_000L;
 
         svc = new TelegramDispatchService(linker, bot, commandRouter, usernameCache,
-                sparkInitiator, projectRepo, identity, telegramConfig, dedupCache,
+                conversationAdapter, projectRepo, identity, telegramConfig, dedupCache,
                 membershipHandler, callbackQueryHandler, migrationHandler,
                 Optional.of(voiceHandler));
     }
@@ -92,7 +91,7 @@ class TelegramDispatchServiceTest {
     // production wiring when tacticl.whisper.enabled=false (handler bean absent).
     private TelegramDispatchService dispatchWithoutVoiceHandler() {
         return new TelegramDispatchService(linker, bot, commandRouter, usernameCache,
-                sparkInitiator, projectRepo, identity, telegramConfig, dedupCache,
+                conversationAdapter, projectRepo, identity, telegramConfig, dedupCache,
                 membershipHandler, callbackQueryHandler, migrationHandler,
                 Optional.empty());
     }
@@ -189,7 +188,7 @@ class TelegramDispatchServiceTest {
 
         verify(commandRouter).dispatch(any());
         verify(bot, never()).sendMessage(any());
-        verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(conversationAdapter, never()).handle(anyLong(), anyString(), anyString(), any());
     }
 
     @Test
@@ -214,8 +213,8 @@ class TelegramDispatchServiceTest {
 
         svc.handle(new Update(1L, msg, null, null, null, null));
 
-        verify(sparkInitiator).initiate(eq(-100L), eq("user-alice"),
-                eq("deploy frontend"), eq(link), isNull());
+        verify(conversationAdapter).handle(eq(-100L), eq("user-alice"),
+                eq("deploy frontend"), eq(link));
     }
 
     @Test
@@ -233,8 +232,8 @@ class TelegramDispatchServiceTest {
 
         svc.handle(new Update(1L, msg, null, null, null, null));
 
-        verify(sparkInitiator).initiate(eq(-100L), eq("user-alice"),
-                eq("fix the build"), eq(link), isNull());
+        verify(conversationAdapter).handle(eq(-100L), eq("user-alice"),
+                eq("fix the build"), eq(link));
     }
 
     @Test
@@ -250,7 +249,7 @@ class TelegramDispatchServiceTest {
         verify(bot).sendMessage(argThat(r ->
                 r.chat_id() == -100L
                         && r.text().toLowerCase().contains("link your tacticl account")));
-        verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(conversationAdapter, never()).handle(anyLong(), anyString(), anyString(), any());
     }
 
     @Test
@@ -268,7 +267,7 @@ class TelegramDispatchServiceTest {
                 r.chat_id() == -100L
                         && r.text().toLowerCase().contains("no active project")
                         && r.text().contains("/init")));
-        verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(conversationAdapter, never()).handle(anyLong(), anyString(), anyString(), any());
     }
 
     @Test
@@ -276,7 +275,7 @@ class TelegramDispatchServiceTest {
         Message msg = groupMsg(-100L, 42L, "alice", "just chatting", null, null);
         svc.handle(new Update(1L, msg, null, null, null, null));
 
-        verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(conversationAdapter, never()).handle(anyLong(), anyString(), anyString(), any());
         verify(bot, never()).sendMessage(any(SendMessageRequest.class));
     }
 
@@ -286,7 +285,7 @@ class TelegramDispatchServiceTest {
         svc.handle(new Update(1L, msg, null, null, null, null));
 
         verify(bot).sendMessage(any(SendMessageRequest.class));
-        verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(conversationAdapter, never()).handle(anyLong(), anyString(), anyString(), any());
     }
 
     // ---- Webhook dedup (Telegram retries on slow/non-2xx responses) --------
@@ -330,7 +329,7 @@ class TelegramDispatchServiceTest {
 
         svc.handle(update(msg));
 
-        verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(conversationAdapter, never()).handle(anyLong(), anyString(), anyString(), any());
         verify(bot, never()).sendMessage(any(SendMessageRequest.class));
     }
 
@@ -344,7 +343,7 @@ class TelegramDispatchServiceTest {
 
         svc.handle(update(msg));
 
-        verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(conversationAdapter, never()).handle(anyLong(), anyString(), anyString(), any());
         verify(bot, never()).sendMessage(any(SendMessageRequest.class));
     }
 
@@ -362,8 +361,8 @@ class TelegramDispatchServiceTest {
         svc.handle(update(msg));
 
         ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
-        verify(sparkInitiator).initiate(eq(-100L), eq("user-alice"),
-                payload.capture(), eq(link), isNull());
+        verify(conversationAdapter).handle(eq(-100L), eq("user-alice"),
+                payload.capture(), eq(link));
         assertThat(payload.getValue()).isEqualTo("hey please deploy");
     }
 
@@ -383,8 +382,8 @@ class TelegramDispatchServiceTest {
         svc.handle(update(msg));
 
         ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
-        verify(sparkInitiator).initiate(eq(-100L), eq("user-alice"),
-                payload.capture(), eq(link), isNull());
+        verify(conversationAdapter).handle(eq(-100L), eq("user-alice"),
+                payload.capture(), eq(link));
         assertThat(payload.getValue()).isEqualTo("hey @bob deploy");
     }
 
@@ -400,8 +399,8 @@ class TelegramDispatchServiceTest {
 
         svc.handle(update(msg));
 
-        verify(sparkInitiator).initiate(eq(-100L), eq("user-alice"),
-                eq("ship it"), eq(link), isNull());
+        verify(conversationAdapter).handle(eq(-100L), eq("user-alice"),
+                eq("ship it"), eq(link));
     }
 
     // ---- New update-branch routing tests -----------------------------------
@@ -419,7 +418,7 @@ class TelegramDispatchServiceTest {
 
         verify(membershipHandler).handle(cmu);
         verify(commandRouter, never()).dispatch(any());
-        verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(conversationAdapter, never()).handle(anyLong(), anyString(), anyString(), any());
     }
 
     @Test
@@ -449,7 +448,7 @@ class TelegramDispatchServiceTest {
 
         verify(migrationHandler).handle(msg);
         verify(commandRouter, never()).dispatch(any());
-        verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(conversationAdapter, never()).handle(anyLong(), anyString(), anyString(), any());
     }
 
     @Test
@@ -466,7 +465,7 @@ class TelegramDispatchServiceTest {
         verify(voiceHandler).handle(msg);
         // Voice updates must not bleed into text/command branches.
         verify(commandRouter, never()).dispatch(any());
-        verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(conversationAdapter, never()).handle(anyLong(), anyString(), anyString(), any());
         verify(bot, never()).sendMessage(any(SendMessageRequest.class));
         verify(migrationHandler, never()).handle(any());
     }
@@ -488,7 +487,7 @@ class TelegramDispatchServiceTest {
 
         verify(voiceHandler, never()).handle(any());
         verify(commandRouter, never()).dispatch(any());
-        verify(sparkInitiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(conversationAdapter, never()).handle(anyLong(), anyString(), anyString(), any());
         verify(bot, never()).sendMessage(any(SendMessageRequest.class));
         verify(migrationHandler, never()).handle(any());
     }
@@ -553,8 +552,8 @@ class TelegramDispatchServiceTest {
         svc.handle(update(msg));
 
         ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
-        verify(sparkInitiator).initiate(eq(-100L), eq("user-alice"),
-                payload.capture(), eq(link), isNull());
+        verify(conversationAdapter).handle(eq(-100L), eq("user-alice"),
+                payload.capture(), eq(link));
         // Rocket + single space collapses to rocket + "go" after the mention
         // range is removed and surrounding whitespace is normalized.
         assertThat(payload.getValue()).isEqualTo("\uD83D\uDE80 go");

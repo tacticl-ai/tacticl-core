@@ -1,10 +1,10 @@
 package io.tacticl.business.telegram.event;
 
 import io.tacticl.business.agent.transcription.TranscriptionService;
+import io.tacticl.business.telegram.conversation.TelegramConversationAdapter;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
 import io.tacticl.business.telegram.outbound.TelegramOutboundQueue;
-import io.tacticl.business.telegram.spark.TelegramSparkInitiator;
 import io.tacticl.client.telegram.TelegramBotClient;
 import io.tacticl.client.telegram.dto.Chat;
 import io.tacticl.client.telegram.dto.Message;
@@ -24,7 +24,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -39,7 +38,7 @@ class VoiceMessageHandlerTest {
     private TranscriptionService transcription;
     private TelegramIdentityResolver identity;
     private TelegramProjectLinkRepository projects;
-    private TelegramSparkInitiator initiator;
+    private TelegramConversationAdapter conversationAdapter;
     private TelegramOutboundQueue outbound;
     private VoiceMessageHandler handler;
 
@@ -49,9 +48,9 @@ class VoiceMessageHandlerTest {
         transcription = mock(TranscriptionService.class);
         identity = mock(TelegramIdentityResolver.class);
         projects = mock(TelegramProjectLinkRepository.class);
-        initiator = mock(TelegramSparkInitiator.class);
+        conversationAdapter = mock(TelegramConversationAdapter.class);
         outbound = mock(TelegramOutboundQueue.class);
-        handler = new VoiceMessageHandler(bot, transcription, identity, projects, initiator, outbound);
+        handler = new VoiceMessageHandler(bot, transcription, identity, projects, conversationAdapter, outbound);
     }
 
     private static Message voiceMsg(Voice voice) {
@@ -73,7 +72,7 @@ class VoiceMessageHandlerTest {
         assertThat(captor.getValue().request().text())
                 .isEqualTo("You must link your Tacticl account first.");
         verify(transcription, never()).transcribe(any(), anyString(), anyString());
-        verify(initiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(conversationAdapter, never()).handle(anyLong(), anyString(), anyString(), any());
     }
 
     @Test
@@ -88,7 +87,7 @@ class VoiceMessageHandlerTest {
         assertThat(captor.getValue().request().text())
                 .isEqualTo("No active project in this group. Use /init first.");
         verify(transcription, never()).transcribe(any(), anyString(), anyString());
-        verify(initiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(conversationAdapter, never()).handle(anyLong(), anyString(), anyString(), any());
     }
 
     @Test
@@ -104,7 +103,7 @@ class VoiceMessageHandlerTest {
 
         handler.handle(voiceMsg(new Voice("file-1", "uniq-1", 5, "audio/ogg")));
 
-        verify(initiator).initiate(eq(CHAT_ID), eq("user-alice"), eq("ship the build"), eq(link), isNull());
+        verify(conversationAdapter).handle(eq(CHAT_ID), eq("user-alice"), eq("ship the build"), eq(link));
         verify(outbound, never()).enqueue(anyLong(), any());
     }
 
@@ -123,7 +122,7 @@ class VoiceMessageHandlerTest {
         assertThat(captor.getValue().request().text())
                 .isEqualTo("⚠️ Couldn't download voice message.");
         verify(transcription, never()).transcribe(any(), anyString(), anyString());
-        verify(initiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(conversationAdapter, never()).handle(anyLong(), anyString(), anyString(), any());
     }
 
     @Test
@@ -141,7 +140,7 @@ class VoiceMessageHandlerTest {
         handler.handle(voiceMsg(new Voice("file-1", "uniq-1", 5, null)));
 
         verify(transcription).transcribe(audio, "voice/file_5.ogg", "audio/ogg");
-        verify(initiator).initiate(eq(CHAT_ID), eq("user-alice"), eq("hi"), eq(link), isNull());
+        verify(conversationAdapter).handle(eq(CHAT_ID), eq("user-alice"), eq("hi"), eq(link));
     }
 
     @Test
@@ -162,8 +161,8 @@ class VoiceMessageHandlerTest {
 
         verify(transcription, org.mockito.Mockito.times(6))
                 .transcribe(any(), anyString(), anyString());
-        verify(initiator, org.mockito.Mockito.times(6))
-                .initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(conversationAdapter, org.mockito.Mockito.times(6))
+                .handle(anyLong(), anyString(), anyString(), any());
         ArgumentCaptor<OutboundMessage> captor = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(outbound).enqueue(eq(CHAT_ID), captor.capture());
         assertThat(captor.getValue().request().text())
@@ -187,6 +186,6 @@ class VoiceMessageHandlerTest {
         verify(outbound).enqueue(eq(CHAT_ID), captor.capture());
         assertThat(captor.getValue().request().text())
                 .isEqualTo("⚠️ Couldn't transcribe voice. Try sending text.");
-        verify(initiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(conversationAdapter, never()).handle(anyLong(), anyString(), anyString(), any());
     }
 }

@@ -1,10 +1,10 @@
 package io.tacticl.business.telegram.event;
 
 import io.tacticl.business.agent.transcription.TranscriptionService;
+import io.tacticl.business.telegram.conversation.TelegramConversationAdapter;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
 import io.tacticl.business.telegram.outbound.TelegramOutboundQueue;
-import io.tacticl.business.telegram.spark.TelegramSparkInitiator;
 import io.tacticl.client.telegram.TelegramBotClient;
 import io.tacticl.client.telegram.dto.Message;
 import io.tacticl.client.telegram.dto.SendMessageRequest;
@@ -26,9 +26,11 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Adapter that turns a Telegram voice message into a Spark by downloading the audio,
- * transcribing it, and forwarding the transcript to {@link TelegramSparkInitiator} as
- * if it had been an implicit {@code /spark} text invocation.
+ * Adapter that turns a Telegram voice message into a conversational turn by downloading
+ * the audio, transcribing it, and forwarding the transcript to
+ * {@link TelegramConversationAdapter} as if it had been an implicit {@code /spark}
+ * text invocation. Voice transcripts deserve the conversational path (gather → propose
+ * → align → handoff) as much as typed text does.
  *
  * <p>Wired into {@code TelegramDispatchService} as an optional collaborator: when the
  * Whisper transcription bean is absent (e.g. dev profile with {@code tacticl.whisper.enabled=false})
@@ -59,7 +61,7 @@ public class VoiceMessageHandler {
     private final TranscriptionService transcription;
     private final TelegramIdentityResolver identity;
     private final TelegramProjectLinkRepository projects;
-    private final TelegramSparkInitiator initiator;
+    private final TelegramConversationAdapter conversationAdapter;
     private final TelegramOutboundQueue outbound;
 
     private final Map<Long, Deque<Instant>> voiceTimestamps = new ConcurrentHashMap<>();
@@ -68,13 +70,13 @@ public class VoiceMessageHandler {
                                TranscriptionService transcription,
                                TelegramIdentityResolver identity,
                                TelegramProjectLinkRepository projects,
-                               TelegramSparkInitiator initiator,
+                               TelegramConversationAdapter conversationAdapter,
                                TelegramOutboundQueue outbound) {
         this.bot = bot;
         this.transcription = transcription;
         this.identity = identity;
         this.projects = projects;
-        this.initiator = initiator;
+        this.conversationAdapter = conversationAdapter;
         this.outbound = outbound;
     }
 
@@ -145,7 +147,7 @@ public class VoiceMessageHandler {
 
         log.info("Voice transcribed for chat {} ({} chars)", chatId,
                 transcript == null ? 0 : transcript.length());
-        initiator.initiate(chatId, userId.get(), transcript, link.get(), null);
+        conversationAdapter.handle(chatId, userId.get(), transcript, link.get());
     }
 
     private boolean consumeVoiceQuota(long chatId) {
