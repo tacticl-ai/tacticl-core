@@ -13,6 +13,6 @@ dependencies {
     implementation(project(":business:business-sparks"))
     implementation(project(":business:business-pipeline"))
     implementation(project(":business:business-agent"))
-    implementation(project(":service:service-conversation"))
+    implementation(project(":business:business-conversation"))
     implementation(libs.cidadel.framework.secrets)
 }

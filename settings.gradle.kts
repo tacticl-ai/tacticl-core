@@ -37,6 +37,7 @@ include(":business:business-pipeline")
 include(":service:service-pipeline")
 
 include(":data:data-conversation")
+include(":business:business-conversation")
 include(":service:service-conversation")
 
 include(":data:data-profile")

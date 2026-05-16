@@ -1,8 +1,9 @@
-package io.tacticl.service.conversation.service;
+package io.tacticl.business.conversation.service;
 
 import io.cidadel.client.anthropic.AnthropicDirectClient;
 import io.cidadel.client.base.llm.model.LlmMessage;
 import io.cidadel.client.base.llm.model.LlmResponse;
+import io.tacticl.business.conversation.dto.MessageResponse;
 import io.tacticl.business.pipeline.router.PdlcRouter;
 import io.tacticl.business.sparks.service.SparkClassifierService;
 import io.tacticl.business.sparks.service.SparkService;
@@ -15,8 +16,6 @@ import io.tacticl.data.pipeline.repository.PipelineRunRepository;
 import io.tacticl.data.sparks.entity.Spark;
 import io.tacticl.data.sparks.entity.SparkRoute;
 import io.tacticl.data.sparks.entity.SparkType;
-import io.tacticl.service.conversation.dto.ConversationResponse;
-import io.tacticl.service.conversation.dto.MessageResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -146,16 +145,12 @@ public class ConversationService {
         }
     }
 
-    public List<ConversationResponse> listSessions(String userId) {
-        return sessionRepository.findByUserIdOrderByUpdatedAtDesc(userId)
-                .stream()
-                .map(ConversationResponse::from)
-                .toList();
+    public List<ConversationSession> listSessions(String userId) {
+        return sessionRepository.findByUserIdOrderByUpdatedAtDesc(userId);
     }
 
-    public Optional<ConversationResponse> getSession(String sessionId, String userId) {
-        return sessionRepository.findByIdAndUserId(sessionId, userId)
-                .map(ConversationResponse::from);
+    public Optional<ConversationSession> getSession(String sessionId, String userId) {
+        return sessionRepository.findByIdAndUserId(sessionId, userId);
     }
 
     private String buildSystemPrompt(ConversationSession session) {

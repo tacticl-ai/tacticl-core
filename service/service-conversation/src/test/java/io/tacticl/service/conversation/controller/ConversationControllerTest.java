@@ -2,11 +2,11 @@ package io.tacticl.service.conversation.controller;
 
 import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.tacticl.data.conversation.entity.ConversationSession;
+import io.tacticl.business.conversation.dto.MessageResponse;
+import io.tacticl.business.conversation.service.ConversationService;
 import io.tacticl.service.conversation.dto.ConversationResponse;
 import io.tacticl.service.conversation.dto.CreateConversationRequest;
-import io.tacticl.service.conversation.dto.MessageResponse;
 import io.tacticl.service.conversation.dto.SendMessageRequest;
-import io.tacticl.service.conversation.service.ConversationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -64,9 +64,8 @@ class ConversationControllerTest {
 
     @Test
     void listSessions_returnsListFromService() {
-        ConversationResponse r = ConversationResponse.from(
-            ConversationSession.create("user-1", "build a todo app"));
-        when(conversationService.listSessions("user-1")).thenReturn(List.of(r));
+        ConversationSession session = ConversationSession.create("user-1", "build a todo app");
+        when(conversationService.listSessions("user-1")).thenReturn(List.of(session));
 
         ResponseEntity<List<ConversationResponse>> response = controller.listSessions(user);
 
@@ -88,7 +87,7 @@ class ConversationControllerTest {
     void getSession_found_returns200() {
         ConversationSession session = ConversationSession.create("user-1", "my session");
         when(conversationService.getSession("sess-1", "user-1"))
-            .thenReturn(Optional.of(ConversationResponse.from(session)));
+            .thenReturn(Optional.of(session));
 
         ResponseEntity<ConversationResponse> response = controller.getSession("sess-1", user);
 

@@ -1,4 +1,4 @@
-package io.tacticl.service.conversation.service;
+package io.tacticl.business.conversation.service;
 
 import io.cidadel.client.anthropic.AnthropicDirectClient;
 import io.cidadel.client.base.llm.model.LlmResponse;
@@ -13,7 +13,7 @@ import io.tacticl.data.pipeline.repository.PipelineRunRepository;
 import io.tacticl.data.sparks.entity.Spark;
 import io.tacticl.data.sparks.entity.SparkRoute;
 import io.tacticl.data.sparks.entity.SparkType;
-import io.tacticl.service.conversation.dto.MessageResponse;
+import io.tacticl.business.conversation.dto.MessageResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
