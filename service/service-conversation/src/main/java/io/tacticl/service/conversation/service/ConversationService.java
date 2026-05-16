@@ -31,7 +31,7 @@ public class ConversationService {
     private static final String PROPOSE_MARKER = "<<<PROPOSE>>>";
     private static final String START_MARKER = "<<<START>>>";
     private static final String CONVERSATION_MODEL = "claude-sonnet-4-6";
-    // Effectively uncapped for testing — kept in sync with AgentCommandService default ceiling.
+    // Effectively uncapped during pre-production rollout — mirrors AgentCommandService default.
     private static final double DEFAULT_COST_CEILING_USD = 10_000.0;
 
     private static final String GATHERING_SYSTEM_PROMPT = """

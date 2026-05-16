@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import java.util.List;
 import java.util.Optional;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -136,7 +137,7 @@ class ConversationServiceTest {
         when(run.getId()).thenReturn("run-1");
         when(pdlcRouter.route(eq("user-1"), eq("spark-1"), eq("Plan summary"),
                 eq("https://github.com/owner/repo"), eq(SparkType.CODE),
-                eq(java.util.List.of()), isNull(), eq(10_000.0))).thenReturn(Optional.of(run));
+                eq(List.of()), isNull(), eq(10_000.0))).thenReturn(Optional.of(run));
 
         MessageResponse resp = service.sendMessage("sid", "user-1", "go");
 
@@ -144,7 +145,7 @@ class ConversationServiceTest {
         assertThat(resp.getPipelineRunId()).isEqualTo("run-1");
         verify(pdlcRouter).route(eq("user-1"), eq("spark-1"), eq("Plan summary"),
                 eq("https://github.com/owner/repo"), eq(SparkType.CODE),
-                eq(java.util.List.of()), isNull(), eq(10_000.0));
+                eq(List.of()), isNull(), eq(10_000.0));
     }
 
     @Test
