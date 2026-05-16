@@ -1,6 +1,7 @@
 package io.tacticl.data.conversation.entity;
 
 import org.junit.jupiter.api.Test;
+import java.time.Instant;
 import static org.assertj.core.api.Assertions.*;
 
 class ConversationSessionTest {
@@ -60,5 +61,26 @@ class ConversationSessionTest {
         String longInput = "a".repeat(100);
         ConversationSession s = ConversationSession.create("user-1", longInput);
         assertThat(s.getTitle().length()).isLessThanOrEqualTo(60);
+    }
+
+    @Test
+    void createForTelegramGroupSetsProjectIdAndSource() {
+        ConversationSession s = ConversationSession.createForTelegramGroup(
+            "user-1", "proj-1", "build me a daily summary bot");
+        assertThat(s.getUserId()).isEqualTo("user-1");
+        assertThat(s.getProjectId()).isEqualTo("proj-1");
+        assertThat(s.getInitiatorSource()).isEqualTo("TELEGRAM_GROUP");
+        assertThat(s.getStatus()).isEqualTo(SessionStatus.GATHERING);
+        assertThat(s.getRepoUrl()).isNull();
+    }
+
+    @Test
+    void setRepoUrlUpdatesUpdatedAt() throws InterruptedException {
+        ConversationSession s = ConversationSession.create("user-1", "hello");
+        Instant initial = s.getUpdatedAt();
+        Thread.sleep(2);
+        s.setRepoUrl("https://github.com/foo/bar");
+        assertThat(s.getRepoUrl()).isEqualTo("https://github.com/foo/bar");
+        assertThat(s.getUpdatedAt()).isAfter(initial);
     }
 }
