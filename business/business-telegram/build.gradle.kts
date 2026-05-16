@@ -9,8 +9,10 @@ dependencies {
     implementation(project(":data:data-sparks"))
     implementation(project(":data:data-pipeline"))
     implementation(project(":data:data-profile"))
+    implementation(project(":data:data-conversation"))
     implementation(project(":business:business-sparks"))
     implementation(project(":business:business-pipeline"))
     implementation(project(":business:business-agent"))
+    implementation(project(":service:service-conversation"))
     implementation(libs.cidadel.framework.secrets)
 }

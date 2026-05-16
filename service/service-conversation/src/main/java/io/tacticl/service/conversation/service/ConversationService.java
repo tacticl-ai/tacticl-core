@@ -90,6 +90,17 @@ public class ConversationService {
         return sessionRepository.save(session);
     }
 
+    /**
+     * Create a Telegram-group-scoped conversation session bound to a {@code projectId}.
+     * Used by {@code TelegramConversationAdapter} when no resumable session exists for
+     * the {@code (projectId, userId)} pair. Distinct from the web-initiated
+     * {@link #createSession(String, String)} which has no project scope.
+     */
+    public ConversationSession createSession(String userId, String projectId, String firstMessage) {
+        ConversationSession session = ConversationSession.createForTelegramGroup(userId, projectId, firstMessage);
+        return sessionRepository.save(session);
+    }
+
     public MessageResponse sendMessage(String sessionId, String userId, String userMessage) {
         ConversationSession session = sessionRepository.findByIdAndUserId(sessionId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
