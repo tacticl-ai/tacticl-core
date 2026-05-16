@@ -75,12 +75,12 @@ class ConversationSessionTest {
     }
 
     @Test
-    void setRepoUrlUpdatesUpdatedAt() throws InterruptedException {
+    void setRepoUrlUpdatesUpdatedAt() {
         ConversationSession s = ConversationSession.create("user-1", "hello");
-        Instant initial = s.getUpdatedAt();
-        Thread.sleep(2);
+        Instant before = Instant.now();
         s.setRepoUrl("https://github.com/foo/bar");
+        Instant after = Instant.now();
         assertThat(s.getRepoUrl()).isEqualTo("https://github.com/foo/bar");
-        assertThat(s.getUpdatedAt()).isAfter(initial);
+        assertThat(s.getUpdatedAt()).isBetween(before, after);
     }
 }

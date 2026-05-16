@@ -18,7 +18,17 @@ public class ConversationSession {
     private String detectedSparkType;
     private String proposalText;
     private String sparkId;
+    // Set only by createForTelegramGroup(...) — no setter on purpose.
     @Indexed private String projectId;
+
+    /**
+     * Initiator source code (e.g. {@code "TELEGRAM_GROUP"}, {@code "WEB"}). Stored as
+     * a string rather than an enum to avoid a cross-module dependency from
+     * {@code data-conversation} to {@code data-sparks}, which the project's
+     * {@code data-* → framework-* only} rule forbids. If the set of sources grows,
+     * lift {@code SparkInitiatorSource} into a shared types module and switch this
+     * field to that enum.
+     */
     private String initiatorSource;
     private String repoUrl;
     private List<ConversationMessage> messages;
