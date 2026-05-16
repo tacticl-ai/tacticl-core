@@ -108,6 +108,7 @@ class TelegramConversationAdapterTest {
         adapter.handle(CHAT_ID, USER_ID, "anything", link);
 
         verifyNoInteractions(conversationService);
+        verifyNoInteractions(sessionRepository);
         ArgumentCaptor<OutboundMessage> captor = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(outbound).enqueue(eq(CHAT_ID), captor.capture());
         assertThat(captor.getValue().request().text()).contains("contributor");
