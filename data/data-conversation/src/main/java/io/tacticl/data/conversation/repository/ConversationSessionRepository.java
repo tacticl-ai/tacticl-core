@@ -13,4 +13,5 @@ public interface ConversationSessionRepository extends MongoRepository<Conversat
     List<ConversationSession> findByUserIdOrderByUpdatedAtDesc(String userId);
     Optional<ConversationSession> findFirstByProjectIdAndUserIdAndStatusInOrderByUpdatedAtDesc(
             String projectId, String userId, Collection<SessionStatus> statuses);
+    Optional<ConversationSession> findBySparkId(String sparkId);
 }
