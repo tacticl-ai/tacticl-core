@@ -233,6 +233,10 @@ EXECUTING → COMPLETED | FAILED
 Any → CANCELLED
 ```
 
+### Telegram entry path (conversational)
+
+Telegram inbound (plain-text bot mention, `/spark`, voice transcript) does **not** create a Spark immediately. It flows through `TelegramConversationAdapter` → `ConversationService` (gather → propose → align state machine), and only when the agent emits the `<<<START>>>` marker does the conversation hand off to `SparkService.create` + `PdlcRouter.route(...)` for the pipeline. The user supplies the GitHub repo via `/repo <url>` during gathering. Pipeline events fan out to `TelegramEventChannel` (live Telegram render) and `ConversationEventChannel` (durable session history). The HTTP `POST /v1/agent/command` path keeps the legacy direct-spark behaviour.
+
 ### Spark → Tactic Relationship
 - **Spark**: User's raw input request (created from chat)
 - **Tactic**: Device-side decomposition of a spark into executable sub-tasks (created on-device only, not for cloud execution)

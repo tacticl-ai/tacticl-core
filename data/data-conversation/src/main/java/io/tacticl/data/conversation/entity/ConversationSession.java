@@ -17,7 +17,7 @@ public class ConversationSession {
     private SessionStatus status;
     private String detectedSparkType;
     private String proposalText;
-    private String sparkId;
+    @Indexed private String sparkId;
     // Set only by createForTelegramGroup(...) — no setter on purpose.
     @Indexed private String projectId;
 
