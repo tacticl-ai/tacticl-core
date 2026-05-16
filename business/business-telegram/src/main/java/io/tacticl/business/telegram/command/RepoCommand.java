@@ -121,8 +121,9 @@ public class RepoCommand implements CommandHandler {
         }
         ConversationSession session = sessionOpt.get();
         if (!EDITABLE.contains(session.getStatus())) {
-            String existing = session.getRepoUrl() == null ? "" : session.getRepoUrl();
-            reply(chatId, "Pipeline already running with " + existing + "; cannot change repo mid-run.");
+            String existing = session.getRepoUrl();
+            String suffix = (existing == null || existing.isBlank()) ? "" : " with " + existing;
+            reply(chatId, "Pipeline already running" + suffix + "; cannot change repo mid-run.");
             return;
         }
 
