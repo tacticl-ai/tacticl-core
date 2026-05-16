@@ -17,6 +17,7 @@ import org.springframework.context.annotation.Configuration;
  *   <li>{@code github.client-id} - GitHub OAuth App client ID</li>
  *   <li>{@code github.client-secret} - GitHub OAuth App client secret</li>
  *   <li>{@code github.owner} - GitHub user or organization name owning the repositories</li>
+ *   <li>{@code github.app-token} - Tacticl-controlled PAT for agent-driven repo provisioning</li>
  * </ul>
  */
 @Configuration
@@ -66,6 +67,16 @@ public class GitHubVaultConfig {
 			}
 			else {
 				log.warn("GitHub owner not found in Vault - repository operations may fail");
+			}
+
+			String appToken = secretManager.readSecret("github.app-token", null);
+			if (appToken != null && !appToken.isEmpty()) {
+				gitHubConfig.setAppToken(appToken);
+				log.info("Loaded GitHub app token from Vault");
+			}
+			else {
+				log.warn(
+						"GitHub app token not found in Vault - repo creation via /CREATE_REPO marker will fail");
 			}
 
 			if (gitHubConfig.isConfigured()) {

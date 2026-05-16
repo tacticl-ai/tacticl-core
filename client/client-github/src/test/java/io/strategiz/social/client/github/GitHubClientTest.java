@@ -20,6 +20,7 @@ import io.strategiz.social.client.github.model.GitHubCommitResult.CommitInfo;
 import io.strategiz.social.client.github.model.GitHubFileContent;
 import io.strategiz.social.client.github.model.GitHubPullRequest;
 import io.strategiz.social.client.github.model.GitHubPullRequest.BranchRef;
+import io.strategiz.social.client.github.model.GitHubRepository;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
@@ -143,6 +144,22 @@ class GitHubClientTest {
 	private void stubPost2(String arg1, String arg2) {
 		doReturn(postUriSpec).when(restClient).post();
 		doReturn(postBodySpec).when(postUriSpec).uri(anyString(), eq(arg1), eq(arg2));
+		lenient().when(postBodySpec.retrieve()).thenReturn(postResponseSpec);
+		lenient().when(postResponseSpec.onStatus(any(), any())).thenReturn(postResponseSpec);
+	}
+
+	/** Wires POST chain for 0-arg URI template (e.g. {@code /user/repos}). */
+	private void stubPost0() {
+		doReturn(postUriSpec).when(restClient).post();
+		doReturn(postBodySpec).when(postUriSpec).uri(anyString());
+		lenient().when(postBodySpec.retrieve()).thenReturn(postResponseSpec);
+		lenient().when(postResponseSpec.onStatus(any(), any())).thenReturn(postResponseSpec);
+	}
+
+	/** Wires POST chain for 1-arg URI template (e.g. {@code /orgs/{org}/repos}). */
+	private void stubPost1(Object arg1) {
+		doReturn(postUriSpec).when(restClient).post();
+		doReturn(postBodySpec).when(postUriSpec).uri(anyString(), eq(arg1));
 		lenient().when(postBodySpec.retrieve()).thenReturn(postResponseSpec);
 		lenient().when(postResponseSpec.onStatus(any(), any())).thenReturn(postResponseSpec);
 	}
@@ -592,6 +609,135 @@ class GitHubClientTest {
 	void branch_getSha_returnsNullWhenBothNull() {
 		GitHubBranch branch = new GitHubBranch();
 		assertEquals(null, branch.getSha());
+	}
+
+	// -------------------------------------------------------------------------
+	// createRepo
+	// -------------------------------------------------------------------------
+
+	@Test
+	void createRepo_underAuthenticatedUser_postsToUserRepos() {
+		GitHubRepository expected = new GitHubRepository("new-repo", OWNER + "/new-repo",
+				"https://github.com/" + OWNER + "/new-repo",
+				"https://github.com/" + OWNER + "/new-repo.git",
+				"git@github.com:" + OWNER + "/new-repo.git", true, "main");
+
+		stubPost0();
+		// Owner matches gitHubOwner config → expect /user/repos URI
+		when(postUriSpec.uri(eq("/user/repos"))).thenReturn(postBodySpec);
+		when(postResponseSpec.body(GitHubRepository.class)).thenReturn(expected);
+
+		GitHubRepository result = client.createRepo("new-repo", OWNER, true, "A new repo",
+				ACCESS_TOKEN);
+
+		assertNotNull(result);
+		assertEquals("new-repo", result.name());
+		assertEquals(OWNER + "/new-repo", result.fullName());
+		assertEquals("https://github.com/" + OWNER + "/new-repo", result.htmlUrl());
+		verify(postUriSpec).uri(eq("/user/repos"));
+	}
+
+	@Test
+	void createRepo_underOrg_postsToOrgRepos() {
+		String orgName = "some-org";
+		GitHubRepository expected = new GitHubRepository("new-repo", orgName + "/new-repo",
+				"https://github.com/" + orgName + "/new-repo",
+				"https://github.com/" + orgName + "/new-repo.git",
+				"git@github.com:" + orgName + "/new-repo.git", false, "main");
+
+		stubPost1(orgName);
+		// Owner differs from gitHubOwner config → expect /orgs/{owner}/repos URI
+		when(postUriSpec.uri(eq("/orgs/{owner}/repos"), eq(orgName))).thenReturn(postBodySpec);
+		when(postResponseSpec.body(GitHubRepository.class)).thenReturn(expected);
+
+		GitHubRepository result = client.createRepo("new-repo", orgName, false, null, ACCESS_TOKEN);
+
+		assertNotNull(result);
+		assertEquals("new-repo", result.name());
+		assertEquals(orgName + "/new-repo", result.fullName());
+		verify(postUriSpec).uri(eq("/orgs/{owner}/repos"), eq(orgName));
+	}
+
+	@Test
+	void createRepo_passesAutoInitTrue() {
+		stubPost0();
+		when(postUriSpec.uri(eq("/user/repos"))).thenReturn(postBodySpec);
+		lenient().when(postBodySpec.body(any())).thenAnswer(invocation -> {
+			java.util.Map<?, ?> body = invocation.getArgument(0);
+			assertEquals("new-repo", body.get("name"), "body.name must match");
+			assertEquals(Boolean.TRUE, body.get("private"), "body.private must match");
+			assertEquals("desc", body.get("description"), "body.description must match");
+			assertEquals(Boolean.TRUE, body.get("auto_init"),
+					"auto_init must be true so downstream clones have a default branch");
+			return postBodySpec;
+		});
+		GitHubRepository stub = new GitHubRepository("new-repo", OWNER + "/new-repo",
+				"https://github.com/" + OWNER + "/new-repo", null, null, true, "main");
+		when(postResponseSpec.body(GitHubRepository.class)).thenReturn(stub);
+
+		client.createRepo("new-repo", OWNER, true, "desc", ACCESS_TOKEN);
+	}
+
+	@Test
+	void createRepo_unauthorized_throwsCidadelException() {
+		stubPost0();
+		when(postUriSpec.uri(eq("/user/repos"))).thenReturn(postBodySpec);
+		// Simulate the onStatus(isError, …) error path producing a CidadelException via body()
+		when(postResponseSpec.body(GitHubRepository.class))
+			.thenThrow(new CidadelException(
+					io.strategiz.social.client.github.exception.GitHubErrorDetails.UNAUTHORIZED,
+					"client-github", "Invalid or expired access token"));
+
+		assertThrows(CidadelException.class,
+				() -> client.createRepo("new-repo", OWNER, true, null, ACCESS_TOKEN));
+	}
+
+	@Test
+	void createRepo_nameAlreadyExists_throws() {
+		stubPost0();
+		when(postUriSpec.uri(eq("/user/repos"))).thenReturn(postBodySpec);
+		when(postResponseSpec.body(GitHubRepository.class))
+			.thenThrow(new CidadelException(
+					io.strategiz.social.client.github.exception.GitHubErrorDetails.REPO_NAME_TAKEN,
+					"client-github", "GitHub API returned status 422 creating repo new-repo"));
+
+		assertThrows(CidadelException.class,
+				() -> client.createRepo("new-repo", OWNER, true, null, ACCESS_TOKEN));
+	}
+
+	@Test
+	void createRepo_rateLimitExhausted_throws() {
+		when(rateLimiter.tryConsume(1)).thenReturn(false);
+
+		assertThrows(CidadelException.class,
+				() -> client.createRepo("new-repo", OWNER, true, null, ACCESS_TOKEN));
+	}
+
+	@Test
+	void createRepo_nullResponse_throwsCidadelException() {
+		stubPost0();
+		when(postUriSpec.uri(eq("/user/repos"))).thenReturn(postBodySpec);
+		when(postResponseSpec.body(GitHubRepository.class)).thenReturn(null);
+
+		assertThrows(CidadelException.class,
+				() -> client.createRepo("new-repo", OWNER, true, null, ACCESS_TOKEN));
+	}
+
+	@Test
+	void createRepo_ownerCaseInsensitiveMatch_postsToUserRepos() {
+		// "TEST-OWNER" should match "test-owner" config and route to /user/repos
+		GitHubRepository expected = new GitHubRepository("new-repo", OWNER + "/new-repo",
+				"https://github.com/" + OWNER + "/new-repo", null, null, true, "main");
+
+		stubPost0();
+		when(postUriSpec.uri(eq("/user/repos"))).thenReturn(postBodySpec);
+		when(postResponseSpec.body(GitHubRepository.class)).thenReturn(expected);
+
+		GitHubRepository result = client.createRepo("new-repo", OWNER.toUpperCase(), true, null,
+				ACCESS_TOKEN);
+
+		assertNotNull(result);
+		verify(postUriSpec).uri(eq("/user/repos"));
 	}
 
 }

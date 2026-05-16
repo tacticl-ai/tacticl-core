@@ -24,6 +24,10 @@ public enum GitHubErrorDetails implements ErrorDetails {
 
 	BRANCH_CREATE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "github-branch-create-failed"),
 
+	REPO_CREATE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "github-repo-create-failed"),
+
+	REPO_NAME_TAKEN(HttpStatus.UNPROCESSABLE_ENTITY, "github-repo-name-taken"),
+
 	COMMIT_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "github-commit-failed"),
 
 	PR_CREATE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "github-pr-create-failed"),
