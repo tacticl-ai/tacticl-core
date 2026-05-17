@@ -9,6 +9,7 @@ dependencies {
     implementation(project(":data:data-sparks"))
     implementation(project(":business:business-sparks"))
     implementation(project(":business:business-pipeline"))
+    implementation(project(":client:client-github"))
     implementation(libs.cidadel.client.anthropic.direct)
     // Parent provides: exception, logging, web, jackson, test, junit
 }

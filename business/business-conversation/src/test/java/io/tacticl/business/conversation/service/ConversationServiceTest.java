@@ -2,6 +2,11 @@ package io.tacticl.business.conversation.service;
 
 import io.cidadel.client.anthropic.AnthropicDirectClient;
 import io.cidadel.client.base.llm.model.LlmResponse;
+import io.cidadel.framework.exception.CidadelException;
+import io.strategiz.social.client.github.GitHubClient;
+import io.strategiz.social.client.github.config.GitHubConfig;
+import io.strategiz.social.client.github.exception.GitHubErrorDetails;
+import io.strategiz.social.client.github.model.GitHubRepository;
 import io.tacticl.business.pipeline.router.PdlcRouter;
 import io.tacticl.business.sparks.service.SparkClassifierService;
 import io.tacticl.business.sparks.service.SparkService;
@@ -17,6 +22,7 @@ import io.tacticl.business.conversation.dto.MessageResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
@@ -34,6 +40,8 @@ class ConversationServiceTest {
     @Mock SparkClassifierService sparkClassifierService;
     @Mock PdlcRouter pdlcRouter;
     @Mock PipelineRunRepository pipelineRunRepository;
+    @Mock GitHubClient gitHubClient;
+    @Mock GitHubConfig gitHubConfig;
 
     ConversationService service;
 
@@ -41,7 +49,8 @@ class ConversationServiceTest {
     void setUp() {
         service = new ConversationService(
             sessionRepository, anthropicClient, sparkService,
-            sparkClassifierService, pdlcRouter, pipelineRunRepository);
+            sparkClassifierService, pdlcRouter, pipelineRunRepository,
+            gitHubClient, gitHubConfig);
     }
 
     @Test
@@ -155,6 +164,110 @@ class ConversationServiceTest {
         assertThatThrownBy(() -> service.sendMessage("missing", "user-1", "hello"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("Session not found");
+    }
+
+    @Test
+    void createRepoMarker_invokesGitHubAndPersistsHtmlUrlOnSession() {
+        ConversationSession session = ConversationSession.create("user-1", "build a pdf converter");
+        when(sessionRepository.findByIdAndUserId("sess-1", "user-1")).thenReturn(Optional.of(session));
+        when(sessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        LlmResponse llm = mockLlmResponse(
+            "Setting up your repo now.\n"
+            + "<<<CREATE_REPO:{\"name\":\"markdown-pdf\",\"owner\":\"cuztomizer\",\"private\":true}>>>");
+        when(anthropicClient.generateContent(anyString(), anyList(), anyString())).thenReturn(llm);
+
+        when(gitHubConfig.getAppToken()).thenReturn("ghp_test");
+        GitHubRepository repo = new GitHubRepository(
+            "markdown-pdf", "cuztomizer/markdown-pdf",
+            "https://github.com/owner/repo",
+            "https://github.com/owner/repo.git",
+            "git@github.com:owner/repo.git",
+            true, "main");
+        when(gitHubClient.createRepo("markdown-pdf", "cuztomizer", true, null, "ghp_test"))
+            .thenReturn(repo);
+
+        MessageResponse response = service.sendMessage("sess-1", "user-1", "yes go ahead");
+
+        verify(gitHubClient).createRepo("markdown-pdf", "cuztomizer", true, null, "ghp_test");
+        assertThat(session.getRepoUrl()).isEqualTo("https://github.com/owner/repo");
+        assertThat(response.getContent()).contains("https://github.com/owner/repo");
+        assertThat(response.getContent()).doesNotContain("<<<CREATE_REPO");
+        verify(sessionRepository, atLeastOnce()).save(session);
+    }
+
+    @Test
+    void createRepoMarker_onGitHubFailure_appendsErrorToReply() {
+        ConversationSession session = ConversationSession.create("user-1", "build a pdf converter");
+        when(sessionRepository.findByIdAndUserId("sess-1", "user-1")).thenReturn(Optional.of(session));
+        when(sessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        LlmResponse llm = mockLlmResponse(
+            "Setting up your repo now.\n"
+            + "<<<CREATE_REPO:{\"name\":\"taken-name\",\"owner\":\"cuztomizer\",\"private\":true}>>>");
+        when(anthropicClient.generateContent(anyString(), anyList(), anyString())).thenReturn(llm);
+
+        when(gitHubConfig.getAppToken()).thenReturn("ghp_test");
+        when(gitHubClient.createRepo(eq("taken-name"), eq("cuztomizer"), eq(true), isNull(), eq("ghp_test")))
+            .thenThrow(new CidadelException(GitHubErrorDetails.REPO_NAME_TAKEN, "client-github", "Name already taken"));
+
+        MessageResponse response = service.sendMessage("sess-1", "user-1", "yes go ahead");
+
+        assertThat(session.getRepoUrl()).isNull();
+        assertThat(response.getContent()).doesNotContain("<<<CREATE_REPO");
+        assertThat(response.getContent()).contains("Couldn't create the repo");
+        assertThat(response.getContent()).contains("repo name taken");
+        verify(sessionRepository, atLeastOnce()).save(session);
+    }
+
+    @Test
+    void createRepoMarker_malformedJson_appendsErrorAndSkipsClient() {
+        ConversationSession session = ConversationSession.create("user-1", "build something");
+        when(sessionRepository.findByIdAndUserId("sess-1", "user-1")).thenReturn(Optional.of(session));
+        when(sessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        LlmResponse llm = mockLlmResponse("Hi there <<<CREATE_REPO:not-json>>>");
+        when(anthropicClient.generateContent(anyString(), anyList(), anyString())).thenReturn(llm);
+
+        MessageResponse response = service.sendMessage("sess-1", "user-1", "yes go ahead");
+
+        verify(gitHubClient, never()).createRepo(anyString(), anyString(), anyBoolean(), any(), anyString());
+        assertThat(response.getContent()).doesNotContain("<<<CREATE_REPO");
+        assertThat(response.getContent()).contains("couldn't parse the repo spec");
+        assertThat(response.getSessionStatus()).isEqualTo("GATHERING");
+    }
+
+    @Test
+    void gatheringPrompt_mentionsCurrentRepoStatus_whenRepoSet() {
+        ConversationSession session = ConversationSession.create("user-1", "build me a todo app");
+        session.setRepoUrl("https://github.com/foo/bar");
+        when(sessionRepository.findByIdAndUserId("sess-1", "user-1")).thenReturn(Optional.of(session));
+        when(sessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        LlmResponse llm = mockLlmResponse("Cool, what next?");
+        when(anthropicClient.generateContent(anyString(), anyList(), anyString())).thenReturn(llm);
+
+        service.sendMessage("sess-1", "user-1", "hi");
+
+        ArgumentCaptor<String> systemPromptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(anthropicClient).generateContent(anyString(), anyList(), systemPromptCaptor.capture());
+        assertThat(systemPromptCaptor.getValue()).contains("https://github.com/foo/bar");
+    }
+
+    @Test
+    void gatheringPrompt_mentionsNoRepoYet_whenRepoMissing() {
+        ConversationSession session = ConversationSession.create("user-1", "build me a todo app");
+        when(sessionRepository.findByIdAndUserId("sess-1", "user-1")).thenReturn(Optional.of(session));
+        when(sessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        LlmResponse llm = mockLlmResponse("Cool, what next?");
+        when(anthropicClient.generateContent(anyString(), anyList(), anyString())).thenReturn(llm);
+
+        service.sendMessage("sess-1", "user-1", "hi");
+
+        ArgumentCaptor<String> systemPromptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(anthropicClient).generateContent(anyString(), anyList(), systemPromptCaptor.capture());
+        assertThat(systemPromptCaptor.getValue()).contains("not yet created");
     }
 
     private LlmResponse mockLlmResponse(String content) {
