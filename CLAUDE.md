@@ -233,6 +233,16 @@ EXECUTING → COMPLETED | FAILED
 Any → CANCELLED
 ```
 
+### Telegram entry path (conversational)
+
+Telegram inbound (plain-text bot mention, `/spark`, voice transcript) does **not** create a Spark immediately. It flows through `TelegramConversationAdapter` → `ConversationService` (gather → propose → align state machine), and only when the agent emits the `<<<START>>>` marker does the conversation hand off to `SparkService.create` + `PdlcRouter.route(...)` for the pipeline. Pipeline events fan out to `TelegramEventChannel` (live Telegram render) and `ConversationEventChannel` (durable session history). The HTTP `POST /v1/agent/command` path keeps the legacy direct-spark behaviour.
+
+For CODE/DEVOPS work the conversation needs a repo URL before alignment. Two paths:
+- **Agent-driven**: the LLM proposes a name/owner/visibility, gets user confirmation in chat, and emits `<<<CREATE_REPO:{json}>>>`. `ConversationService` invokes `GitHubClient.createRepo(...)` (authorized by the Tacticl PAT in `secret/tacticl/github` → `app-token`) and persists the resulting URL on the session.
+- **User-driven**: `/repo <github-url>` slash command sets `session.repoUrl` directly, skipping creation.
+
+Three markers in total: `<<<CREATE_REPO:{...}>>>` (optional, code/devops only), `<<<PROPOSE>>>` (alignment summary), `<<<START>>>` (handoff to PDLC). One marker per LLM turn. See `docs/runbooks/telegram-bot.md` for operator details and `deployment/runbooks/github-app-token.md` for the PAT setup.
+
 ### Spark → Tactic Relationship
 - **Spark**: User's raw input request (created from chat)
 - **Tactic**: Device-side decomposition of a spark into executable sub-tasks (created on-device only, not for cloud execution)

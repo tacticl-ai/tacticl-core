@@ -1,10 +1,10 @@
 package io.tacticl.business.telegram.command;
 
+import io.tacticl.business.telegram.conversation.TelegramConversationAdapter;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
 import io.tacticl.business.telegram.outbound.TelegramOutboundQueue;
 import io.tacticl.business.telegram.router.CommandContext;
-import io.tacticl.business.telegram.spark.TelegramSparkInitiator;
 import io.tacticl.client.telegram.dto.Chat;
 import io.tacticl.client.telegram.dto.Message;
 import io.tacticl.data.telegram.entity.TelegramProjectLink;
@@ -20,7 +20,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -35,7 +34,7 @@ class SparkCommandTest {
 
     private TelegramIdentityResolver identity;
     private TelegramProjectLinkRepository projectRepo;
-    private TelegramSparkInitiator initiator;
+    private TelegramConversationAdapter adapter;
     private TelegramOutboundQueue outbound;
     private SparkCommand command;
 
@@ -43,9 +42,9 @@ class SparkCommandTest {
     void setUp() {
         identity = mock(TelegramIdentityResolver.class);
         projectRepo = mock(TelegramProjectLinkRepository.class);
-        initiator = mock(TelegramSparkInitiator.class);
+        adapter = mock(TelegramConversationAdapter.class);
         outbound = mock(TelegramOutboundQueue.class);
-        command = new SparkCommand(identity, projectRepo, initiator, outbound);
+        command = new SparkCommand(identity, projectRepo, adapter, outbound);
     }
 
     private static CommandContext groupCtx(String text) {
@@ -73,7 +72,7 @@ class SparkCommandTest {
         verify(outbound).enqueue(eq(CHAT_ID), captor.capture());
         assertThat(captor.getValue().request().text())
                 .containsIgnoringCase("link your Tacticl account");
-        verify(initiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(adapter, never()).handle(anyLong(), anyString(), anyString(), any());
     }
 
     @Test
@@ -88,7 +87,7 @@ class SparkCommandTest {
         assertThat(captor.getValue().request().text())
                 .containsIgnoringCase("No active project")
                 .contains("/init");
-        verify(initiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(adapter, never()).handle(anyLong(), anyString(), anyString(), any());
     }
 
     @Test
@@ -102,20 +101,20 @@ class SparkCommandTest {
         ArgumentCaptor<OutboundMessage> captor = ArgumentCaptor.forClass(OutboundMessage.class);
         verify(outbound).enqueue(eq(CHAT_ID), captor.capture());
         assertThat(captor.getValue().request().text()).contains("Usage: /spark");
-        verify(initiator, never()).initiate(anyLong(), anyString(), anyString(), any(), any());
+        verify(adapter, never()).handle(anyLong(), anyString(), anyString(), any());
     }
 
     @Test
-    void handleHappyPathDelegatesToInitiator() {
+    void handleHappyPathDelegatesToAdapter() {
         when(identity.resolveByChatId(SENDER_TG_ID)).thenReturn(Optional.of(TACTICL_USER_ID));
         TelegramProjectLink link = TelegramProjectLink.create(PROJECT_ID, CHAT_ID, TACTICL_USER_ID, "My Group");
         when(projectRepo.findByChatIdAndIsActiveTrue(CHAT_ID)).thenReturn(Optional.of(link));
 
         command.handle(groupCtx("/spark  deploy frontend"));
 
-        verify(initiator).initiate(eq(CHAT_ID), eq(TACTICL_USER_ID),
-                eq("deploy frontend"), eq(link), isNull());
-        // SparkCommand does not reply; initiator owns all user-facing replies.
+        verify(adapter).handle(eq(CHAT_ID), eq(TACTICL_USER_ID),
+                eq("deploy frontend"), eq(link));
+        // SparkCommand does not reply; adapter owns all user-facing replies.
         verify(outbound, never()).enqueue(anyLong(), any());
     }
 }

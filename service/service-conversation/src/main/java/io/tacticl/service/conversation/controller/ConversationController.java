@@ -4,12 +4,12 @@ import io.cidadel.framework.authorization.annotation.AuthUser;
 import io.cidadel.framework.authorization.annotation.RequireAuth;
 import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.cidadel.service.base.controller.BaseController;
+import io.tacticl.business.conversation.dto.MessageResponse;
+import io.tacticl.business.conversation.service.ConversationService;
 import io.tacticl.data.conversation.entity.ConversationSession;
 import io.tacticl.service.conversation.dto.ConversationResponse;
 import io.tacticl.service.conversation.dto.CreateConversationRequest;
-import io.tacticl.service.conversation.dto.MessageResponse;
 import io.tacticl.service.conversation.dto.SendMessageRequest;
-import io.tacticl.service.conversation.service.ConversationService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -53,7 +53,9 @@ public class ConversationController extends BaseController {
     @RequireAuth
     public ResponseEntity<List<ConversationResponse>> listSessions(
             @AuthUser AuthenticatedUser user) {
-        return ResponseEntity.ok(conversationService.listSessions(user.getUserId()));
+        List<ConversationResponse> resp = conversationService.listSessions(user.getUserId())
+                .stream().map(ConversationResponse::from).toList();
+        return ResponseEntity.ok(resp);
     }
 
     @GetMapping("/{sessionId}")
@@ -62,6 +64,7 @@ public class ConversationController extends BaseController {
             @PathVariable String sessionId,
             @AuthUser AuthenticatedUser user) {
         return conversationService.getSession(sessionId, user.getUserId())
+                .map(ConversationResponse::from)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

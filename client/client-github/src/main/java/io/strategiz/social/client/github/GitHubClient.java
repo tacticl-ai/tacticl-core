@@ -9,6 +9,7 @@ import io.strategiz.social.client.github.model.GitHubBranch;
 import io.strategiz.social.client.github.model.GitHubCommitResult;
 import io.strategiz.social.client.github.model.GitHubFileContent;
 import io.strategiz.social.client.github.model.GitHubPullRequest;
+import io.strategiz.social.client.github.model.GitHubRepository;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -591,6 +592,109 @@ public class GitHubClient {
 	}
 
 	// -------------------------------------------------------------------------
+	// Repository operations
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Create a new repository under the given owner.
+	 *
+	 * <p>
+	 * Routes to the GitHub API endpoint based on whether {@code owner} matches the
+	 * {@code gitHubOwner} configured on this client:
+	 * <ul>
+	 *   <li>match (case-insensitive) → {@code POST /user/repos} (authenticated user)</li>
+	 *   <li>otherwise → {@code POST /orgs/{owner}/repos}</li>
+	 * </ul>
+	 *
+	 * <p>
+	 * Always sends {@code auto_init=true} so the new repo has an initial commit + README
+	 * and a usable default branch ({@code main}) for downstream pipeline roles to clone.
+	 *
+	 * @param name repo name (without owner prefix)
+	 * @param owner GitHub user OR org name; if equal to {@code gitHubOwner} the repo is
+	 * created under the authenticated user, otherwise under the named org
+	 * @param isPrivate visibility flag
+	 * @param description optional repo description (may be {@code null})
+	 * @param accessToken GitHub personal access token with {@code repo} (+ {@code admin:org}
+	 * when owner is an org)
+	 * @return the created repository metadata
+	 * @throws CidadelException on 401, 403, 404, 422 (name already taken), 5xx, or rate-limit
+	 * exhaustion
+	 */
+	public GitHubRepository createRepo(String name, String owner, boolean isPrivate,
+			String description, String accessToken) {
+		consumeRateLimit();
+
+		boolean underAuthenticatedUser = owner != null && gitHubOwner != null
+				&& owner.equalsIgnoreCase(gitHubOwner);
+		log.info("Creating repo '{}' under {} ({})", name, owner,
+				underAuthenticatedUser ? "/user/repos" : "/orgs/{owner}/repos");
+
+		Map<String, Object> body = new HashMap<>();
+		body.put("name", name);
+		body.put("private", isPrivate);
+		if (description != null) {
+			body.put("description", description);
+		}
+		// Initialize with a README so the repo has a default branch downstream roles can clone.
+		body.put("auto_init", true);
+
+		try {
+			RestClient.RequestBodySpec request;
+			if (underAuthenticatedUser) {
+				request = restClient.post().uri("/user/repos");
+			}
+			else {
+				request = restClient.post().uri("/orgs/{owner}/repos", owner);
+			}
+
+			GitHubRepository result = request.header("Authorization", "Bearer " + accessToken)
+				.body(body)
+				.retrieve()
+				.onStatus(this::isUnauthorized, (req, res) -> {
+					throw new CidadelException(GitHubErrorDetails.UNAUTHORIZED, MODULE_NAME,
+							"Invalid or expired access token");
+				})
+				.onStatus(this::isForbidden, (req, res) -> {
+					throw new CidadelException(GitHubErrorDetails.UNAUTHORIZED, MODULE_NAME,
+							"Token lacks permission to create repos under " + owner
+									+ " (need 'repo' + 'admin:org' scopes)");
+				})
+				.onStatus(this::isNotFound, (req, res) -> {
+					throw new CidadelException(GitHubErrorDetails.NOT_FOUND, MODULE_NAME,
+							"Owner not found or not accessible: " + owner);
+				})
+				.onStatus(this::isUnprocessableEntity, (req, res) -> {
+					String responseBody = readErrorBody(res);
+					throw new CidadelException(GitHubErrorDetails.REPO_NAME_TAKEN, MODULE_NAME,
+							"GitHub API returned 422 creating repo " + name
+									+ " (name may already exist): " + responseBody);
+				})
+				.onStatus(HttpStatusCode::isError, (req, res) -> {
+					throw new CidadelException(GitHubErrorDetails.REPO_CREATE_FAILED, MODULE_NAME,
+							"GitHub API returned status " + res.getStatusCode().value()
+									+ " creating repo " + name);
+				})
+				.body(GitHubRepository.class);
+
+			if (result == null) {
+				throw new CidadelException(GitHubErrorDetails.REPO_CREATE_FAILED, MODULE_NAME,
+						"Empty response from GitHub API");
+			}
+
+			log.info("Repo '{}' created successfully: {}", result.fullName(), result.htmlUrl());
+			return result;
+		}
+		catch (CidadelException e) {
+			throw e;
+		}
+		catch (Exception e) {
+			log.error("Failed to create repo '{}' under {}: {}", name, owner, e.getMessage(), e);
+			throw new CidadelException(GitHubErrorDetails.REPO_CREATE_FAILED, MODULE_NAME, e);
+		}
+	}
+
+	// -------------------------------------------------------------------------
 	// Code search
 	// -------------------------------------------------------------------------
 
@@ -654,6 +758,25 @@ public class GitHubClient {
 
 	private boolean isNotFound(HttpStatusCode status) {
 		return status.value() == HttpStatus.NOT_FOUND.value();
+	}
+
+	private boolean isForbidden(HttpStatusCode status) {
+		return status.value() == HttpStatus.FORBIDDEN.value();
+	}
+
+	private boolean isUnprocessableEntity(HttpStatusCode status) {
+		return status.value() == HttpStatus.UNPROCESSABLE_ENTITY.value();
+	}
+
+	/** Best-effort read of an error response body for inclusion in exception messages. */
+	private String readErrorBody(org.springframework.http.client.ClientHttpResponse res) {
+		try {
+			byte[] bytes = res.getBody().readAllBytes();
+			return new String(bytes, StandardCharsets.UTF_8);
+		}
+		catch (Exception ignored) {
+			return "(no body)";
+		}
 	}
 
 	/** Wrapper for GitHub code search responses that nest results under an {@code items} key. */

@@ -1,4 +1,4 @@
-package io.tacticl.service.conversation.dto;
+package io.tacticl.business.conversation.dto;
 
 public class MessageResponse {
 

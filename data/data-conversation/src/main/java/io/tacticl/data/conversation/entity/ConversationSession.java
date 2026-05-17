@@ -17,7 +17,20 @@ public class ConversationSession {
     private SessionStatus status;
     private String detectedSparkType;
     private String proposalText;
-    private String sparkId;
+    @Indexed private String sparkId;
+    // Set only by createForTelegramGroup(...) — no setter on purpose.
+    @Indexed private String projectId;
+
+    /**
+     * Initiator source code (e.g. {@code "TELEGRAM_GROUP"}, {@code "WEB"}). Stored as
+     * a string rather than an enum to avoid a cross-module dependency from
+     * {@code data-conversation} to {@code data-sparks}, which the project's
+     * {@code data-* → framework-* only} rule forbids. If the set of sources grows,
+     * lift {@code SparkInitiatorSource} into a shared types module and switch this
+     * field to that enum.
+     */
+    private String initiatorSource;
+    private String repoUrl;
     private List<ConversationMessage> messages;
     private Instant createdAt;
     private Instant updatedAt;
@@ -35,6 +48,13 @@ public class ConversationSession {
         s.messages = new ArrayList<>();
         s.createdAt = Instant.now();
         s.updatedAt = s.createdAt;
+        return s;
+    }
+
+    public static ConversationSession createForTelegramGroup(String userId, String projectId, String firstMessage) {
+        ConversationSession s = create(userId, firstMessage);
+        s.projectId = projectId;
+        s.initiatorSource = "TELEGRAM_GROUP";
         return s;
     }
 
@@ -79,4 +99,13 @@ public class ConversationSession {
     public List<ConversationMessage> getMessages() { return messages; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+
+    public String getProjectId() { return projectId; }
+    public String getInitiatorSource() { return initiatorSource; }
+    public String getRepoUrl() { return repoUrl; }
+
+    public void setRepoUrl(String repoUrl) {
+        this.repoUrl = repoUrl;
+        this.updatedAt = Instant.now();
+    }
 }

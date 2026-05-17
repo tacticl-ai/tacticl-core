@@ -1,5 +1,6 @@
 package io.tacticl.business.telegram;
 
+import io.tacticl.business.telegram.conversation.TelegramConversationAdapter;
 import io.tacticl.business.telegram.dedup.TelegramUpdateDedupCache;
 import io.tacticl.business.telegram.event.CallbackQueryHandler;
 import io.tacticl.business.telegram.event.GroupMembershipHandler;
@@ -9,7 +10,6 @@ import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.identity.TelegramUsernameCache;
 import io.tacticl.business.telegram.router.CommandContext;
 import io.tacticl.business.telegram.router.TelegramCommandRouter;
-import io.tacticl.business.telegram.spark.TelegramSparkInitiator;
 import io.tacticl.client.telegram.TelegramBotClient;
 import io.tacticl.client.telegram.config.TelegramConfig;
 import io.tacticl.client.telegram.dto.CallbackQuery;
@@ -47,8 +47,8 @@ import java.util.Optional;
  *       the router (avoids coupling the pairing handshake to GROUP commands).</li>
  *   <li>Route every other slash command through {@link TelegramCommandRouter}.</li>
  *   <li>Detect plain-text bot mentions and reply-to-bot messages in groups and
- *       hand them to {@link TelegramSparkInitiator} as implicit {@code /spark}
- *       invocations.</li>
+ *       hand them to {@link TelegramConversationAdapter} as implicit
+ *       {@code /spark} invocations (routes through the conversational engine).</li>
  * </ul>
  */
 @Service
@@ -61,7 +61,7 @@ public class TelegramDispatchService {
     private final TelegramBotClient bot;
     private final TelegramCommandRouter commandRouter;
     private final TelegramUsernameCache usernameCache;
-    private final TelegramSparkInitiator sparkInitiator;
+    private final TelegramConversationAdapter conversationAdapter;
     private final TelegramProjectLinkRepository projectRepo;
     private final TelegramIdentityResolver identity;
     private final TelegramConfig telegramConfig;
@@ -79,7 +79,7 @@ public class TelegramDispatchService {
                                    TelegramBotClient bot,
                                    TelegramCommandRouter commandRouter,
                                    TelegramUsernameCache usernameCache,
-                                   TelegramSparkInitiator sparkInitiator,
+                                   TelegramConversationAdapter conversationAdapter,
                                    TelegramProjectLinkRepository projectRepo,
                                    TelegramIdentityResolver identity,
                                    TelegramConfig telegramConfig,
@@ -92,7 +92,7 @@ public class TelegramDispatchService {
         this.bot = bot;
         this.commandRouter = commandRouter;
         this.usernameCache = usernameCache;
-        this.sparkInitiator = sparkInitiator;
+        this.conversationAdapter = conversationAdapter;
         this.projectRepo = projectRepo;
         this.identity = identity;
         this.telegramConfig = telegramConfig;
@@ -267,7 +267,7 @@ public class TelegramDispatchService {
         }
 
         String cleaned = mentioned ? stripBotMention(msg, botUsername) : text;
-        sparkInitiator.initiate(chatId, tacticlUserId.get(), cleaned, linkOpt.get(), null);
+        conversationAdapter.handle(chatId, tacticlUserId.get(), cleaned, linkOpt.get());
     }
 
     private boolean isMentioningBot(Message msg, String botUsername) {

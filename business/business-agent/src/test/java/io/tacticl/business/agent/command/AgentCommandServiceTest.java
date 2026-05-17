@@ -54,7 +54,7 @@ class AgentCommandServiceTest {
         PipelineRun run = mock(PipelineRun.class);
         when(run.getId()).thenReturn("run-1");
         when(pdlcRouter.route(eq("u1"), eq(sparkId), eq("ship it"), eq("https://r"),
-                eq(SparkType.CODE), eq(List.of()), any(), eq(50.0))).thenReturn(Optional.of(run));
+                eq(SparkType.CODE), eq(List.of()), any(), eq(10_000.0))).thenReturn(Optional.of(run));
 
         AgentCommand cmd = AgentCommand.fromTelegramGroup("u1", "ship it", "p1", "https://r");
         AgentCommandResult result = service.execute(cmd);
@@ -143,6 +143,26 @@ class AgentCommandServiceTest {
         assertThat(result.sparkStatus()).isEqualTo("FAILED");
         assertThat(result.pipelineTier()).isNull();
         verify(sparks).markFailed(sparkId, "u1");
+    }
+
+    @Test
+    void executeUsesTenThousandDefaultCeilingForCodeSpark() {
+        Spark spark = Spark.create("user-1", "fix bug");
+        String sparkId = spark.getId();
+        when(sparks.create(eq("user-1"), eq("fix bug"), any(), eq("user-1"), org.mockito.ArgumentMatchers.isNull()))
+                .thenReturn(spark);
+        when(classifier.classify("fix bug")).thenReturn(SparkType.CODE);
+        when(sparks.classify(sparkId, "user-1", SparkType.CODE)).thenReturn(spark);
+        when(pdlcRouter.route(eq("user-1"), eq(sparkId), eq("fix bug"),
+                org.mockito.ArgumentMatchers.isNull(), eq(SparkType.CODE), eq(List.of()),
+                org.mockito.ArgumentMatchers.isNull(), eq(10_000.0)))
+                .thenReturn(Optional.empty());
+
+        service.execute(AgentCommand.fromHttp("user-1", "fix bug", null));
+
+        verify(pdlcRouter).route(eq("user-1"), eq(sparkId), eq("fix bug"),
+                org.mockito.ArgumentMatchers.isNull(), eq(SparkType.CODE), eq(List.of()),
+                org.mockito.ArgumentMatchers.isNull(), eq(10_000.0));
     }
 
     @Test

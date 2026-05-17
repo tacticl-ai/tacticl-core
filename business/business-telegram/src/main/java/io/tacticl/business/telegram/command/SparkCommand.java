@@ -1,11 +1,11 @@
 package io.tacticl.business.telegram.command;
 
+import io.tacticl.business.telegram.conversation.TelegramConversationAdapter;
 import io.tacticl.business.telegram.identity.TelegramIdentityResolver;
 import io.tacticl.business.telegram.outbound.OutboundMessage;
 import io.tacticl.business.telegram.outbound.TelegramOutboundQueue;
 import io.tacticl.business.telegram.router.CommandContext;
 import io.tacticl.business.telegram.router.CommandHandler;
-import io.tacticl.business.telegram.spark.TelegramSparkInitiator;
 import io.tacticl.client.telegram.dto.SendMessageRequest;
 import io.tacticl.data.telegram.entity.TelegramProjectLink;
 import io.tacticl.data.telegram.repository.TelegramProjectLinkRepository;
@@ -15,12 +15,13 @@ import org.springframework.stereotype.Component;
 import java.util.Optional;
 
 /**
- * Handles the {@code /spark} slash-command: starts a pipeline from a group
- * message. Pre-flight validation (linked account, project exists, non-empty
- * text) happens here; once accepted, delegation to
- * {@link TelegramSparkInitiator} is total — the initiator owns all user-facing
- * replies (permission denial, started, pipeline disabled, etc.) so this handler
- * stays silent on the happy path.
+ * Handles the {@code /spark} slash-command: starts a conversational turn from a
+ * group message. Pre-flight validation (linked account, project exists,
+ * non-empty text) happens here; once accepted, delegation to
+ * {@link TelegramConversationAdapter} is total — the adapter owns all
+ * user-facing replies (permission denial, gather/propose/align prompts,
+ * pipeline-started notice, etc.) so this handler stays silent on the happy
+ * path.
  */
 @Component
 @ConditionalOnProperty(name = "tacticl.telegram.enabled", havingValue = "true")
@@ -28,16 +29,16 @@ public class SparkCommand implements CommandHandler {
 
     private final TelegramIdentityResolver identity;
     private final TelegramProjectLinkRepository projectRepo;
-    private final TelegramSparkInitiator initiator;
+    private final TelegramConversationAdapter adapter;
     private final TelegramOutboundQueue outbound;
 
     public SparkCommand(TelegramIdentityResolver identity,
                         TelegramProjectLinkRepository projectRepo,
-                        TelegramSparkInitiator initiator,
+                        TelegramConversationAdapter adapter,
                         TelegramOutboundQueue outbound) {
         this.identity = identity;
         this.projectRepo = projectRepo;
-        this.initiator = initiator;
+        this.adapter = adapter;
         this.outbound = outbound;
     }
 
@@ -78,8 +79,7 @@ public class SparkCommand implements CommandHandler {
             return;
         }
 
-        // repoUrl is null: no repo-mapping service exists yet (Phase 2 deferral).
-        initiator.initiate(chatId, tacticlUserId.get(), text, linkOpt.get(), null);
+        adapter.handle(chatId, tacticlUserId.get(), text, linkOpt.get());
     }
 
     private void reply(long chatId, String text) {
