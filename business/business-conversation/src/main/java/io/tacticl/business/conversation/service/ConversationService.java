@@ -157,8 +157,13 @@ public class ConversationService {
                 : "I didn't quite catch that. Could you try again?";
 
         // CREATE_REPO must be handled BEFORE START / PROPOSE so a CREATE_REPO response can't
-        // accidentally trigger pipeline start.
+        // accidentally trigger pipeline start. If the LLM emits CREATE_REPO while we are
+        // already in PROPOSING (rule violation by the prompt), revert to GATHERING — the
+        // proposal needs to be reissued with the new repo URL referenced.
         if (rawContent.contains(CREATE_REPO_MARKER_PREFIX)) {
+            if (session.getStatus() == SessionStatus.PROPOSING) {
+                session.revertToGathering();
+            }
             String cleanContent = handleCreateRepoMarker(session, rawContent);
             session.addMessage(ConversationMessage.assistant(cleanContent));
             sessionRepository.save(session);
