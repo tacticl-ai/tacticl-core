@@ -1,5 +1,6 @@
 package io.tacticl.service.telegram.controller;
 
+import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.tacticl.business.telegram.TelegramUserLinker;
 import io.tacticl.business.telegram.TelegramUserLinker.IssuedLink;
 import io.tacticl.data.telegram.entity.TelegramLink;
@@ -17,6 +18,12 @@ import static org.mockito.Mockito.when;
 
 class TelegramLinkControllerTest {
 
+    private AuthenticatedUser userPrincipal(String userId) {
+        var user = mock(AuthenticatedUser.class);
+        when(user.getUserId()).thenReturn(userId);
+        return user;
+    }
+
     @Test
     void issueLink_returnsTokenAndBotUrl() {
         var linker = mock(TelegramUserLinker.class);
@@ -24,7 +31,7 @@ class TelegramLinkControllerTest {
                 .thenReturn(new IssuedLink("tok123", "https://t.me/tacticl_bot?start=tok123"));
 
         var controller = new TelegramLinkController(linker);
-        var response = controller.issueLink("user-1");
+        var response = controller.issueLink(userPrincipal("user-1"));
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("tok123", response.getBody().token());
@@ -38,7 +45,7 @@ class TelegramLinkControllerTest {
         when(linker.linkedChats("user-1")).thenReturn(List.of(link));
 
         var controller = new TelegramLinkController(linker);
-        var response = controller.status("user-1");
+        var response = controller.status(userPrincipal("user-1"));
         assertEquals(1, response.getBody().linked().size());
         assertEquals(42L, response.getBody().linked().get(0).chatId());
     }
@@ -47,7 +54,7 @@ class TelegramLinkControllerTest {
     void unlink_returnsNoContent() {
         var linker = mock(TelegramUserLinker.class);
         var controller = new TelegramLinkController(linker);
-        ResponseEntity<Void> response = controller.unlink("user-1", 42L);
+        ResponseEntity<Void> response = controller.unlink(userPrincipal("user-1"), 42L);
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
         verify(linker).unlink("user-1", 42L);
     }
