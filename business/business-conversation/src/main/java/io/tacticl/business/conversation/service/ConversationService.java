@@ -44,7 +44,10 @@ public class ConversationService {
             Pattern.compile("<<<CREATE_REPO:(\\{.*?\\})>>>", Pattern.DOTALL);
     private static final Pattern CREATE_REPO_STRIP_PATTERN =
             Pattern.compile("<<<CREATE_REPO:[^>]*>>>", Pattern.DOTALL);
-    private static final String CONVERSATION_MODEL = "claude-sonnet-4-6";
+    // Haiku used temporarily while Sonnet subscription quota is depleted (2026-05-18).
+    // Switch back to claude-sonnet-4-6 once quota is restored — Haiku is fine for
+    // gathering/proposing but Sonnet gives noticeably better requirements summaries.
+    private static final String CONVERSATION_MODEL = "claude-haiku-4-5-20251001";
     private static final JsonMapper JSON = new JsonMapper();
     // Effectively uncapped during pre-production rollout — mirrors AgentCommandService default.
     private static final double DEFAULT_COST_CEILING_USD = 10_000.0;
