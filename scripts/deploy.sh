@@ -55,6 +55,9 @@ rsync -az --checksum \
 
 echo -e "${YELLOW}Building Docker image on $HOST as $IMAGE_TAG...${NC}"
 ssh "$HOST" "cd /opt/cidadel/tacticl-core && docker build --no-cache -t $IMAGE_TAG ."
+# docker-compose.yml on the host pins :latest for both prod and qa — tag both so the
+# compose `up` doesn't try to docker-hub-pull a non-existent image.
+ssh "$HOST" "docker tag $IMAGE_TAG tacticl-api:latest"
 
 if [[ "$ENV" == "prod" || "$ENV" == "both" ]]; then
     echo -e "${YELLOW}Restarting tacticl-api-prod...${NC}"
