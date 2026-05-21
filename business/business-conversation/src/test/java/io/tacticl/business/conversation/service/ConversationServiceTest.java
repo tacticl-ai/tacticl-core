@@ -22,6 +22,7 @@ import io.tacticl.business.conversation.dto.MessageResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import io.cidadel.client.base.llm.model.LlmMessage;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -134,7 +135,7 @@ class ConversationServiceTest {
         when(sessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         LlmResponse llm = mockLlmResponse("Got it, starting now. <<<START>>>");
-        when(anthropicClient.generateContent(eq("claude-sonnet-4-6"), anyList(), anyString()))
+        when(anthropicClient.generateContent(anyString(), anyList(), anyString()))
             .thenReturn(llm);
 
         Spark spark = mock(Spark.class);
@@ -249,9 +250,14 @@ class ConversationServiceTest {
 
         service.sendMessage("sess-1", "user-1", "hi");
 
-        ArgumentCaptor<String> systemPromptCaptor = ArgumentCaptor.forClass(String.class);
-        verify(anthropicClient).generateContent(anyString(), anyList(), systemPromptCaptor.capture());
-        assertThat(systemPromptCaptor.getValue()).contains("https://github.com/foo/bar");
+        // System prompt is folded into the head of history as a synthesized user turn
+        // (workaround for AnthropicDirectClient lacking a native system field).
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<LlmMessage>> historyCaptor =
+            (ArgumentCaptor<List<LlmMessage>>)(ArgumentCaptor<?>) ArgumentCaptor.forClass(List.class);
+        verify(anthropicClient).generateContent(anyString(), historyCaptor.capture(), anyString());
+        String firstTurn = historyCaptor.getValue().get(0).getContent();
+        assertThat(firstTurn).contains("https://github.com/foo/bar");
     }
 
     @Test
@@ -265,9 +271,12 @@ class ConversationServiceTest {
 
         service.sendMessage("sess-1", "user-1", "hi");
 
-        ArgumentCaptor<String> systemPromptCaptor = ArgumentCaptor.forClass(String.class);
-        verify(anthropicClient).generateContent(anyString(), anyList(), systemPromptCaptor.capture());
-        assertThat(systemPromptCaptor.getValue()).contains("not yet created");
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<LlmMessage>> historyCaptor =
+            (ArgumentCaptor<List<LlmMessage>>)(ArgumentCaptor<?>) ArgumentCaptor.forClass(List.class);
+        verify(anthropicClient).generateContent(anyString(), historyCaptor.capture(), anyString());
+        String firstTurn = historyCaptor.getValue().get(0).getContent();
+        assertThat(firstTurn).contains("not yet created");
     }
 
     private LlmResponse mockLlmResponse(String content) {

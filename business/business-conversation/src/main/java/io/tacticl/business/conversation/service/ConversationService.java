@@ -152,9 +152,21 @@ public class ConversationService {
         session.addMessage(ConversationMessage.user(userMessage));
 
         String systemPrompt = buildSystemPrompt(session);
-        List<LlmMessage> messages = buildMessages(session);
-
-        LlmResponse llmResponse = anthropicClient.generateContent(CONVERSATION_MODEL, messages, systemPrompt);
+        // AnthropicDirectClient.generateContent signature is (prompt, history, model).
+        // No native system-prompt parameter — fold systemPrompt into a synthesized
+        // user→assistant turn at the head of history (Anthropic's documented pattern when
+        // the native `system` field isn't available). The most recent user message is
+        // sent as `prompt`; everything before it is `history`.
+        List<LlmMessage> conversationTurns = buildMessages(session);
+        LlmMessage lastUserTurn = conversationTurns.remove(conversationTurns.size() - 1);
+        List<LlmMessage> history = new ArrayList<>();
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            history.add(LlmMessage.user("System instructions:\n" + systemPrompt));
+            history.add(LlmMessage.assistant("Understood. I will follow those instructions."));
+        }
+        history.addAll(conversationTurns);
+        LlmResponse llmResponse = anthropicClient.generateContent(
+                lastUserTurn.getContent(), history, CONVERSATION_MODEL);
         String rawContent = llmResponse != null && llmResponse.getContent() != null
                 ? llmResponse.getContent()
                 : "I didn't quite catch that. Could you try again?";

@@ -100,10 +100,15 @@ class SparkClassifierServiceTest {
         response.setContent("CREATIVE");
         response.setSuccess(true);
         when(anthropicClient.generateContent(anyString(), anyList(), anyString())).thenAnswer(inv -> {
-            List<LlmMessage> msgs = inv.getArgument(1);
-            assertThat(msgs).hasSize(1);
-            assertThat(msgs.get(0).getRole()).isEqualTo("user");
-            assertThat(msgs.get(0).getContent()).isEqualTo("write a poem");
+            // generateContent(prompt, history, model): user message is the prompt (arg 0),
+            // history holds the synthesized [system-instruction-user, ack-assistant] pair.
+            String prompt = inv.getArgument(0);
+            List<LlmMessage> history = inv.getArgument(1);
+            assertThat(prompt).isEqualTo("write a poem");
+            assertThat(history).hasSize(2);
+            assertThat(history.get(0).getRole()).isEqualTo("user");
+            assertThat(history.get(0).getContent()).contains("System instructions");
+            assertThat(history.get(1).getRole()).isEqualTo("assistant");
             return response;
         });
 

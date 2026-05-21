@@ -44,8 +44,12 @@ public class SparkClassifierService {
      */
     public SparkType classify(String input) {
         try {
-            List<LlmMessage> messages = List.of(LlmMessage.user(input));
-            LlmResponse response = anthropicClient.generateContent(CLASSIFIER_MODEL, messages, SYSTEM_PROMPT);
+            // generateContent(prompt, history, model) — fold the classifier system prompt
+            // into a synthesized user→assistant turn at the head of history (no native system field).
+            List<LlmMessage> history = List.of(
+                    LlmMessage.user("System instructions:\n" + SYSTEM_PROMPT),
+                    LlmMessage.assistant("Understood. I will respond with exactly one of: CODE, DEVOPS, RESEARCH, CREATIVE, DATA."));
+            LlmResponse response = anthropicClient.generateContent(input, history, CLASSIFIER_MODEL);
 
             String content = response != null ? response.getContent() : null;
             if (content == null || content.isBlank()) {

@@ -77,7 +77,7 @@ class AgentCommandServiceTest {
         LlmResponse llm = mock(LlmResponse.class);
         when(llm.getContent()).thenReturn("the rain falls / softly on stones / spring returns");
         when(llm.getTotalTokens()).thenReturn(42);
-        when(anthropic.generateContent(eq("claude-sonnet-4-6"), anyList(), anyString())).thenReturn(llm);
+        when(anthropic.generateContent(anyString(), anyList(), eq("claude-sonnet-4-6"))).thenReturn(llm);
 
         AgentCommandResult result = service.execute(AgentCommand.fromHttp("u1", "haiku please", null));
 

@@ -81,8 +81,12 @@ public class AgentCommandService {
         spark = sparks.markExecuting(spark.getId(), cmd.userId(), SparkRoute.CLOUD, null);
         String model = cmd.model() != null ? cmd.model() : DEFAULT_MODEL;
         try {
-            List<LlmMessage> messages = List.of(LlmMessage.user(cmd.text()));
-            LlmResponse llm = anthropic.generateContent(model, messages, SYSTEM_PROMPT);
+            // generateContent(prompt, history, model) — fold the system prompt into a
+            // synthesized user→assistant turn at the head of history (no native system field).
+            List<LlmMessage> history = List.of(
+                    LlmMessage.user("System instructions:\n" + SYSTEM_PROMPT),
+                    LlmMessage.assistant("Understood. I will follow those instructions."));
+            LlmResponse llm = anthropic.generateContent(cmd.text(), history, model);
             String text = llm != null && llm.getContent() != null ? llm.getContent() : "I processed your request.";
             int tokens = llm != null && llm.getTotalTokens() != null ? llm.getTotalTokens() : 0;
             sparks.markCompleted(spark.getId(), cmd.userId(), tokens, model);
