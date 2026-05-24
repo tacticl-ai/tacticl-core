@@ -71,4 +71,15 @@ if [[ "$ENV" == "qa" || "$ENV" == "both" ]]; then
     echo -e "${GREEN}tacticl-api-qa restarted${NC}"
 fi
 
+# Each --no-cache build leaves the prior tacticl-api image dangling (the new
+# build overwrites :patched / :latest tags). Prune to keep host disk in check.
+# May 2026 incident on platform-apps: unbounded image accumulation took
+# everything down. Tacticl doesn't have SHA tag bloat (only :patched/:latest),
+# but dangling layers and build cache still need housekeeping.
+echo -e "${YELLOW}Pruning dangling images + >7d build cache on ${HOST}...${NC}"
+ssh "$HOST" "
+    docker image prune -f 2>&1 | grep 'Total reclaimed' || true
+    docker builder prune -f --filter 'until=168h' 2>&1 | grep Total || true
+" || true
+
 echo -e "${GREEN}=== tacticl-api deployed (${ENV}) ===${NC}"
