@@ -46,6 +46,16 @@ tacticl resolves every inbound message → its registry row → builds the `Subm
 
 Example seed rows: `discord:#sev*→strategiz/strategiz-core/pdlc-fix`, `discord:#new-functionality→strategiz/strategiz-core/pdlc-feature`, `telegram:@tacticl→tacticl/tacticl-core/tacticl-dev`.
 
+### 2.1 Product is the primary discriminator — and must be specifiable
+**Product is the top-level filter that scopes everything downstream:** repo, pipeline, knowledge namespace + `.claude/rules` conventions the agents load, admin allowlist, engine/model defaults. Resolve "which product" *first*; the rest flows from it.
+
+Product is not always implied by the channel, so the intake resolves it in priority order:
+1. **Explicit in the message** — `/pdlc strategiz: <problem>`, a product arg/picker, or named in natural language / speech ("fix the bug in *strategiz*"). Wins.
+2. **Entry-point default** — the registry row's `product` (e.g. `#sev2 → strategiz`). Used when not stated.
+3. **Ask** — if still ambiguous (a general/multi-product entry point, or low-confidence extraction), the triage/interview asks "which product?" before dispatching.
+
+An entry point MAY therefore be multi-product (a general `#dev` channel, or voice/Jarvis) — its registry row sets a default (or none) and the user/intake specifies per-message. Once resolved, the product is threaded into `SubmitPipeline` and scopes the entire run.
+
 ## 3. Discord adapter (transport)
 
 **Primary: Interactions-webhook** — mirrors tacticl's existing `service-telegram` webhook pattern almost exactly (HTTP POST → Java controller → dispatch). The admin triggers intake explicitly:
