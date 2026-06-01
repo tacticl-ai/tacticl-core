@@ -1,3 +1,3 @@
 package io.tacticl.data.sparks.entity;
 
-public enum SparkInitiatorSource { REST, TELEGRAM_GROUP, DEVICE, SCHEDULED, VOICE }
+public enum SparkInitiatorSource { REST, TELEGRAM_GROUP, DISCORD, DEVICE, SCHEDULED, VOICE }

@@ -58,7 +58,7 @@ class PdlcV2ServiceTest {
         when(sparkRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         PipelineRun run = service.submitPipeline(
-            "user-1", "spark-1", "Add auth flow",
+            "tacticl", "user-1", "spark-1", "Add auth flow",
             "github.com/user/repo", "FULL_PDLC", List.of(), "gh-token", 50.0
         );
 
@@ -68,6 +68,8 @@ class PdlcV2ServiceTest {
         ArgumentCaptor<SubmitPipelineRequest> captor = ArgumentCaptor.forClass(SubmitPipelineRequest.class);
         verify(arbiterPipelineService).submitPipeline(captor.capture());
         SubmitPipelineRequest captured = captor.getValue();
+        // Product is now data on the request, sourced from the submitPipeline productId arg.
+        assertThat(captured.product()).isEqualTo("tacticl");
         // PM → PO rename (Wave 2 cloud-agent-orchestrator migration; PdlcRole.PO).
         assertThat(captured.roleIdentities()).containsKeys("implementer", "reviewer", "po");
         assertThat(captured.playbookConfigJson()).contains("FULL_PDLC");
@@ -85,7 +87,7 @@ class PdlcV2ServiceTest {
         when(pipelineRunRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         PipelineRun run = service.submitPipeline(
-            "user-1", "bad-spark", "req", "url", "BUG_FIX", List.of(), "token", 10.0
+            "tacticl", "user-1", "bad-spark", "req", "url", "BUG_FIX", List.of(), "token", 10.0
         );
 
         assertThat(run.getSparkId()).isEqualTo("bad-spark");

@@ -26,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 public class ArbiterGrpcClientImpl implements ArbiterPipelineService {
 
     private static final Logger log = LoggerFactory.getLogger(ArbiterGrpcClientImpl.class);
-    private static final String PRODUCT = "tacticl";
 
     private final ArbiterPipelineServiceGrpc.ArbiterPipelineServiceBlockingStub stub;
     private final String registryBasePath;
@@ -46,7 +45,7 @@ public class ArbiterGrpcClientImpl implements ArbiterPipelineService {
 
         cidadel.ai.arbiter.pipeline.v1.SubmitPipelineRequest.Builder builder =
             cidadel.ai.arbiter.pipeline.v1.SubmitPipelineRequest.newBuilder()
-                .setProduct(PRODUCT)
+                .setProduct(request.product())
                 .setPipelineName(request.playbook())
                 .setRequestContextJson(contextJson)
                 .setRegistryBasePath(registryBasePath)

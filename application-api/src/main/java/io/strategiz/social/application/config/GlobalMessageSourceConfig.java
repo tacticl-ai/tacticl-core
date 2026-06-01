@@ -19,7 +19,8 @@ public class GlobalMessageSourceConfig {
 	public MessageSource messageSource() {
 		ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
 
-		messageSource.setBasenames("messages/agent-errors", "messages/social-errors");
+		messageSource.setBasenames("messages/agent-errors", "messages/social-errors",
+				"messages/pdlc-ingress-errors");
 
 		messageSource.setDefaultEncoding("UTF-8");
 		messageSource.setUseCodeAsDefaultMessage(false);

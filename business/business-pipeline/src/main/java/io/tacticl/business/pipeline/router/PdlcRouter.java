@@ -46,7 +46,9 @@ public class PdlcRouter {
         }
         String playbook = resolvePlaybook(sparkRequest);
         log.info("Routing spark {} ({}) to PDLC v2 with playbook {}", sparkId, sparkType, playbook);
-        PipelineRun run = pdlcV2Service.submitPipeline(userId, sparkId, sparkRequest,
+        // This v1 route is tacticl-only, so the product is hardcoded here. The Phase-1 dispatch
+        // front door (Discord→PDLC) will supply the product from the entry-point registry instead.
+        PipelineRun run = pdlcV2Service.submitPipeline("tacticl", userId, sparkId, sparkRequest,
                                                         repoUrl, playbook, skipRoles,
                                                         githubToken, costCeilingUsd);
         return Optional.of(run);

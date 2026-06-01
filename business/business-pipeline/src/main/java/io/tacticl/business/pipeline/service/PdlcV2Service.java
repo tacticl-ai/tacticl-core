@@ -60,7 +60,7 @@ public class PdlcV2Service {
         this.callbackUrl = callbackUrl;
     }
 
-    public PipelineRun submitPipeline(String userId, String sparkId, String sparkRequest,
+    public PipelineRun submitPipeline(String productId, String userId, String sparkId, String sparkRequest,
                                       String repoUrl, String playbook, List<String> skipRoles,
                                       String githubToken, double costCeilingUsd) {
         PipelineRun run = PipelineRun.create(userId, sparkId, sparkRequest, repoUrl,
@@ -68,7 +68,7 @@ public class PdlcV2Service {
         pipelineRunRepository.save(run);
 
         SubmitPipelineRequest request = new SubmitPipelineRequest(
-            run.getId(), sparkId, userId, playbook, sparkRequest,
+            productId, run.getId(), sparkId, userId, playbook, sparkRequest,
             repoUrl, githubToken, skipRoles, costCeilingUsd, callbackUrl,
             roleIdentityLoader.loadAll(),
             playbookSpecResolver.resolve(playbook),

@@ -58,8 +58,10 @@ public class PipelineController extends BaseController {
             @AuthUser AuthenticatedUser user,
             @PathVariable String sparkId,
             @RequestBody SubmitPipelineDto body) {
+        // This v1 REST submit path is tacticl-only, so the product is hardcoded here. The Phase-1
+        // dispatch front door (Discord→PDLC) will supply the product from the entry-point registry.
         PipelineRun run = pdlcV2Service.submitPipeline(
-            user.getUserId(), sparkId,
+            "tacticl", user.getUserId(), sparkId,
             body.sparkRequest() != null ? body.sparkRequest() : "",
             body.repoUrl(),
             body.playbook() != null ? body.playbook() : "FULL_PDLC",

@@ -100,7 +100,7 @@ class PipelineControllerTest {
         PipelineRun run = PipelineRun.create("user-1", "spark-1", "req", "https://github.com/foo/bar",
                 "FULL_PDLC", List.of(), 50.0);
         when(pdlcV2Service.submitPipeline(
-                eq("user-1"), eq("spark-1"), eq("req"), eq("https://github.com/foo/bar"),
+                eq("tacticl"), eq("user-1"), eq("spark-1"), eq("req"), eq("https://github.com/foo/bar"),
                 eq("FULL_PDLC"), eq(List.of()), eq("gh-token"), anyDouble()))
                 .thenReturn(run);
 
@@ -114,7 +114,7 @@ class PipelineControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();
         verify(pdlcV2Service).submitPipeline(
-                eq("user-1"), eq("spark-1"), eq("req"), eq("https://github.com/foo/bar"),
+                eq("tacticl"), eq("user-1"), eq("spark-1"), eq("req"), eq("https://github.com/foo/bar"),
                 eq("FULL_PDLC"), eq(List.of()), eq("gh-token"), eq(50.0));
     }
 

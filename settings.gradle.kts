@@ -49,6 +49,11 @@ include(":data:data-telegram")
 include(":business:business-telegram")
 include(":service:service-telegram")
 
+include(":client:client-discord")
+include(":data:data-discord")
+include(":business:business-discord")
+include(":service:service-discord")
+
 include(":data:data-cloud-orchestrator")
 include(":client:client-deepgram")
 include(":client:client-elevenlabs")

@@ -25,10 +25,12 @@ dependencies {
     implementation(project(":service:service-conversation"))
     implementation(project(":service:service-profile"))
     implementation(project(":service:service-telegram"))
+    implementation(project(":service:service-discord"))
 
     // Business layer
     implementation(project(":business:business-agent"))
     implementation(project(":business:business-telegram"))
+    implementation(project(":business:business-discord"))
 
     // Client layer
     implementation(project(":client:client-google"))
@@ -36,10 +38,12 @@ dependencies {
     implementation(project(":client:client-brave-search"))
     implementation(project(":client:client-jina"))
     implementation(project(":client:client-telegram"))
+    implementation(project(":client:client-discord"))
     implementation(project(":client:client-whisper"))
 
     // Data layer
     implementation(project(":data:data-telegram"))
+    implementation(project(":data:data-discord"))
 
     // Cidadel shared infrastructure
     implementation(libs.cidadel.framework.authorization)
