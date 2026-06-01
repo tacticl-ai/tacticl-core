@@ -1,7 +1,9 @@
 # Tacticl PDLC v2 — Product Requirements Document
 
+> ⚠️ **SUPERSEDED (2026-05-25)** — replaced by [Cloud Agent Orchestrator PRD](2026-05-25-cloud-agent-orchestrator-prd.md). The Arbiter execution-plane content here remains canonical (referenced from the new SAD), but the orchestration, conversation, and persona/playbook sections are obsolete. Do not implement from this doc.
+
 **Date:** 2026-04-11
-**Status:** Draft
+**Status:** Superseded
 **Author:** Gabriel Jimenez
 **Related docs:** `2026-04-11-tacticl-pdlc-v2-sad.md` (architecture), `2026-03-24-pdlc-pipeline-engine-design.md` (v1 design, superseded)
 

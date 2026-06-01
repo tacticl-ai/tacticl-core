@@ -326,8 +326,8 @@ class InitCommandTest {
         List<TelegramProjectLink> saves = linkCaptor.getAllValues();
         Map<PdlcRole, Long> topics = saves.get(1).getForumTopics();
         assertThat(topics).isNotNull().hasSize(3);
-        assertThat(topics).containsOnlyKeys(PdlcRole.PM, PdlcRole.RESEARCHER, PdlcRole.ARCHITECT);
-        assertThat(topics.get(PdlcRole.PM)).isEqualTo(2000L);
+        assertThat(topics).containsOnlyKeys(PdlcRole.PO, PdlcRole.RESEARCHER, PdlcRole.ARCHITECT);
+        assertThat(topics.get(PdlcRole.PO)).isEqualTo(2000L);
         assertThat(topics.get(PdlcRole.RESEARCHER)).isEqualTo(2001L);
         assertThat(topics.get(PdlcRole.ARCHITECT)).isEqualTo(2002L);
 

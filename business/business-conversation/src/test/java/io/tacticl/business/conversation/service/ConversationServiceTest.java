@@ -11,7 +11,7 @@ import io.tacticl.business.pipeline.router.PdlcRouter;
 import io.tacticl.business.sparks.service.SparkClassifierService;
 import io.tacticl.business.sparks.service.SparkService;
 import io.tacticl.data.conversation.entity.ConversationSession;
-import io.tacticl.data.conversation.entity.SessionStatus;
+import io.tacticl.data.cloudorchestrator.entity.SessionStatus;
 import io.tacticl.data.conversation.repository.ConversationSessionRepository;
 import io.tacticl.data.pipeline.entity.PipelineRun;
 import io.tacticl.data.pipeline.repository.PipelineRunRepository;
@@ -119,7 +119,7 @@ class ConversationServiceTest {
         MessageResponse response = service.sendMessage("sess-1", "user-1", "yes go ahead");
 
         assertThat(response.getContent()).doesNotContain("<<<START>>>");
-        assertThat(response.getSessionStatus()).isEqualTo("ACTIVE");
+        assertThat(response.getSessionStatus()).isEqualTo("PIPELINE_ACTIVE");
         assertThat(response.getSparkId()).isNotNull();
         assertThat(response.getPipelineRunId()).isNotNull();
         verify(sparkService).create(anyString(), anyString());

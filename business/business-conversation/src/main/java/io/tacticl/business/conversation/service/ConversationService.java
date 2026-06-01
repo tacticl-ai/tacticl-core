@@ -13,7 +13,7 @@ import io.tacticl.business.sparks.service.SparkClassifierService;
 import io.tacticl.business.sparks.service.SparkService;
 import io.tacticl.data.conversation.entity.ConversationMessage;
 import io.tacticl.data.conversation.entity.ConversationSession;
-import io.tacticl.data.conversation.entity.SessionStatus;
+import io.tacticl.data.cloudorchestrator.entity.SessionStatus;
 import io.tacticl.data.conversation.repository.ConversationSessionRepository;
 import io.tacticl.data.pipeline.entity.PipelineRun;
 import io.tacticl.data.pipeline.repository.PipelineRunRepository;
@@ -193,7 +193,7 @@ public class ConversationService {
             session.markActive(result.sparkId());
             sessionRepository.save(session);
 
-            return new MessageResponse(cleanContent, SessionStatus.ACTIVE.name(),
+            return new MessageResponse(cleanContent, SessionStatus.PIPELINE_ACTIVE.name(),
                     result.sparkId(), result.pipelineRunId());
 
         } else if (rawContent.contains(PROPOSE_MARKER)) {
@@ -225,7 +225,7 @@ public class ConversationService {
     }
 
     private String buildSystemPrompt(ConversationSession session) {
-        if (session.getStatus() == SessionStatus.ACTIVE && session.getSparkId() != null) {
+        if (session.getStatus() == SessionStatus.PIPELINE_ACTIVE && session.getSparkId() != null) {
             String status = pipelineRunRepository
                     .findFirstBySparkIdAndUserIdOrderByCreatedAtDesc(session.getSparkId(), session.getUserId())
                     .map(run -> run.getStatus().name())

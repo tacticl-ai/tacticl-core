@@ -7,13 +7,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PipelineCheckpointTest {
 
     @Test
-    void create_isPendingWithNoDecision() {
+    void create_isOpenWithNoDecision() {
         PipelineCheckpoint cp = PipelineCheckpoint.create("run-1", "spark-1", "PRODUCT",
                                                            "PHASE_COMPLETE", Map.of());
         assertThat(cp.getId()).isNotNull();
-        assertThat(cp.getStatus()).isEqualTo("PENDING");
+        assertThat(cp.getStatus()).isEqualTo("OPEN");
+        assertThat(cp.getStatusEnum()).isEqualTo(CheckpointStatus.OPEN);
         assertThat(cp.getDecision()).isNull();
         assertThat(cp.getResolvedAt()).isNull();
+        assertThat(cp.getRaisedAt()).isNotNull();
     }
 
     @Test

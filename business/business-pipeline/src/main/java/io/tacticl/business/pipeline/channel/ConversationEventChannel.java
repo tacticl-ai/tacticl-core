@@ -1,9 +1,9 @@
 package io.tacticl.business.pipeline.channel;
 
 import io.tacticl.business.pipeline.dto.PipelineCallbackEvent;
-import io.tacticl.data.conversation.entity.ConversationMessage;
+import io.tacticl.data.cloudorchestrator.entity.SessionStatus;
+import io.tacticl.data.cloudorchestrator.entity.Turn;
 import io.tacticl.data.conversation.entity.ConversationSession;
-import io.tacticl.data.conversation.entity.SessionStatus;
 import io.tacticl.data.conversation.repository.ConversationSessionRepository;
 import io.tacticl.data.pipeline.entity.PipelineRun;
 import io.tacticl.data.pipeline.repository.PipelineRunRepository;
@@ -45,9 +45,9 @@ public class ConversationEventChannel implements PipelineEventChannel {
         ConversationSession session = sessionOpt.get();
         String summary = summarize(event);
         if (summary == null) return;
-        session.addMessage(ConversationMessage.assistant(summary));
+        session.appendTurn(Turn.assistant("product-manager", summary, "text"));
         if (isTerminal(event.eventType()) && session.getStatus() != SessionStatus.COMPLETED) {
-            session.markCompleted();
+            session.changeStatus(SessionStatus.COMPLETED);
         }
         sessionRepo.save(session);
         log.debug("Mirrored pipeline event {} (run={}, session={}) into conversation",

@@ -49,4 +49,11 @@ include(":data:data-telegram")
 include(":business:business-telegram")
 include(":service:service-telegram")
 
+include(":data:data-cloud-orchestrator")
+include(":client:client-deepgram")
+include(":client:client-elevenlabs")
+include(":business:business-cloud-orchestrator")
+include(":business:business-voice")
+include(":service:service-cloud-orchestrator")
+
 // Version catalog auto-discovered from gradle/libs.versions.toml

@@ -1,9 +1,9 @@
 package io.tacticl.business.pipeline.channel;
 
 import io.tacticl.business.pipeline.dto.PipelineCallbackEvent;
-import io.tacticl.data.conversation.entity.ConversationMessage;
+import io.tacticl.data.cloudorchestrator.entity.SessionStatus;
+import io.tacticl.data.cloudorchestrator.entity.Turn;
 import io.tacticl.data.conversation.entity.ConversationSession;
-import io.tacticl.data.conversation.entity.SessionStatus;
 import io.tacticl.data.conversation.repository.ConversationSessionRepository;
 import io.tacticl.data.pipeline.entity.PipelineRun;
 import io.tacticl.data.pipeline.repository.PipelineRunRepository;
@@ -47,8 +47,10 @@ class ConversationEventChannelTest {
         channel.emit(new PipelineCallbackEvent(
             "run-1", "ROLE_STARTED", "PM", "PM", null));
 
-        ConversationMessage last = session.getMessages().get(session.getMessages().size() - 1);
-        assertThat(last.getContent()).contains("PM").contains("working");
+        // Wave 2 migration: ConversationEventChannel writes via appendTurn(Turn) on the
+        // new turns list, not the legacy messages list (which it never touched anyway).
+        Turn last = session.getTurns().get(session.getTurns().size() - 1);
+        assertThat(last.getText()).contains("PM").contains("working");
         verify(sessionRepo).save(session);
     }
 
@@ -107,9 +109,10 @@ class ConversationEventChannelTest {
         channel.emit(new PipelineCallbackEvent(
             "run-1", "CHECKPOINT_REQUESTED", "REVIEWER", "REVIEWER", null));
 
-        ConversationMessage last = session.getMessages().get(session.getMessages().size() - 1);
-        assertThat(last.getContent()).contains("Checkpoint").contains("REVIEWER");
-        assertThat(session.getStatus()).isEqualTo(SessionStatus.ACTIVE);
+        // Read from turns (new model); markActive() maps to PIPELINE_ACTIVE in the new enum.
+        Turn last = session.getTurns().get(session.getTurns().size() - 1);
+        assertThat(last.getText()).contains("Checkpoint").contains("REVIEWER");
+        assertThat(session.getStatus()).isEqualTo(SessionStatus.PIPELINE_ACTIVE);
         verify(sessionRepo).save(session);
     }
 

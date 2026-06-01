@@ -13,9 +13,11 @@ related-docs:
 
 # Tacticl PDLC v2 — System Architecture Document
 
+> ⚠️ **PARTIALLY SUPERSEDED (2026-05-25)** — orchestration sections (PdlcV2Service in-JVM orchestration, PipelineEventEmitter as primary state owner, in-process pipeline state machine) are replaced by the Temporal-backed design in [Cloud Agent Orchestrator SAD](2026-05-25-cloud-agent-orchestrator-sad.md). The **Arbiter execution-plane content remains canonical**: container model, workspace assembly, 4-layer knowledge injection, gRPC protocol, MongoDB pipeline schema, and Qdrant setup all stand. The new SAD references this one for the execution plane and replaces the rest.
+
 **Date:** 2026-04-11
 **Version:** 1.0
-**Status:** Draft
+**Status:** Partially Superseded (Arbiter sections canonical, orchestration sections obsolete)
 **Author:** Gabriel Jimenez
 **Related docs:**
 - [PDLC v2 PRD](2026-04-11-tacticl-pdlc-v2-prd.md)

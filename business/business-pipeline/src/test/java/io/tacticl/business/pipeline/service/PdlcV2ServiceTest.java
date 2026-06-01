@@ -68,7 +68,8 @@ class PdlcV2ServiceTest {
         ArgumentCaptor<SubmitPipelineRequest> captor = ArgumentCaptor.forClass(SubmitPipelineRequest.class);
         verify(arbiterPipelineService).submitPipeline(captor.capture());
         SubmitPipelineRequest captured = captor.getValue();
-        assertThat(captured.roleIdentities()).containsKeys("implementer", "reviewer", "pm");
+        // PM → PO rename (Wave 2 cloud-agent-orchestrator migration; PdlcRole.PO).
+        assertThat(captured.roleIdentities()).containsKeys("implementer", "reviewer", "po");
         assertThat(captured.playbookConfigJson()).contains("FULL_PDLC");
         assertThat(captured.knowledgeNamespace()).isEqualTo("tacticl-user-1");
         verify(sparkRepository).save(any());

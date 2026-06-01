@@ -20,6 +20,14 @@ public class Spark {
     private SparkInitiatorSource initiatorSource;
     private String initiatorUserId;
     @Indexed private String projectId;
+    /**
+     * Records the {@code ConversationSession} this spark was created from, for
+     * traceability and transcript linkage (per SAD §9.4). Nullable for sparks
+     * created before this field existed or via non-conversational entry points.
+     * NOT used for routing or authorization — spark-level operations remain
+     * user-scoped ({@code spark.userId == requestingUser.id}).
+     */
+    @Indexed private String conversationSessionId;
     private int tokenCost;
     private String modelUsed;
     private Instant createdAt;
@@ -90,4 +98,6 @@ public class Spark {
     public void setInitiatorUserId(String initiatorUserId) { this.initiatorUserId = initiatorUserId; }
     public String getProjectId() { return projectId; }
     public void setProjectId(String projectId) { this.projectId = projectId; }
+    public String getConversationSessionId() { return conversationSessionId; }
+    public void setConversationSessionId(String conversationSessionId) { this.conversationSessionId = conversationSessionId; }
 }

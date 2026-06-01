@@ -6,7 +6,7 @@ import io.tacticl.business.telegram.permission.MemberPermissionService;
 import io.tacticl.business.telegram.permission.PermissionCheck;
 import io.tacticl.client.telegram.dto.SendMessageRequest;
 import io.tacticl.data.conversation.entity.ConversationSession;
-import io.tacticl.data.conversation.entity.SessionStatus;
+import io.tacticl.data.cloudorchestrator.entity.SessionStatus;
 import io.tacticl.data.conversation.repository.ConversationSessionRepository;
 import io.tacticl.data.telegram.entity.MemberRole;
 import io.tacticl.data.telegram.entity.TelegramProjectLink;
@@ -41,7 +41,7 @@ public class TelegramConversationAdapter {
     private static final Logger log = LoggerFactory.getLogger(TelegramConversationAdapter.class);
     private static final int MAX_TEXT_CHARS = 2000;
     private static final List<SessionStatus> RESUMABLE = List.of(
-        SessionStatus.GATHERING, SessionStatus.PROPOSING, SessionStatus.ACTIVE);
+        SessionStatus.GATHERING, SessionStatus.PROPOSING, SessionStatus.PIPELINE_ACTIVE);
 
     private final ConversationService conversationService;
     private final ConversationSessionRepository sessionRepository;

@@ -1,0 +1,216 @@
+<mxGraphModel dx="1422" dy="820" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1680" pageHeight="1230" math="0" shadow="0" adaptiveColors="auto">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <mxCell id="g_t" value="TACTICL — channels &amp; UX" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;dashed=1;verticalAlign=top;fontStyle=2;fontColor=#3b5b8c;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="50" y="25" width="600" height="110" as="geometry"/>
+    </mxCell>
+    <mxCell id="t_web" value="tacticl-web&#10;chat + 🎙 voice sphere" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="65" y="55" width="200" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="t_mobile" value="tacticl-mobile&#10;push-to-talk" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="285" y="55" width="160" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="t_telegram" value="Telegram bot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="465" y="55" width="170" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="g_s" value="STRATEGIZ — channels &amp; UX" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#9673a6;dashed=1;verticalAlign=top;fontStyle=2;fontColor=#6a4a82;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="985" y="25" width="445" height="110" as="geometry"/>
+    </mxCell>
+    <mxCell id="s_web" value="strategiz-web&#10;dashboard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1000" y="55" width="190" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="s_discord" value="Discord bot&#10;alerts + commands" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1215" y="55" width="200" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="n_note" value="Where it all lives&#10;&#10;• Each PRODUCT (tacticl-core, strategiz-core) is a FULL backend of whatever size it needs — NOT a thin shell. Strategiz is enormous and keeps all of it.&#10;&#10;• The ONE rule: any LLM / AI work routes through the shared arbiter. Everything else stays in the product.&#10;&#10;• Arbiter = ONE orchestrator (durable SessionWorkflow) that SPAWNS a child PipelineWorkflow per build. Shared by all products.&#10;&#10;• Voice WS is the ONLY direct browser→arbiter path (latency). Tacticl only.&#10;&#10;• Deepgram/ElevenLabs touch the orchestrator ONLY. The pipeline is silent." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;align=left;verticalAlign=top;fontSize=10;spacing=6;" vertex="1" parent="1">
+      <mxGeometry x="665" y="148" width="305" height="245" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="c_tshell" value="tacticl-core — product backend (Java / Spring)  ·  full product, any size" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;verticalAlign=top;fontStyle=1;fontSize=12;spacingTop=5;" vertex="1" parent="1">
+      <mxGeometry x="50" y="175" width="600" height="215" as="geometry"/>
+    </mxCell>
+    <mxCell id="t_tgadapter" value="Telegram adapter&#10;(thin signaler)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="65" y="220" width="180" height="48" as="geometry"/>
+    </mxCell>
+    <mxCell id="t_voiceweb" value="Web chat + Voice WS&#10;handler · token signer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="255" y="220" width="180" height="48" as="geometry"/>
+    </mxCell>
+    <mxCell id="t_auth" value="Auth · OAuth · Device&#10;pairing · UserConfig · Push" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="445" y="220" width="190" height="48" as="geometry"/>
+    </mxCell>
+    <mxCell id="t_rest" value="REST projections (read)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="65" y="278" width="180" height="48" as="geometry"/>
+    </mxCell>
+    <mxCell id="t_skill" value="Skill executors — CloudOrchestratorService (social / browser / video) · domain logic · jobs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="255" y="278" width="380" height="48" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="c_sshell" value="strategiz-core — product backend (Java / Maven)  ·  ENORMOUS, full product" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;verticalAlign=top;fontStyle=1;fontSize=12;spacingTop=5;" vertex="1" parent="1">
+      <mxGeometry x="985" y="175" width="445" height="215" as="geometry"/>
+    </mxCell>
+    <mxCell id="s_discadapter" value="Discord adapter (signaler)&#10;+ alert publisher" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="1000" y="220" width="205" height="48" as="geometry"/>
+    </mxCell>
+    <mxCell id="s_auth" value="Auth · user config · large domain" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="1215" y="220" width="200" height="48" as="geometry"/>
+    </mxCell>
+    <mxCell id="s_market" value="Market data / analytics ingest" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="1000" y="278" width="205" height="48" as="geometry"/>
+    </mxCell>
+    <mxCell id="s_rest" value="REST · jobs · strategiz&#10;skill executors" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="1215" y="278" width="200" height="48" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="c_arbiter" value="cidadel-ai-arbiter — shared AI engine (TypeScript / Node)  ·  the LLM gateway for ALL products" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontStyle=1;fontSize=14;spacingTop=6;" vertex="1" parent="1">
+      <mxGeometry x="50" y="460" width="1395" height="520" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="c_conv" value="Orchestrator — the single brain  ·  durable SessionWorkflow (Temporal): survives restart / reconnect, idle timers, signal-driven voice  ·  sessions &amp; personas are product-scoped" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d4f1e0;strokeColor=#3d9970;verticalAlign=top;fontStyle=1;fontSize=12;spacingTop=4;" vertex="1" parent="1">
+      <mxGeometry x="70" y="515" width="1355" height="215" as="geometry"/>
+    </mxCell>
+    <mxCell id="a_voicews" value="Voice WS&#10;endpoint&#10;(tacticl voice,&#10;direct)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#3d9970;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="90" y="585" width="150" height="120" as="geometry"/>
+    </mxCell>
+    <mxCell id="a_sessionwf" value="SessionWorkflow&#10;(Temporal, durable)&#10;one per conversation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#3d9970;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="270" y="585" width="200" height="120" as="geometry"/>
+    </mxCell>
+    <mxCell id="a_persona" value="PersonaRouter (pure fn)&#10;Persona / Skill registries&#10;(Tacticl + Strategiz personas)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#3d9970;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="500" y="585" width="210" height="120" as="geometry"/>
+    </mxCell>
+    <mxCell id="a_anth" value="Anthropic streaming&#10;(persona responses)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#3d9970;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="900" y="585" width="190" height="42" as="geometry"/>
+    </mxCell>
+    <mxCell id="a_deep" value="Deepgram bridge (STT) — I/O adapter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="900" y="631" width="190" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="a_eleven" value="ElevenLabs bridge (TTS) — I/O adapter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="900" y="675" width="190" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="c_pipe" value="PipelineWorkflow — child workflow (spawned per build by the orchestrator)  ·  durable, async, SILENT (no audio)  ·  shared by all products" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontStyle=1;fontSize=12;spacingTop=4;" vertex="1" parent="1">
+      <mxGeometry x="70" y="745" width="1355" height="220" as="geometry"/>
+    </mxCell>
+    <mxCell id="a_pipewf" value="PipelineWorkflow&#10;(Temporal child)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="90" y="810" width="190" height="125" as="geometry"/>
+    </mxCell>
+    <mxCell id="a_activities" value="Activities&#10;SubmitToArbiter&#10;InvokeArbiterRole&#10;PersistEvent · FanOut" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="300" y="810" width="210" height="125" as="geometry"/>
+    </mxCell>
+    <mxCell id="a_containers" value="Ephemeral containers&#10;Claude Code CLI&#10;(ultracode mode)&#10;→ 12 PDLC roles" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="530" y="810" width="255" height="125" as="geometry"/>
+    </mxCell>
+    <mxCell id="a_knowledge" value="Knowledge store +&#10;Learning layer&#10;(RAG over past runs,&#10;captured learnings)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="805" y="810" width="225" height="125" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="c_infra" value="Shared infrastructure (multi-product)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;verticalAlign=top;fontStyle=1;fontSize=12;spacingTop=4;" vertex="1" parent="1">
+      <mxGeometry x="50" y="1000" width="1395" height="95" as="geometry"/>
+    </mxCell>
+    <mxCell id="i_temporal" value="Temporal cluster (Postgres)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="70" y="1038" width="320" height="42" as="geometry"/>
+    </mxCell>
+    <mxCell id="i_mongo" value="MongoDB (shared): conversation_sessions · personas · skills · playbooks · pipeline_runs/events · checkpoints · sparks (+ strategiz collections)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="410" y="1038" width="560" height="42" as="geometry"/>
+    </mxCell>
+    <mxCell id="i_vault" value="Vault (secrets · shared signing keys · voice token key)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="990" y="1038" width="435" height="42" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="x_market" value="Market-data APIs&#10;(Strategiz)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="1470" y="220" width="160" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="x_anth" value="Anthropic API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1470" y="585" width="160" height="42" as="geometry"/>
+    </mxCell>
+    <mxCell id="x_deep" value="Deepgram (cloud STT)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1470" y="631" width="160" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="x_eleven" value="ElevenLabs (cloud TTS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1470" y="675" width="160" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="x_github" value="GitHub (repos)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1470" y="850" width="160" height="48" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="e1" value="REST + WS&#10;(non-voice)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="t_web" target="c_tshell">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e2" value="Voice WS — DIRECT&#10;(token-signed)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#b85450;strokeWidth=3;fontColor=#b85450;fontStyle=1;fontSize=11;exitX=0;exitY=0.6;exitDx=0;exitDy=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;" edge="1" parent="1" source="t_web" target="a_voicews">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="t_mobile" target="c_tshell">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="t_telegram" target="c_tshell">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e5" value="gRPC&#10;(LLM / AI work)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;fontStyle=1;" edge="1" parent="1" source="c_tshell" target="c_conv">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="s_web" target="c_sshell">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e7" value="alerts + commands" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="s_discord" target="c_sshell">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e8" value="gRPC&#10;(LLM / AI work)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;fontStyle=1;" edge="1" parent="1" source="c_sshell" target="c_conv">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="e9" value="transcript" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="a_voicews" target="a_sessionwf">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e10" value="route turn" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="a_sessionwf" target="a_persona">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e11" value="invoke persona" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="a_persona" target="a_anth">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e12" value="audio ↔ transcript" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#b85450;strokeWidth=2;fontColor=#b85450;fontSize=10;" edge="1" parent="1" source="a_deep" target="x_deep">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e13" value="text ↔ audio" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#b85450;strokeWidth=2;fontColor=#b85450;fontSize=10;" edge="1" parent="1" source="a_eleven" target="x_eleven">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e14" value="stream" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="a_anth" target="x_anth">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="e15" value="start_pipeline&#10;→ SPAWNS child workflow&#10;(only when a build is needed)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#9673a6;strokeWidth=3;fontColor=#6a4a82;fontStyle=1;fontSize=11;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="a_sessionwf" target="a_pipewf">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e16" value="clone / push" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;" edge="1" parent="1" source="a_containers" target="x_github">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e17" value="market data" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#999999;fontSize=10;fontColor=#666666;" edge="1" parent="1" source="s_market" target="x_market">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="e18" value="Claude Code CLI" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#999999;fontSize=10;fontColor=#666666;" edge="1" parent="1" source="a_containers" target="x_anth">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e19" value="durable history" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#999999;fontSize=10;fontColor=#666666;" edge="1" parent="1" source="a_pipewf" target="i_temporal">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e20" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#999999;fontSize=10;fontColor=#666666;" edge="1" parent="1" source="a_sessionwf" target="i_temporal">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e21" value="write-through projections" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#999999;fontSize=10;fontColor=#666666;" edge="1" parent="1" source="a_activities" target="i_mongo">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e22" value="gRPC callback&#10;start_cloud_skill" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#999999;fontSize=10;fontColor=#666666;exitX=0.25;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="a_persona" target="t_skill">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e23" value="gRPC callback&#10;(strategiz skills)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#999999;fontSize=10;fontColor=#666666;" edge="1" parent="1" source="a_persona" target="s_rest">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e24" value="secrets / keys" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#999999;fontSize=10;fontColor=#666666;" edge="1" parent="1" source="i_vault" target="c_arbiter">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+  </root>
+</mxGraphModel>

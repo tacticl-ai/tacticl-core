@@ -61,4 +61,12 @@ class SparkTest {
         spark.setProjectId("project-42");
         assertThat(spark.getProjectId()).isEqualTo("project-42");
     }
+
+    @Test
+    void conversationSessionId_defaultsToNullAndIsMutable() {
+        Spark spark = Spark.create("user-1", "test");
+        assertThat(spark.getConversationSessionId()).isNull();
+        spark.setConversationSessionId("session-xyz");
+        assertThat(spark.getConversationSessionId()).isEqualTo("session-xyz");
+    }
 }

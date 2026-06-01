@@ -1,6 +1,8 @@
 package io.tacticl.data.pipeline.entity;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.Instant;
@@ -9,12 +11,48 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Mongo projection of a Temporal-owned pipeline workflow (per SAD §9.2).
+ *
+ * <p>Primary query is user-scoped active work — backed by the
+ * {@code userId_status_updatedAt} compound index.
+ */
 @Document("pipeline_runs")
+@CompoundIndexes({
+    // Primary query: "user's active work, most recent first" (SAD §9.2)
+    @CompoundIndex(name = "userId_status_updatedAt",
+                   def = "{'userId': 1, 'status': 1, 'updatedAt': -1}"),
+    // Cleanup queries: 7d-old garbage detector
+    @CompoundIndex(name = "status_updatedAt",
+                   def = "{'status': 1, 'updatedAt': 1}")
+})
 public class PipelineRun {
 
     @Id private String id;
     @Indexed private String userId;
-    @Indexed private String sparkId;
+    @Indexed(unique = true) private String sparkId;
+
+    /**
+     * Temporal workflow id (e.g. {@code "pipeline-{sparkId}"}); routes all signals.
+     * Nullable on legacy records created before the Temporal cut-over.
+     */
+    @Indexed(unique = true, sparse = true) private String workflowId;
+
+    /**
+     * Human-readable, ~30 chars. Auto-set at creation from the
+     * {@code propose_implementation} summary. PM persona and UI refer to this pipeline
+     * by name ("the auth endpoint") — the raw id is NEVER shown to the user.
+     * Nullable for backward compat with pre-rollout records.
+     */
+    private String name;
+
+    /**
+     * Which session originated this pipeline. Used for transcript linkage / audit;
+     * NOT used for routing or authorization — any of the user's sessions can operate
+     * on this pipeline (per SAD §9.2).
+     */
+    private String creatingSessionId;
+
     private String playbook;
     private PipelineStatus status;
     private String sparkRequest;
@@ -24,6 +62,21 @@ public class PipelineRun {
     private double totalCostUsd;
     private String arbiterPipelineId;
     private String currentCheckpointId;
+
+    /**
+     * If status=BLOCKED, the id of the open checkpoint blocking the run
+     * (per SAD §9.2). Distinct from {@link #currentCheckpointId} which is set
+     * by the legacy {@link #pauseAtCheckpoint(String, String)} flow.
+     */
+    private String blockedCheckpointId;
+
+    /**
+     * Per-role persona version snapshot taken at run start (per SAD §4.5.2).
+     * Enables re-running a past pipeline with the exact prompts that produced
+     * the original artifacts even after personas are edited.
+     */
+    private Map<PdlcRole, Integer> personaVersions;
+
     private String failureReason;
     private Map<String, PhaseState> phases;
     private Map<String, String> artifacts;
@@ -49,6 +102,7 @@ public class PipelineRun {
         run.totalCostUsd = 0.0;
         run.phases = new HashMap<>();
         run.artifacts = new HashMap<>();
+        run.personaVersions = new HashMap<>();
         run.createdAt = Instant.now();
         run.updatedAt = run.createdAt;
         return run;
@@ -115,6 +169,7 @@ public class PipelineRun {
     public void resumeFromCheckpoint() {
         this.status = PipelineStatus.RUNNING;
         this.currentCheckpointId = null;
+        this.blockedCheckpointId = null;
         this.updatedAt = Instant.now();
     }
 
@@ -126,6 +181,9 @@ public class PipelineRun {
     public String getId() { return id; }
     public String getUserId() { return userId; }
     public String getSparkId() { return sparkId; }
+    public String getWorkflowId() { return workflowId; }
+    public String getName() { return name; }
+    public String getCreatingSessionId() { return creatingSessionId; }
     public String getPlaybook() { return playbook; }
     public PipelineStatus getStatus() { return status; }
     public String getSparkRequest() { return sparkRequest; }
@@ -135,6 +193,8 @@ public class PipelineRun {
     public double getTotalCostUsd() { return totalCostUsd; }
     public String getArbiterPipelineId() { return arbiterPipelineId; }
     public String getCurrentCheckpointId() { return currentCheckpointId; }
+    public String getBlockedCheckpointId() { return blockedCheckpointId; }
+    public Map<PdlcRole, Integer> getPersonaVersions() { return personaVersions; }
     public String getFailureReason() { return failureReason; }
     public Map<String, PhaseState> getPhases() { return phases; }
     public Map<String, String> getArtifacts() { return artifacts; }
@@ -145,6 +205,9 @@ public class PipelineRun {
     public void setId(String id) { this.id = id; }
     public void setUserId(String userId) { this.userId = userId; }
     public void setSparkId(String sparkId) { this.sparkId = sparkId; }
+    public void setWorkflowId(String workflowId) { this.workflowId = workflowId; }
+    public void setName(String name) { this.name = name; }
+    public void setCreatingSessionId(String creatingSessionId) { this.creatingSessionId = creatingSessionId; }
     public void setPlaybook(String playbook) { this.playbook = playbook; }
     public void setStatus(PipelineStatus status) { this.status = status; }
     public void setSparkRequest(String sparkRequest) { this.sparkRequest = sparkRequest; }
@@ -154,6 +217,8 @@ public class PipelineRun {
     public void setTotalCostUsd(double totalCostUsd) { this.totalCostUsd = totalCostUsd; }
     public void setArbiterPipelineId(String arbiterPipelineId) { this.arbiterPipelineId = arbiterPipelineId; }
     public void setCurrentCheckpointId(String currentCheckpointId) { this.currentCheckpointId = currentCheckpointId; }
+    public void setBlockedCheckpointId(String blockedCheckpointId) { this.blockedCheckpointId = blockedCheckpointId; }
+    public void setPersonaVersions(Map<PdlcRole, Integer> personaVersions) { this.personaVersions = personaVersions; }
     public void setFailureReason(String failureReason) { this.failureReason = failureReason; }
     public void setPhases(Map<String, PhaseState> phases) { this.phases = phases; }
     public void setArtifacts(Map<String, String> artifacts) { this.artifacts = artifacts; }

@@ -4,7 +4,7 @@ spring-boot = "4.0.3"
 java = "25"
 
 # Cidadel shared infrastructure (from GitHub Packages)
-cidadel = "0.4.19"
+cidadel = "1.0.57"
 
 # External dependencies
 bucket4j = "8.10.1"
@@ -15,6 +15,9 @@ playwright = "1.49.0"
 # gRPC + Protobuf (for client-ai-arbiter)
 grpc = "1.68.1"
 protobuf = "4.28.3"
+
+# Temporal SDK (for cloud agent orchestrator + pipeline workflows)
+temporal-sdk = "1.27.0"
 
 # Testing (versions managed by Spring Boot BOM)
 
@@ -64,6 +67,14 @@ grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc"
 grpc-protobuf = { module = "io.grpc:grpc-protobuf", version.ref = "grpc" }
 grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
 protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
+
+# Temporal (workflow orchestration)
+temporal-sdk = { module = "io.temporal:temporal-sdk", version.ref = "temporal-sdk" }
+temporal-spring-boot-starter = { module = "io.temporal:temporal-spring-boot-starter-alpha", version.ref = "temporal-sdk" }
+temporal-testing = { module = "io.temporal:temporal-testing", version.ref = "temporal-sdk" }
+
+# In-memory caching (persona/skill registry)
+caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version = "3.1.8" }
 
 # Testing
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter-api" }

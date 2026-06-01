@@ -65,8 +65,12 @@ dependencies {
     implementation(libs.spring.boot.starter.websocket)
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
 
+    // Temporal (workflow orchestration) — workers run in-JVM per SAD §3.2
+    implementation(libs.temporal.sdk)
+
     // Testing
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.temporal.testing)
 }
 
 springBoot {

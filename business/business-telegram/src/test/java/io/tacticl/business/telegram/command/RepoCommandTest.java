@@ -9,7 +9,7 @@ import io.tacticl.business.telegram.router.CommandContext;
 import io.tacticl.client.telegram.dto.Chat;
 import io.tacticl.client.telegram.dto.Message;
 import io.tacticl.data.conversation.entity.ConversationSession;
-import io.tacticl.data.conversation.entity.SessionStatus;
+import io.tacticl.data.cloudorchestrator.entity.SessionStatus;
 import io.tacticl.data.conversation.repository.ConversationSessionRepository;
 import io.tacticl.data.telegram.entity.MemberRole;
 import io.tacticl.data.telegram.entity.TelegramProjectLink;

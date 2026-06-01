@@ -15,7 +15,8 @@ class RoleIdentityLoaderTest {
     void loadAll_returnsAllTwelveRoles() {
         Map<String, String> all = loader.loadAll();
         assertThat(all).hasSize(12);
-        assertThat(all).containsKeys("implementer", "reviewer", "pm", "researcher",
+        // PM → PO rename (Wave 2 cloud-agent-orchestrator migration; PdlcRole.PO).
+        assertThat(all).containsKeys("implementer", "reviewer", "po", "researcher",
             "planner", "architect", "designer", "tester",
             "security_analyst", "technical_writer", "devops", "retro_analyst");
     }

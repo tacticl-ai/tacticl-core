@@ -9,7 +9,7 @@ import io.tacticl.business.telegram.router.CommandContext;
 import io.tacticl.business.telegram.router.CommandHandler;
 import io.tacticl.client.telegram.dto.SendMessageRequest;
 import io.tacticl.data.conversation.entity.ConversationSession;
-import io.tacticl.data.conversation.entity.SessionStatus;
+import io.tacticl.data.cloudorchestrator.entity.SessionStatus;
 import io.tacticl.data.conversation.repository.ConversationSessionRepository;
 import io.tacticl.data.telegram.entity.MemberRole;
 import io.tacticl.data.telegram.entity.TelegramProjectLink;
@@ -46,7 +46,7 @@ public class RepoCommand implements CommandHandler {
     private static final List<SessionStatus> EDITABLE = List.of(
             SessionStatus.GATHERING, SessionStatus.PROPOSING);
     private static final List<SessionStatus> RESUMABLE = List.of(
-            SessionStatus.GATHERING, SessionStatus.PROPOSING, SessionStatus.ACTIVE);
+            SessionStatus.GATHERING, SessionStatus.PROPOSING, SessionStatus.PIPELINE_ACTIVE);
 
     private final TelegramIdentityResolver identity;
     private final MemberPermissionService permissions;

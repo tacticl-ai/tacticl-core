@@ -1,5 +1,16 @@
 # CLAUDE.md — Tacticl
 
+## ⭐ Active architectural overhaul (2026-05-25)
+
+**The orchestration/conversation/pipeline layer is being rebuilt.** Existing `ConversationService` state machine and `PdlcV2Service` direct path are being deleted (they don't reliably complete end-to-end). Replaced by the **Cloud Agent Orchestrator** — Temporal-backed durable workflow with persona/skill registries and a voice plane (Deepgram + ElevenLabs) on a pulsating voice sphere UI.
+
+**Canonical docs (read these before changing anything in conversation/pipeline/agent code):**
+- PRD: `docs/superpowers/specs/2026-05-25-cloud-agent-orchestrator-prd.md`
+- SAD: `docs/superpowers/specs/2026-05-25-cloud-agent-orchestrator-sad.md`
+- Plan: `docs/superpowers/plans/2026-05-25-cloud-agent-orchestrator.md`
+
+**Sections below that describe the OLD architecture** (PDLC Pipeline Engine, Cloud Agent Flow, Dual Agent Architecture as-described) are **being superseded by the new docs.** They're kept here only because some still-correct bits are mixed in. If anything below contradicts the PRD/SAD, the PRD/SAD wins.
+
 ## Ecosystem Context (AUTO-LOAD)
 
 At the start of every session, read `../tacticl-docs/CLAUDE.md` (sibling repo in the VS Code multi-root workspace) for complete cross-repo ecosystem context (API contracts, deploy targets, architecture, conventions). This is the source of truth for all cross-cutting concerns.
@@ -121,11 +132,20 @@ Each platform implements `SocialMediaProvider` interface:
 - Follow strategiz-core's `client-fmp` pattern for new clients (Config → VaultConfig → @Bean → Client)
 
 ### Skill-Based Architecture (Agent)
-Each capability is a "skill" registered in `ToolRegistry`:
+
+**Status:** Being replaced (2026-05-25). The legacy in-JVM `ToolRegistry` model lives on for `CloudOrchestratorService` (social/research/video skills) and will be wrapped as a Temporal activity (`StartCloudSkillActivity`) under the new orchestrator. New skills should be modelled per the Cloud Agent Orchestrator SAD §4 (`Skill` Mongo entity + Temporal activity), not added to `ToolRegistry`.
+
+Legacy `ToolRegistry` description (still applies to existing `business-agent` skills until they migrate):
 - Skill = Claude tool definition + handler lambda
 - `ToolRegistry.register(toolName, toolDefinition, handler)`
 - Handler receives `JsonNode` input, returns `String` result
-- Adding a new capability = one registry entry + one handler class
+- Adding a legacy capability = one registry entry + one handler class
+
+New model (canonical going forward):
+- `Skill` Mongo entity: id, name, description, inputSchema, activityName
+- Each skill backed by a Temporal activity bean
+- `Persona.skillIds` allowlists which skills a persona may invoke (Anthropic tool-use)
+- `PersonaRegistry.toolsFor(personaId)` resolves persona's skills → Anthropic tool defs at invocation
 
 ### Post State Machine
 `DRAFT → QUEUED → PUBLISHING → PUBLISHED | FAILED | CANCELLED`
@@ -144,20 +164,31 @@ Tier 2 (2FA)      — Financial: purchases, subscriptions, spending > $X
 
 ## Dual Agent Architecture
 
-Both cloud and device are **full-power SDLC agent pipelines**. Routing is a user preference, not a capability limitation.
+**Status note:** "Cloud Agent" now has two distinct things stacked on top of each other after the 2026-05-25 overhaul:
+- **Cloud Agent Orchestrator** (NEW, Temporal-backed) — the conversation brain. Personas, voice plane, persona routing. PRD/SAD canonical.
+- **`CloudOrchestratorService`** (existing) — the *skill executor* for social/research/video/browser. Now wrapped as a `StartCloudSkillActivity` invoked by the orchestrator. Still owns the agent loop for non-PDLC sparks.
 
-**Cloud Agent** (this repo — tacticl-core):
-- CloudOrchestratorService + LlmRouter + 20+ AgentSkills
-- Multi-LLM: Anthropic, OpenAI, Grok (26+ models)
+A **Device Agent Orchestrator** is anticipated (PRD §1.5.2) as a future sibling that runs *on* the user's device. Out of scope today.
+
+**Cloud Agent Orchestrator** (this repo — tacticl-core, new):
+- `CloudAgentSessionWorkflow` (Temporal) — one per conversation, durable
+- `PersonaRouter` (pure function) — picks persona per turn from hard rules + intent regex
+- `PersonaRegistry` + `SkillRegistry` (Mongo + Caffeine cache)
+- Voice plane: Deepgram streaming STT + ElevenLabs streaming TTS
+- Voice sphere UI on tacticl-web at `/chat`
+
+**CloudOrchestratorService (skill executor)** (this repo — tacticl-core, existing):
+- LlmRouter + 20+ AgentSkills for social/research/video/browser sparks
+- Multi-LLM via Arbiter (Anthropic, OpenAI, Grok)
 - Playwright browser, Brave Search, Jina Reader
-- Social APIs (Twitter, LinkedIn, Instagram), video gen
-- Runs on Cloud Run, scales for all users
+- Now wrapped as a Temporal activity called by the orchestrator when a persona invokes `start_cloud_skill`
 
-**Device Agent** (tacticl-mobile / desktop daemon):
+**Device Agent** (tacticl-mobile / tacticl-device daemon):
 - WebSocket-based spark dispatch + tactic decomposition
 - 9 command types (TERMINAL_CMD, OPEN_URL, CLICK_ELEMENT, etc.)
 - Checkpoint flow, credential requests, progress reporting
 - Device routing intelligence (battery, charging, capabilities)
+- Invoked from the orchestrator via `dispatch_to_device` skill → `DispatchToDeviceActivity`
 
 **Claude Code Engine** (NEW — desktop devices only):
 - Claude Code CLI subprocess as additional execution engine on desktop
@@ -171,30 +202,26 @@ Both cloud and device are **full-power SDLC agent pipelines**. Routing is a user
 
 ## PDLC Pipeline Engine
 
-Multi-role pipeline for complex development sparks. Where `CloudOrchestratorService` runs a single agent loop, the PDLC engine routes `code`/`devops` sparks through up to 12 specialized roles with quality gates, rework loops, and human checkpoints.
+**Status (2026-05-25):** orchestration sections being replaced by Temporal `PipelineWorkflow` (child workflow of the Cloud Agent Orchestrator). Arbiter execution plane (ephemeral containers, workspace assembly, Claude Code CLI) is unchanged. `PdlcRole.PM` is being renamed to `PdlcRole.PO` (Product Owner — see Personas section below).
 
-**Pipeline Tiers** (set by `PdlcClassifierService`, Stage 2 classifier):
-- `SIMPLE` — single agent loop (CloudOrchestratorService, existing path)
-- `PLAYBOOK` — named workflow (subset of roles, e.g., BUG_FIX, SMALL_FEATURE)
-- `FULL_PDLC` — complete 12-role pipeline
+**12 Roles** (`PdlcRole` enum, post-rename): **PO** (was PM), RESEARCHER, ARCHITECT, DESIGNER, PLANNER, IMPLEMENTER, REVIEWER, TESTER, SECURITY_ANALYST, TECHNICAL_WRITER, DEVOPS, RETRO_ANALYST
 
-**12 Roles** (enum `PdlcRole`): PM, RESEARCHER, ARCHITECT, DESIGNER, PLANNER, IMPLEMENTER, REVIEWER, TESTER, SECURITY_ANALYST, TECHNICAL_WRITER, DEVOPS, RETRO_ANALYST
+**8 Playbooks** (moved from `PlaybookSpecResolver` hardcode → `playbooks` Mongo collection): FULL_PDLC, BUG_FIX, SMALL_FEATURE, REFACTOR, INFRA_CHANGE, DOCS_ONLY, UI_CHANGE, SECURITY_PATCH
 
-**8 Playbooks**: FULL_PDLC, BUG_FIX, SMALL_FEATURE, REFACTOR, INFRA_CHANGE, DOCS_ONLY, UI_CHANGE, SECURITY_PATCH
+**Active orchestration:**
+- `PipelineWorkflow` (Temporal child workflow) — replaces `PdlcPipelineOrchestrator` + `PipelineStateManager` + `ReworkTracker` + `PipelineWatchdog` + `PipelineRecoveryJob`
+- Activities: `SubmitToArbiterActivity`, `PersistPipelineEventActivity`, `FanOutPipelineEventActivity`, `InvokeArbiterRoleActivity`
+- State is the workflow history (durable). Mongo `pipeline_runs` / `pipeline_events` / `pipeline_checkpoints` are write-through projections for UI/queries.
 
-**Key Services** (all in `business-agent`):
-- `PdlcClassifierService` — six-dimension rubric, selects tier + playbook
-- `PdlcPipelineOrchestrator` — lifecycle engine, async `@Async("pdlcPipelineExecutor")`
-- `PlaybookRegistry` — data-driven playbook configs (`PlaybookConfig`)
-- `PipelineStateManager` — Firestore persistence, all run mutations
-- `PipelineEventEmitter` — fan-out to Firestore + WebSocket + FCM
-- `PipelineArtifactService` — stores role outputs (Firestore + GitHub refs)
-- `ReworkTracker` — enforces 3-iteration max rework per role, escalates to checkpoint
-- `PipelineCostManager` — `pipelineCostCeiling` ($50 default) + monthly `spendingLimit` ($0 default = blocked until user enables)
-- `PipelineRecoveryJob` — startup recovery of interrupted pipelines (claim-based, 30min stale threshold)
-- `PipelineWatchdog` — 60s scheduled timeout checker per role
+**Personas + Skills registries (new):**
+- `Persona` Mongo entity — job role, system prompt, defaultModel, skillIds, voicePreset
+- `Skill` Mongo entity — id, name, description, inputSchema, activityName
+- 14 total personas: 2 CONVERSATIONAL (Product Manager, Market Researcher) + 12 PDLC
+- ~15 skills shared across personas
+- `RoleIdentityLoader` + `business-pipeline/src/main/resources/role-identities/*.md` are deleted (content lives in Mongo)
+- `PlaybookSpecResolver` hardcoded map deleted
 
-**New Firestore Collections**: `pipeline_runs/`, `pipeline_events/`, `pipeline_artifacts/`, `pdlc_role_knowledge/`
+**MongoDB Collections (active):** `conversation_sessions/`, `personas/`, `skills/`, `playbooks/`, `pipeline_runs/`, `pipeline_events/`, `pipeline_checkpoints/`, `sparks/`
 
 **Key REST Endpoints**:
 - `GET /v1/sparks/{sparkId}/pipeline` — pipeline run status
@@ -211,16 +238,27 @@ Multi-role pipeline for complex development sparks. Where `CloudOrchestratorServ
 
 ## Spark Lifecycle
 
-Every chat command is a **Spark** — the single top-level entity for all user requests. There is no manual spark creation; sparks are created exclusively via the chat/voice agent flow.
+**Status (2026-05-25):** the "every chat command is a Spark" model is being replaced. Under the new orchestrator, a `ConversationSession` has **0..N Sparks** — sparks are created only when actual execution work begins (pipeline run, cloud skill, device dispatch). Conversation-only turns (clarification, market research, status questions) don't create sparks. See PRD §5.7.1.
 
 ```
-Chat message → POST /v1/agent/command { text, sessionId }
-    → SparkService.createSpark() [ALWAYS — every command is a spark]
-    → SparkClassifierService auto-classifies type (code, social, research, devops, creative, data)
-    → Route decision:
-        a) Device online → SparkDispatchService → device decomposes into Tactics
-        b) No device    → CloudOrchestratorService cloud execution (no tactics)
-    → Spark tracked through completion (PENDING → EXECUTING → COMPLETED/FAILED)
+User opens chat → ConversationSession created → CloudAgentSessionWorkflow starts
+                                              → templated greeting plays
+
+User: "let's build a /health endpoint"
+  → onUserText signal → Product Manager (clarifier mode)
+  → no spark yet
+
+User: "yes, go ahead"
+  → onUserText signal → Product Manager → propose_implementation → start_pipeline skill
+  → StartPipelineWorkflowActivity → SparkService.createSpark(type=CODE, conversationSessionId=...)
+  → PipelineWorkflow child workflow starts → Arbiter → containers
+
+User (during pipeline): "how's it going?"
+  → Product Manager → summarize_pipeline_progress skill
+  → no new spark
+
+User (after pipeline): "great, now add monitoring too"
+  → second spark created
 ```
 
 ### Spark State Machine
@@ -234,6 +272,10 @@ Any → CANCELLED
 ```
 
 ### Telegram entry path (conversational)
+
+**Status (2026-05-25):** Telegram path migrates to the new orchestrator. `TelegramConversationAdapter` becomes a thin signaler — it translates inbound Telegram events into workflow signals. The marker protocol (`<<<CREATE_REPO>>>`, `<<<PROPOSE>>>`, `<<<START>>>`) is replaced by persona tool calls (`propose_implementation`, `start_pipeline`). No application-level changes required for Telegram clients.
+
+Legacy description (pre-overhaul, kept for reference):
 
 Telegram inbound (plain-text bot mention, `/spark`, voice transcript) does **not** create a Spark immediately. It flows through `TelegramConversationAdapter` → `ConversationService` (gather → propose → align state machine), and only when the agent emits the `<<<START>>>` marker does the conversation hand off to `SparkService.create` + `PdlcRouter.route(...)` for the pipeline. Pipeline events fan out to `TelegramEventChannel` (live Telegram render) and `ConversationEventChannel` (durable session history). The HTTP `POST /v1/agent/command` path keeps the legacy direct-spark behaviour.
 
@@ -257,23 +299,36 @@ Three markers in total: `<<<CREATE_REPO:{...}>>>` (optional, code/devops only), 
 
 ## Cloud Agent Flow (Cloud Execution)
 
+**Status (2026-05-25):** rewritten. The legacy "POST /v1/agent/command → CloudOrchestratorService.execute" flow is being replaced by the Cloud Agent Orchestrator. See PRD/SAD.
+
+**New canonical flow (web sphere)**:
+```
+Page mount → WS connect to /ws/cloud-agent/{sessionId}
+          → CloudAgentSessionWorkflow starts (Temporal)
+          → templated greeting plays (pre-cached audio, <500ms)
+
+User speaks → mic AudioWorklet → 16kHz PCM chunks → WS binary frames
+           → DeepgramStreamBridge → Deepgram WS → final transcript
+           → onUserTranscript signal to workflow
+
+Workflow:
+  → PersonaRouter.route() — pure function, no LLM
+  → InvokePersonaActivity (Anthropic streaming) for the chosen persona
+  → text_delta blocks → ElevenLabsStreamBridge → audio → client (sphere speaks)
+  → tool_use blocks → workflow executes skill activities (start_pipeline / web_search / etc.)
+  → continuation text_delta after tool results → speaks
+  → message_stop → idle
+```
+
+**Legacy flow (still active for mobile push-to-talk and Telegram, will migrate):**
 ```
 Push-to-talk → expo-av → Whisper API (~500ms) → text
     → POST /v1/agent/command { text, sessionId }
-    → AgentController creates Spark, then:
-        → CloudOrchestratorService.execute(sparkId, ...):
-            1. SparkService.markRunning(sparkId)
-            2. Build system prompt (personality + user context + memory)
-            3. Get tools filtered by user's scopes/tier
-            4. Claude API with tool_use
-            5. Execute tool calls via ToolRegistry
-            6. Send tool_result back to Claude
-            7. SparkService.markCloudCompleted(sparkId, tokens, model)
-            8. Return final text response
-    → Mobile app renders response + actions
+    → AgentController → AgentCommandService → workflow signal (under new orchestrator)
+    or → CloudOrchestratorService.execute(sparkId, ...) (legacy in-JVM, being retired)
 ```
 
-**Two-model strategy**: Haiku 4.5 for routing/simple queries, Sonnet 4.5 for content generation and complex tasks.
+**Model strategy**: Haiku 4.5 for routing/simple queries (will be redirected to PersonaRouter function), Sonnet 4.6 for substantive personas (Product Manager, Market Researcher) and PDLC roles.
 
 ## Web Search & Browsing
 

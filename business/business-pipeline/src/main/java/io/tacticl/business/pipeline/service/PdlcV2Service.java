@@ -123,7 +123,8 @@ public class PdlcV2Service {
         // Interleaved concurrent saves are caught by @Version on PipelineCheckpoint — Mongo
         // throws OptimisticLockingFailureException for the second writer, which propagates
         // to the caller as "Another user resolved this first".
-        if (!"PENDING".equals(checkpoint.getStatus())) {
+        // Status is OPEN for fresh checkpoints (post-Wave-2 migration; was "PENDING" pre-migration).
+        if (!CheckpointStatus.OPEN.name().equals(checkpoint.getStatus())) {
             log.info("Checkpoint {} for run {} already resolved (status={}); ignoring duplicate decision {}",
                      checkpointId, run.getId(), checkpoint.getStatus(), decision);
             return;
