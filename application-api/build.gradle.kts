@@ -26,11 +26,13 @@ dependencies {
     implementation(project(":service:service-profile"))
     implementation(project(":service:service-telegram"))
     implementation(project(":service:service-discord"))
+    implementation(project(":service:service-voice"))
 
     // Business layer
     implementation(project(":business:business-agent"))
     implementation(project(":business:business-telegram"))
     implementation(project(":business:business-discord"))
+    implementation(project(":business:business-voice"))
 
     // Client layer
     implementation(project(":client:client-google"))
@@ -40,6 +42,8 @@ dependencies {
     implementation(project(":client:client-telegram"))
     implementation(project(":client:client-discord"))
     implementation(project(":client:client-whisper"))
+    implementation(project(":client:client-deepgram"))
+    implementation(project(":client:client-elevenlabs"))
 
     // Data layer
     implementation(project(":data:data-telegram"))

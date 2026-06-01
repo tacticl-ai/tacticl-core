@@ -1,0 +1,306 @@
+package io.tacticl.business.voice;
+
+import io.cidadel.framework.exception.CidadelException;
+import io.tacticl.business.pipeline.ingress.ChannelType;
+import io.tacticl.business.pipeline.ingress.CheckpointDecisionPayload;
+import io.tacticl.business.pipeline.ingress.IngressDispatchService;
+import io.tacticl.business.pipeline.ingress.IngressKind;
+import io.tacticl.business.pipeline.ingress.IngressRequest;
+import io.tacticl.business.pipeline.ingress.RunOrigin;
+import io.tacticl.data.pipeline.entity.CheckpointDecision;
+import io.tacticl.data.pipeline.entity.PipelineRun;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Service;
+
+/**
+ * Per-session turn orchestration for the voice command center. This is the
+ * transport-neutral brain behind the WebSocket: the WS handler in service-voice
+ * owns the socket and feeds raw mic PCM and control intents in; this service
+ * runs the STT → ingress → narration turn loop and drives the sphere/HUD state
+ * frames back out through each session's {@link VoiceOutbound} sink.
+ *
+ * <p>Turn lifecycle:
+ * <ol>
+ *   <li>{@code start} → {@link #startTurn} opens STT, state → listening.</li>
+ *   <li>mic PCM → {@link #pushAudio} forwards to Deepgram.</li>
+ *   <li>interim transcripts → user {@code transcript} frames (partial:true).</li>
+ *   <li>final transcript → user {@code transcript} frame (partial:false), state
+ *       → thinking, classify CONVERSATION_TURN vs EXPLICIT_TRIGGER, dispatch via
+ *       {@link IngressDispatchService}; an EXPLICIT_TRIGGER binds the returned
+ *       {@code PipelineRun} so {@link VoiceRunUpdateChannel} can narrate it.</li>
+ *   <li>{@code decision} → {@link #submitDecision} maps the protocol decision to
+ *       the backend verb and resolves the checkpoint.</li>
+ *   <li>{@code barge_in} → {@link #bargeIn} stops TTS and re-listens.</li>
+ * </ol>
+ */
+@Service
+@ConditionalOnProperty(name = "tacticl.voice.enabled", havingValue = "true")
+public class VoiceSessionService {
+
+    private static final Logger log = LoggerFactory.getLogger(VoiceSessionService.class);
+
+    private static final String MODULE_NAME = "business-voice";
+
+    /**
+     * Routing key class for a voice session's EntryPoint resolution. Voice has a
+     * single default EntryPoint (seeded with this key + isDefaultForChannel), so
+     * every session resolves the same product via the lookup-only registry path.
+     */
+    static final String VOICE_EXTERNAL_KEY = "voice-default";
+
+    /**
+     * Lowercased lead tokens that promote a turn to an EXPLICIT_TRIGGER (kick off
+     * a PDLC run) rather than a conversational turn. Deliberately conservative —
+     * an ambiguous turn stays a CONVERSATION_TURN, which is the safe default
+     * (admin gate only applies to triggers).
+     */
+    private static final List<String> BUILD_INTENT_PREFIXES = List.of(
+        "build ", "create ", "implement ", "fix ", "add ", "refactor ",
+        "ship ", "generate ", "write ", "deploy ", "make ", "send to pdlc");
+
+    private final DeepgramSttBridgeFactory sttFactory;
+
+    private final ElevenLabsTtsBridgeFactory ttsFactory;
+
+    private final IngressDispatchService ingressDispatchService;
+
+    private final VoiceSessionRegistry registry;
+
+    private final String voiceId;
+
+    public VoiceSessionService(DeepgramSttBridgeFactory sttFactory,
+                               ElevenLabsTtsBridgeFactory ttsFactory,
+                               IngressDispatchService ingressDispatchService,
+                               VoiceSessionRegistry registry,
+                               VoiceProperties properties) {
+        this.sttFactory = sttFactory;
+        this.ttsFactory = ttsFactory;
+        this.ingressDispatchService = ingressDispatchService;
+        this.registry = registry;
+        this.voiceId = properties.getVoiceId();
+    }
+
+    // ---------------------------------------------------------------------
+    // Session lifecycle
+    // ---------------------------------------------------------------------
+
+    /**
+     * Create and register a session for a freshly-connected WS. Builds the
+     * STT/TTS bridges and wires the TTS audio path to the outbound sink.
+     *
+     * @param userId   the resolved (validated) tacticl user id for the connection
+     * @param outbound the transport sink the WS handler implements
+     */
+    public VoiceSession openSession(String userId, VoiceOutbound outbound) {
+        String sessionId = UUID.randomUUID().toString();
+        DeepgramSttBridge stt = sttFactory.create();
+        ElevenLabsTtsBridge tts = ttsFactory.create(voiceId);
+        VoiceSession session = new VoiceSession(sessionId, userId, outbound, stt, tts);
+
+        // TTS audio chunks stream straight down as BINARY frames; envelope + state
+        // are driven by the turn loop. The done handler returns the orb to idle.
+        tts.onAudioChunk(outbound::sendAudio);
+        tts.onDone(() -> transition(session, VoiceState.IDLE));
+        tts.onError(t -> emitError(session, "tts", t));
+
+        // STT callbacks: partials patch the user transcript; final triggers dispatch.
+        AtomicReference<String> turnId = new AtomicReference<>(newTurnId());
+        stt.onSpeechStarted(() -> transition(session, VoiceState.LISTENING));
+        stt.onPartial(text ->
+            session.outbound().sendControl(VoiceFrames.transcript("user", turnId.get(), text, true)));
+        stt.onFinal(text -> {
+            session.outbound().sendControl(VoiceFrames.transcript("user", turnId.get(), text, false));
+            turnId.set(newTurnId());
+            onFinalTranscript(session, text);
+        });
+        stt.onError(t -> emitError(session, "stt", t));
+
+        registry.register(session);
+        log.info("Voice session opened session={} user={}", sessionId, userId);
+        return session;
+    }
+
+    /** Open the STT leg and flip the orb to listening (handles a {@code start} frame). */
+    public void startTurn(VoiceSession session) {
+        if (session == null) {
+            return;
+        }
+        // A new turn supersedes any in-flight narration.
+        session.tts().stop();
+        session.stt().open();
+        transition(session, VoiceState.LISTENING);
+    }
+
+    /** Forward a mic PCM chunk to the STT leg (handles a BINARY UP frame). */
+    public void pushAudio(VoiceSession session, byte[] pcmChunk) {
+        if (session != null) {
+            session.stt().sendAudio(pcmChunk);
+        }
+    }
+
+    /** Stop capture (handles a {@code stop} frame). Final transcript arrives async via STT. */
+    public void stopTurn(VoiceSession session) {
+        if (session != null) {
+            session.stt().close();
+        }
+    }
+
+    /** Tear down a session on WS disconnect. */
+    public void closeSession(VoiceSession session) {
+        if (session == null) {
+            return;
+        }
+        session.stt().close();
+        session.tts().stop();
+        registry.remove(session.sessionId());
+        log.info("Voice session closed session={}", session.sessionId());
+    }
+
+    // ---------------------------------------------------------------------
+    // Turn dispatch
+    // ---------------------------------------------------------------------
+
+    /**
+     * The trigger point: a finalized utterance. Classifies intent, builds the
+     * transport-neutral {@link IngressRequest}, and dispatches it. EXPLICIT_TRIGGER
+     * binds the returned run so pipeline events narrate back to this session.
+     */
+    void onFinalTranscript(VoiceSession session, String transcript) {
+        if (transcript == null || transcript.isBlank()) {
+            throw new CidadelException(VoiceErrorDetails.EMPTY_TRANSCRIPT, MODULE_NAME, session.sessionId());
+        }
+        transition(session, VoiceState.THINKING);
+        IngressKind kind = classify(transcript);
+        IngressRequest request = new IngressRequest(
+            originFor(session),
+            session.userId(),
+            kind,
+            transcript,
+            List.of(),
+            /* productHint */ null,
+            /* correlationId */ session.sessionId(),
+            /* decision */ null);
+
+        try {
+            Optional<PipelineRun> run = ingressDispatchService.dispatch(request);
+            run.ifPresent(r -> {
+                session.bindRun(r.getId(), r.getSparkId());
+                registry.bindRun(r.getId(), session);
+                session.outbound().sendControl(
+                    VoiceFrames.hud(null, "submitted", r.getId(), "Pipeline submitted"));
+            });
+            // CONVERSATION_TURN produces no run + no synchronous narration; the orb
+            // returns to idle until a conversation handler (if wired) replies.
+            if (kind == IngressKind.CONVERSATION_TURN) {
+                transition(session, VoiceState.IDLE);
+            }
+        } catch (CidadelException e) {
+            // Authorization / linkage failures are expected for unauthorized callers —
+            // surface them as a clean error frame rather than tearing down the socket.
+            emitError(session, "dispatch", e);
+            transition(session, VoiceState.IDLE);
+        }
+    }
+
+    /**
+     * Resolve an open checkpoint from a spoken/clicked decision (handles a
+     * {@code decision} frame). Maps the protocol decision token
+     * (APPROVE/CHANGES/REJECT) to the backend verb (APPROVED/REWORK/CANCEL).
+     */
+    public void submitDecision(VoiceSession session, String checkpointId, String decisionToken, String feedback) {
+        if (session == null) {
+            return;
+        }
+        String sparkId = session.resolveCheckpointSpark(checkpointId);
+        if (sparkId == null) {
+            throw new CidadelException(VoiceErrorDetails.UNRESOLVABLE_DECISION, MODULE_NAME, checkpointId);
+        }
+        CheckpointDecision decision = mapDecision(decisionToken);
+        IngressKind kind = decision == CheckpointDecision.CANCEL
+            ? IngressKind.CANCEL_RUN : IngressKind.CHECKPOINT_DECISION;
+        IngressRequest request = new IngressRequest(
+            originFor(session),
+            session.userId(),
+            kind,
+            /* text */ null,
+            List.of(),
+            null,
+            session.sessionId(),
+            new CheckpointDecisionPayload(sparkId, checkpointId, decision, feedback));
+        try {
+            ingressDispatchService.dispatch(request);
+            transition(session, VoiceState.THINKING);
+        } catch (CidadelException e) {
+            emitError(session, "decision", e);
+        }
+    }
+
+    /** Barge-in (handles a {@code barge_in} frame): stop TTS, re-listen. */
+    public void bargeIn(VoiceSession session) {
+        if (session == null) {
+            return;
+        }
+        session.tts().stop();
+        transition(session, VoiceState.LISTENING);
+    }
+
+    // ---------------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------------
+
+    /**
+     * Classify a turn. A leading build/fix verb promotes to EXPLICIT_TRIGGER (kick
+     * off a PDLC run); everything else is a CONVERSATION_TURN. Conservative by
+     * design — the admin gate on triggers means a mis-classified conversational
+     * turn is harmless, while a mis-classified trigger from a non-admin is rejected.
+     */
+    IngressKind classify(String transcript) {
+        String lower = transcript.trim().toLowerCase(Locale.ROOT);
+        for (String prefix : BUILD_INTENT_PREFIXES) {
+            if (lower.startsWith(prefix)) {
+                return IngressKind.EXPLICIT_TRIGGER;
+            }
+        }
+        return IngressKind.CONVERSATION_TURN;
+    }
+
+    /** Map the protocol decision token onto the backend {@link CheckpointDecision} verb. */
+    static CheckpointDecision mapDecision(String token) {
+        if (token == null) {
+            return CheckpointDecision.REWORK;
+        }
+        return switch (token.trim().toUpperCase(Locale.ROOT)) {
+            case "APPROVE", "APPROVED" -> CheckpointDecision.APPROVED;
+            case "CHANGES", "REWORK", "REQUEST_CHANGES" -> CheckpointDecision.REWORK;
+            case "REJECT", "CANCEL" -> CheckpointDecision.CANCEL;
+            default -> CheckpointDecision.REWORK;
+        };
+    }
+
+    private RunOrigin originFor(VoiceSession session) {
+        // externalKey resolves the (single, default) VOICE EntryPoint; destinationHandle
+        // is the sessionId so any future per-session addressing has a stable target.
+        return new RunOrigin(ChannelType.VOICE, VOICE_EXTERNAL_KEY, session.sessionId(), null);
+    }
+
+    private void transition(VoiceSession session, VoiceState state) {
+        session.setState(state);
+        session.outbound().sendControl(VoiceFrames.state(state));
+    }
+
+    private void emitError(VoiceSession session, String leg, Throwable t) {
+        log.warn("Voice {} error session={}: {}", leg, session.sessionId(), t.toString());
+        session.outbound().sendControl(VoiceFrames.error(t.getMessage() != null ? t.getMessage() : leg + " error"));
+    }
+
+    private static String newTurnId() {
+        return "t-" + UUID.randomUUID();
+    }
+}
