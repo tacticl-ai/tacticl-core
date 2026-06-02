@@ -11,13 +11,11 @@ public class ElevenLabsConfig {
 
     /**
      * Default voice id used when a session config does not specify one.
-     *
-     * <p>TODO(qa-config): replace placeholder with the real Adam voice id in
-     * QA / prod application properties (see SAD §5.3 "single voice across all
-     * personas v1"). The literal value here is a stub so the bean still binds
-     * cleanly in environments that have not yet provisioned the voice id.
+     * ElevenLabs premade "George" — a warm, mature British male (Jarvis-style).
+     * Override per environment via {@code tacticl.voice.voice-id}, or with any
+     * Voice ID from your ElevenLabs voice library.
      */
-    private String defaultVoiceId = "adam-stub-voice-id";
+    private String defaultVoiceId = "JBFqnCBsd6RMkjVDRZzb";
 
     private String defaultOutputFormat = "mp3_44100_128";
 
