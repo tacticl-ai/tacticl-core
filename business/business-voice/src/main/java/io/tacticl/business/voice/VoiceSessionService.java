@@ -178,27 +178,14 @@ public class VoiceSessionService {
         }
         transition(session, VoiceState.THINKING);
         IngressKind kind = classify(transcript);
-        IngressRequest request = new IngressRequest(
-            originFor(session),
-            session.userId(),
-            kind,
-            transcript,
-            List.of(),
-            /* productHint */ null,
-            /* correlationId */ session.sessionId(),
-            /* decision */ null);
-
         try {
-            Optional<PipelineRun> run = ingressDispatchService.dispatch(request);
-            run.ifPresent(r -> {
-                session.bindRun(r.getId(), r.getSparkId());
-                registry.bindRun(r.getId(), session);
-                session.outbound().sendControl(
-                    VoiceFrames.hud(null, "submitted", r.getId(), "Pipeline submitted"));
-            });
-            // CONVERSATION_TURN produces no run + no synchronous narration; the orb
-            // returns to idle until a conversation handler (if wired) replies.
-            if (kind == IngressKind.CONVERSATION_TURN) {
+            dispatchAndBind(session, kind, transcript);
+            // CONVERSATION_TURN: a wired ConversationTurnHandler narrates synchronously
+            // within dispatch — it drives THINKING→SPEAKING and the TTS onDone settles
+            // back to IDLE on its own. Only settle the orb ourselves if nothing took
+            // over (handler absent or empty reply) — i.e. we're still in THINKING — so
+            // we never clobber an in-flight narration.
+            if (kind == IngressKind.CONVERSATION_TURN && session.state() == VoiceState.THINKING) {
                 transition(session, VoiceState.IDLE);
             }
         } catch (CidadelException e) {
@@ -207,6 +194,49 @@ public class VoiceSessionService {
             emitError(session, "dispatch", e);
             transition(session, VoiceState.IDLE);
         }
+    }
+
+    /**
+     * Start a PDLC pipeline the conversation persona decided to kick off (its
+     * {@code start_pipeline} skill — see {@code VoiceConversationTurnHandler}).
+     * Routes as an EXPLICIT_TRIGGER through the SAME ingress + run-binding path as a
+     * spoken "build …" turn, so pipeline events narrate back into this session
+     * unchanged. Authorization/entry-point failures surface as a clean error frame.
+     */
+    public void startPipelineFromConversation(VoiceSession session, String sparkInput) {
+        if (session == null || sparkInput == null || sparkInput.isBlank()) {
+            return;
+        }
+        try {
+            dispatchAndBind(session, IngressKind.EXPLICIT_TRIGGER, sparkInput);
+        } catch (CidadelException e) {
+            emitError(session, "start_pipeline", e);
+        }
+    }
+
+    /**
+     * Dispatch an ingress turn and, when it yields a pipeline run, bind that run to
+     * this session (both registry indexes) and announce it with a {@code submitted}
+     * HUD frame so {@link VoiceRunUpdateChannel} narrates progress back here.
+     */
+    private Optional<PipelineRun> dispatchAndBind(VoiceSession session, IngressKind kind, String text) {
+        IngressRequest request = new IngressRequest(
+            originFor(session),
+            session.userId(),
+            kind,
+            text,
+            List.of(),
+            /* productHint */ null,
+            /* correlationId */ session.sessionId(),
+            /* decision */ null);
+        Optional<PipelineRun> run = ingressDispatchService.dispatch(request);
+        run.ifPresent(r -> {
+            session.bindRun(r.getId(), r.getSparkId());
+            registry.bindRun(r.getId(), session);
+            session.outbound().sendControl(
+                VoiceFrames.hud(null, "submitted", r.getId(), "Pipeline submitted"));
+        });
+        return run;
     }
 
     /**

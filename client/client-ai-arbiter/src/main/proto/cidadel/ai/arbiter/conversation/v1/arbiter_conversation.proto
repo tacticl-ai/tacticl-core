@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package cidadel.ai.arbiter.conversation.v1;
+
+option java_package = "cidadel.ai.arbiter.conversation.v1";
+option java_multiple_files = true;
+option java_outer_classname = "ArbiterConversationProto";
+
+// Conversational persona brain. Phase 1 surface: one persona turn, text in →
+// streamed reply out. A strict subset of the end-state ArbiterConversationService
+// (migrate plan §4.5) — the lifecycle (StartSession/ResumeSession) and bidi
+// VoiceStream RPCs land when the voice transport relocates to the arbiter.
+// Design: docs/superpowers/specs/2026-06-03-voice-conversation-analyst-arbiter-design.md
+service ArbiterConversationService {
+  rpc ConverseTurn(ConverseTurnRequest) returns (stream ConverseEvent);
+}
+
+message ConverseTurnRequest {
+  string product_id = 1;                 // data-scoping key (00 §10), e.g. "tacticl"
+  string user_id = 2;                    // resolved tacticl user id (already linked/authorized)
+  string session_id = 3;                 // caller voice session id (transcript linkage, NOT routing)
+  string turn_id = 4;                    // client UUIDv4 for idempotency (SAD §3.3.1.x)
+  string text = 5;                       // the final user transcript for this turn
+  string persona_hint = 6;               // optional persona id override; blank → arbiter routes
+  repeated Turn history = 7;             // prior turns this session, oldest first
+  repeated PipelineRef pipelines = 8;    // user's in-flight pipelines, for grounding (names not ids)
+  string locale = 9;                     // optional
+}
+
+message Turn {
+  string role = 1;                       // "user" | "assistant"
+  string text = 2;
+  string persona_id = 3;                 // optional, for sticky-persona routing
+}
+
+message PipelineRef {
+  string pipeline_run_id = 1;
+  string name = 2;
+  string status = 3;                     // RUNNING | BLOCKED | ...
+  string current_role = 4;
+  string blocked_checkpoint_id = 5;
+}
+
+message ConverseEvent {
+  string type = 1;                       // "started" | "token" | "tool_use" | "done" | "error"
+  string text = 2;                       // token: reply text delta (the TTS chunk)
+  string persona_id = 3;                 // producing persona (transcript attribution)
+  ToolUse tool_use = 4;                  // type == "tool_use": a skill the CALLER executes
+  Usage usage = 5;                       // type == "done"
+  double cost_usd = 6;                   // type == "done"
+  string message = 7;                    // type == "error": user-safe message
+  string turn_id = 8;
+}
+
+message ToolUse {
+  string id = 1;
+  string name = 2;                       // skill id, e.g. "start_pipeline" | "propose_implementation"
+  string input_json = 3;                 // arguments per the skill's inputSchema
+  bool terminal = 4;                     // Phase 1: side-effecting skills are terminal
+}
+
+message Usage {
+  int32 prompt_tokens = 1;
+  int32 completion_tokens = 2;
+  int32 total_tokens = 3;
+}

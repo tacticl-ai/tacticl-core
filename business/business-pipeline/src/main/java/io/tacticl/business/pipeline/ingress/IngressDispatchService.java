@@ -65,16 +65,20 @@ public class IngressDispatchService {
      * @throws CidadelException on unresolved entry point, unauthorized caller, or malformed request
      */
     public Optional<PipelineRun> dispatch(IngressRequest request) {
-        EntryPoint entryPoint = entryPointResolver.resolve(request.origin());
-
+        // EntryPoint resolution is a precondition of the state-changing kinds only —
+        // they need its product / repo / admin-set to act. A CONVERSATION_TURN is
+        // plain chat with no governing build target, so it must NOT require (and
+        // would otherwise be blocked by) a resolvable EntryPoint. Resolve lazily
+        // inside each branch that genuinely needs it.
         return switch (request.kind()) {
-            case EXPLICIT_TRIGGER -> Optional.of(handleExplicitTrigger(request, entryPoint));
+            case EXPLICIT_TRIGGER ->
+                Optional.of(handleExplicitTrigger(request, entryPointResolver.resolve(request.origin())));
             case CHECKPOINT_DECISION -> {
-                handleCheckpointDecision(request, entryPoint);
+                handleCheckpointDecision(request, entryPointResolver.resolve(request.origin()));
                 yield Optional.empty();
             }
             case CANCEL_RUN -> {
-                handleCancelRun(request, entryPoint);
+                handleCancelRun(request, entryPointResolver.resolve(request.origin()));
                 yield Optional.empty();
             }
             case CONVERSATION_TURN -> {

@@ -1,5 +1,8 @@
 package io.tacticl.business.voice;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
@@ -37,6 +40,17 @@ public class VoiceSession {
 
     /** Open checkpoints keyed by checkpointId → backing sparkId, for decision mapping. */
     private final Map<String, String> openCheckpoints = new ConcurrentHashMap<>();
+
+    /**
+     * Rolling conversational memory for this session, oldest-first. Provider-neutral
+     * {@link Utterance}s so the session entity stays decoupled from any LLM client;
+     * the conversation handler maps these onto its model's message type. Bounded to
+     * the most recent {@link #MAX_HISTORY} utterances to cap prompt size / cost.
+     */
+    private final List<Utterance> history = Collections.synchronizedList(new ArrayList<>());
+
+    /** Max retained utterances (~{@value} / 2 exchanges) — older turns roll off. */
+    private static final int MAX_HISTORY = 40;
 
     public VoiceSession(String sessionId,
                         String userId,
@@ -105,5 +119,34 @@ public class VoiceSession {
         }
         String fromTable = openCheckpoints.remove(checkpointId);
         return fromTable != null ? fromTable : activeSparkId.get();
+    }
+
+    /**
+     * Append a conversational turn to this session's rolling memory, trimming the
+     * oldest entries past {@link #MAX_HISTORY}. No-op on blank text.
+     *
+     * @param role {@code "user"} or {@code "assistant"}
+     */
+    public void appendHistory(String role, String text) {
+        if (role == null || text == null || text.isBlank()) {
+            return;
+        }
+        synchronized (history) {
+            history.add(new Utterance(role, text));
+            while (history.size() > MAX_HISTORY) {
+                history.remove(0);
+            }
+        }
+    }
+
+    /** An immutable snapshot of this session's conversation memory, oldest-first. */
+    public List<Utterance> history() {
+        synchronized (history) {
+            return List.copyOf(history);
+        }
+    }
+
+    /** One conversational turn: who spoke and what they said. Provider-neutral. */
+    public record Utterance(String role, String text) {
     }
 }

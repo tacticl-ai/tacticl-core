@@ -185,7 +185,8 @@ class IngressDispatchServiceTest {
 
     @Test
     void dispatch_conversationTurn_withHandler_delegatesToHandler() {
-        when(entryPointResolver.resolve(any(RunOrigin.class))).thenReturn(entryPoint());
+        // A conversation turn is plain chat — it must NOT require (or even resolve)
+        // a build EntryPoint. Stubbing resolve() here would be unnecessary.
         ConversationTurnHandler handler = mock(ConversationTurnHandler.class);
         when(conversationProvider.getIfAvailable()).thenReturn(handler);
         var origin = discordOrigin();
@@ -196,12 +197,13 @@ class IngressDispatchServiceTest {
 
         assertThat(result).isEmpty();
         verify(handler).handleTurn(ADMIN, origin, "hello there");
+        // The EntryPoint registry is never consulted for conversation turns.
+        verifyNoInteractions(entryPointResolver);
         verifyNoInteractions(pdlcV2Service);
     }
 
     @Test
     void dispatch_conversationTurn_unlinkedIdentity_throwsUnlinked() {
-        when(entryPointResolver.resolve(any(RunOrigin.class))).thenReturn(entryPoint());
         var req = new IngressRequest(discordOrigin(), null, IngressKind.CONVERSATION_TURN,
             "hello", List.of(), "tacticl", "interaction-6", null);
 
@@ -209,11 +211,13 @@ class IngressDispatchServiceTest {
             .isInstanceOf(CidadelException.class)
             .satisfies(e -> assertThat(((CidadelException) e).getErrorDetails())
                 .isEqualTo(IngressErrorDetails.UNLINKED_IDENTITY));
+
+        // Link is enforced before any handler/registry lookup.
+        verifyNoInteractions(entryPointResolver);
     }
 
     @Test
     void dispatch_conversationTurn_noHandlerWired_dropsSilently() {
-        when(entryPointResolver.resolve(any(RunOrigin.class))).thenReturn(entryPoint());
         when(conversationProvider.getIfAvailable()).thenReturn(null);
         var req = new IngressRequest(discordOrigin(), ADMIN, IngressKind.CONVERSATION_TURN,
             "hello", List.of(), "tacticl", "interaction-7", null);
@@ -221,6 +225,7 @@ class IngressDispatchServiceTest {
         Optional<PipelineRun> result = service.dispatch(req);
 
         assertThat(result).isEmpty();
+        verifyNoInteractions(entryPointResolver);
         verifyNoInteractions(pdlcV2Service);
     }
 }

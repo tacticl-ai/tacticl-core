@@ -16,6 +16,12 @@ dependencies {
     // IngressRequest, RunOrigin, …) and the outbound PipelineEventChannel SPI.
     // business→business is permitted by the layering rules.
     implementation(project(":business:business-pipeline"))
+    // Conversation persona brain (fallback engine): turns a final transcript into a
+    // spoken reply via a direct Anthropic call. Also brings LlmMessage/LlmResponse.
+    implementation(libs.cidadel.client.anthropic.direct)
+    // Conversation persona brain (primary engine): the arbiter ConverseTurn gRPC
+    // client. business→client edge is permitted by the layering rules.
+    implementation(project(":client:client-ai-arbiter"))
     // Parent provides: exception, logging, web, jackson, test, junit
 
     testRuntimeOnly(libs.junit.platform.launcher)

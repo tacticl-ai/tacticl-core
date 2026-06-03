@@ -1,0 +1,180 @@
+package io.tacticl.business.voice;
+
+import io.tacticl.business.pipeline.ingress.ConversationTurnHandler;
+import io.tacticl.business.pipeline.ingress.RunOrigin;
+import java.util.Optional;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Service;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
+/**
+ * Bridges a conversational ({@code CONVERSATION_TURN}) voice utterance to the
+ * conversation brain and narrates the reply. The cognition lives behind the
+ * {@link ConversationEngine} seam — in the arbiter on the primary path, or the
+ * in‑JVM fallback locally. This class is transport glue only: resolve the speaking
+ * session, hand the turn to the engine, stream the reply to the sphere, execute any
+ * side‑effecting skill the persona invoked, and speak/settle on completion.
+ *
+ * <p>Implements the {@link ConversationTurnHandler} SPI that
+ * {@code IngressDispatchService} calls for every non‑build turn. Gated on
+ * {@code tacticl.voice.enabled} so absence ⇒ the dispatcher's "drop" behaviour.
+ */
+@Service
+@ConditionalOnProperty(name = "tacticl.voice.enabled", havingValue = "true")
+public class VoiceConversationTurnHandler implements ConversationTurnHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(VoiceConversationTurnHandler.class);
+
+    private static final JsonMapper JSON = new JsonMapper();
+
+    /** The one side‑effecting skill the persona can invoke in Phase 1. */
+    private static final String SKILL_START_PIPELINE = "start_pipeline";
+
+    private final VoiceSessionRegistry registry;
+
+    private final ConversationEngine engine;
+
+    private final VoiceSessionService voiceSessionService;
+
+    private final VoiceProperties properties;
+
+    public VoiceConversationTurnHandler(VoiceSessionRegistry registry,
+                                        ConversationEngine engine,
+                                        VoiceSessionService voiceSessionService,
+                                        VoiceProperties properties) {
+        this.registry = registry;
+        this.engine = engine;
+        this.voiceSessionService = voiceSessionService;
+        this.properties = properties;
+    }
+
+    @Override
+    public void handleTurn(String tacticlUserId, RunOrigin origin, String text) {
+        if (origin == null || text == null || text.isBlank()) {
+            return;
+        }
+        // destinationHandle == voice sessionId (VoiceSessionService#originFor).
+        Optional<VoiceSession> sessionOpt = registry.bySessionId(origin.destinationHandle());
+        if (sessionOpt.isEmpty()) {
+            log.warn("Conversation turn with no live voice session session={} user={}",
+                     origin.destinationHandle(), tacticlUserId);
+            return;
+        }
+        VoiceSession session = sessionOpt.get();
+
+        ConversationContext ctx = new ConversationContext(
+            properties.getProductId(), tacticlUserId, session.sessionId(),
+            "t-" + UUID.randomUUID(), text, session.history());
+        SessionSink sink = new SessionSink(session, text);
+
+        // The handler runs on the STT final-transcript thread and must NOT throw —
+        // contain engine setup failures and surface them cleanly. (Streaming engines
+        // return immediately; their later failures arrive via sink.onError.)
+        try {
+            engine.converse(ctx, sink);
+        } catch (Exception e) {
+            log.warn("Conversation engine failed session={}: {}", session.sessionId(), e.toString());
+            sink.onError("Sorry — I hit a snag answering that. Try me again.");
+        }
+    }
+
+    /**
+     * Accumulates the streamed reply, streams a live partial transcript to the comms
+     * log, executes side‑effecting skills, and on completion speaks the reply +
+     * records the exchange in session memory. One instance per turn (single‑threaded
+     * per turn — gRPC serializes a stream's callbacks).
+     */
+    private final class SessionSink implements ConversationSink {
+
+        private final VoiceSession session;
+        private final String userText;
+        private final String transcriptId = "a-" + UUID.randomUUID();
+        private final StringBuilder reply = new StringBuilder();
+
+        SessionSink(VoiceSession session, String userText) {
+            this.session = session;
+            this.userText = userText;
+        }
+
+        @Override
+        public void onToken(String delta) {
+            if (delta == null || delta.isEmpty()) {
+                return;
+            }
+            reply.append(delta);
+            // Stream the reply into the comms log as it forms (partial:true).
+            session.outbound().sendControl(
+                VoiceFrames.transcript("assistant", transcriptId, reply.toString(), true));
+        }
+
+        @Override
+        public void onToolUse(String name, String inputJson) {
+            if (SKILL_START_PIPELINE.equals(name)) {
+                String sparkInput = sparkInputOf(inputJson);
+                if (sparkInput != null && !sparkInput.isBlank()) {
+                    // Reuse the proven local trigger path so pipeline events narrate back here.
+                    voiceSessionService.startPipelineFromConversation(session, sparkInput);
+                } else {
+                    log.warn("start_pipeline tool_use missing sparkInput session={}", session.sessionId());
+                }
+            } else {
+                log.debug("Ignoring unsupported tool_use '{}' session={}", name, session.sessionId());
+            }
+        }
+
+        @Override
+        public void onDone() {
+            String text = reply.toString().trim();
+            if (text.isEmpty()) {
+                // No spoken reply (e.g. the turn only fired a skill) — settle the orb if
+                // nothing else took it (start_pipeline narration will drive it otherwise).
+                if (session.state() == VoiceState.THINKING) {
+                    session.setState(VoiceState.IDLE);
+                    session.outbound().sendControl(VoiceFrames.state(VoiceState.IDLE));
+                }
+                return;
+            }
+            // Finalize transcript, flip to speaking, and synthesize. The ElevenLabs
+            // bridge streams audio out and returns the orb to idle on its own.
+            session.outbound().sendControl(
+                VoiceFrames.transcript("assistant", transcriptId, text, false));
+            session.setState(VoiceState.SPEAKING);
+            session.outbound().sendControl(VoiceFrames.state(VoiceState.SPEAKING));
+            session.tts().speak(text);
+
+            session.appendHistory("user", userText);
+            session.appendHistory("assistant", text);
+        }
+
+        @Override
+        public void onError(String userSafeMessage) {
+            session.outbound().sendControl(VoiceFrames.error(
+                userSafeMessage != null && !userSafeMessage.isBlank()
+                    ? userSafeMessage : "Sorry — I hit a snag answering that. Try me again."));
+            session.setState(VoiceState.IDLE);
+            session.outbound().sendControl(VoiceFrames.state(VoiceState.IDLE));
+        }
+    }
+
+    /** Extract {@code sparkInput} from a {@code start_pipeline} tool input JSON; null if absent. */
+    private static String sparkInputOf(String inputJson) {
+        if (inputJson == null || inputJson.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode root = JSON.readTree(inputJson);
+            JsonNode v = root.path("sparkInput");
+            if (v.isMissingNode() || v.isNull()) {
+                v = root.path("spark_input");
+            }
+            String s = v.asString("");
+            return s.isBlank() ? null : s;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+}
