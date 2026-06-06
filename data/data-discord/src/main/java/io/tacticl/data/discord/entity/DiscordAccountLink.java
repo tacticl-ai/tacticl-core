@@ -67,6 +67,16 @@ public class DiscordAccountLink extends BaseMongoEntity {
         return linkTokenExpiresAt != null && Instant.now().isAfter(linkTokenExpiresAt);
     }
 
+    /**
+     * (Re)issues a one-time link token with a fresh expiry. Used when an existing snowflake row
+     * requests a new {@code /link} code — the unique index on {@code discordUserId} means we update
+     * the existing row rather than insert a second one.
+     */
+    public void issueToken(String linkToken, int tokenTtlMinutes) {
+        this.linkToken = linkToken;
+        this.linkTokenExpiresAt = Instant.now().plusSeconds(tokenTtlMinutes * 60L);
+    }
+
     /** Completes the link by binding to a tacticl user and clearing the one-time token. */
     public void redeem(String tacticlUserId) {
         this.tacticlUserId = tacticlUserId;

@@ -83,6 +83,11 @@ public class DiscordCommandRegistrar {
             "type", COMMAND_MESSAGE,
             "name", "Send to PDLC"
         );
-        return List.of(slashCommand, contextMenu);
+        Map<String, Object> linkCommand = Map.of(
+            "type", COMMAND_CHAT_INPUT,
+            "name", "link",
+            "description", "Link your Discord account to Tacticl"
+        );
+        return List.of(slashCommand, contextMenu, linkCommand);
     }
 }

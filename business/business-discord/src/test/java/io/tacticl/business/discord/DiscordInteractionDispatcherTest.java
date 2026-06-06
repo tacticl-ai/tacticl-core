@@ -4,6 +4,7 @@ import io.tacticl.business.discord.identity.DiscordIdentityResolver;
 import io.tacticl.business.pipeline.ingress.IngressDispatchService;
 import io.tacticl.business.pipeline.ingress.IngressRequest;
 import io.tacticl.client.discord.DiscordRestClient;
+import io.tacticl.client.discord.config.DiscordConfig;
 import io.tacticl.data.discord.entity.DiscordRunBinding;
 import io.tacticl.data.discord.repository.DiscordRunBindingRepository;
 import io.tacticl.data.pipeline.entity.PipelineRun;
@@ -30,6 +31,8 @@ class DiscordInteractionDispatcherTest {
     private IngressDispatchService ingressDispatchService;
     private DiscordRunBindingRepository bindingRepo;
     private DiscordRestClient discord;
+    private DiscordUserLinker linker;
+    private DiscordConfig config;
     private DiscordInteractionDispatcher dispatcher;
 
     @BeforeEach
@@ -38,8 +41,12 @@ class DiscordInteractionDispatcherTest {
         ingressDispatchService = mock(IngressDispatchService.class);
         bindingRepo = mock(DiscordRunBindingRepository.class);
         discord = mock(DiscordRestClient.class);
+        linker = mock(DiscordUserLinker.class);
+        config = mock(DiscordConfig.class);
+        when(config.getLinkTokenTtlMinutes()).thenReturn(15);
         dispatcher = new DiscordInteractionDispatcher(
-            identityResolver, new DiscordInboundAdapter(), ingressDispatchService, bindingRepo, discord);
+            identityResolver, new DiscordInboundAdapter(), ingressDispatchService, bindingRepo, discord,
+            linker, config);
     }
 
     @Test
@@ -73,6 +80,22 @@ class DiscordInteractionDispatcherTest {
     }
 
     @Test
+    void dispatchAsync_linkCommand_issuesTokenAndNeverDispatches() {
+        // /link runs before the identity gate; the snowflake need not be linked yet.
+        when(linker.beginLink(eq("snow-1"), any())).thenReturn("TOKEN-123");
+
+        dispatcher.dispatchAsync(linkInteraction("snow-1", "cooluser"), "token-1");
+
+        verify(linker).beginLink(eq("snow-1"), eq("cooluser"));
+        verify(identityResolver, never()).resolve(anyString());
+        verify(ingressDispatchService, never()).dispatch(any());
+
+        ArgumentCaptor<Map<String, Object>> msg = ArgumentCaptor.forClass(Map.class);
+        verify(discord).createFollowupMessage(eq("token-1"), msg.capture());
+        assertThat(String.valueOf(msg.getValue().get("content"))).contains("TOKEN-123");
+    }
+
+    @Test
     void dispatchAsync_malformedInteraction_doesNotThrowAndWarnsUser() {
         when(identityResolver.resolve(anyString())).thenReturn(Optional.of("user-42"));
         Map<String, Object> bad = Map.of(
@@ -100,6 +123,18 @@ class DiscordInteractionDispatcherTest {
                 "type", 1, "name", "pdlc",
                 "options", List.of(Map.of("name", "prompt", "value", "ship it"))
             )
+        );
+    }
+
+    private static Map<String, Object> linkInteraction(String discordUserId, String username) {
+        return Map.of(
+            "id", "int-link",
+            "type", 2,
+            "token", "token-1",
+            "guild_id", "guild-9",
+            "channel", Map.of("id", "chan-7"),
+            "member", Map.of("user", Map.of("id", discordUserId, "username", username)),
+            "data", Map.of("type", 1, "name", "link")
         );
     }
 }

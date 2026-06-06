@@ -5,6 +5,7 @@ import io.tacticl.business.pipeline.ingress.IngressDispatchService;
 import io.tacticl.business.pipeline.ingress.IngressKind;
 import io.tacticl.business.pipeline.ingress.IngressRequest;
 import io.tacticl.client.discord.DiscordRestClient;
+import io.tacticl.client.discord.config.DiscordConfig;
 import io.tacticl.data.discord.entity.DiscordRunBinding;
 import io.tacticl.data.discord.repository.DiscordRunBindingRepository;
 import io.tacticl.data.pipeline.entity.PipelineRun;
@@ -42,22 +43,33 @@ public class DiscordInteractionDispatcher {
 
     private static final Logger log = LoggerFactory.getLogger(DiscordInteractionDispatcher.class);
 
+    /** Discord interaction + application-command type constants for the {@code /link} fast-path. */
+    private static final int TYPE_APPLICATION_COMMAND = 2;
+    private static final int COMMAND_CHAT_INPUT = 1;
+    private static final String LINK_COMMAND_NAME = "link";
+
     private final DiscordIdentityResolver identityResolver;
     private final DiscordInboundAdapter adapter;
     private final IngressDispatchService ingressDispatchService;
     private final DiscordRunBindingRepository bindingRepo;
     private final DiscordRestClient discord;
+    private final DiscordUserLinker linker;
+    private final DiscordConfig config;
 
     public DiscordInteractionDispatcher(DiscordIdentityResolver identityResolver,
                                         DiscordInboundAdapter adapter,
                                         IngressDispatchService ingressDispatchService,
                                         DiscordRunBindingRepository bindingRepo,
-                                        DiscordRestClient discord) {
+                                        DiscordRestClient discord,
+                                        DiscordUserLinker linker,
+                                        DiscordConfig config) {
         this.identityResolver = identityResolver;
         this.adapter = adapter;
         this.ingressDispatchService = ingressDispatchService;
         this.bindingRepo = bindingRepo;
         this.discord = discord;
+        this.linker = linker;
+        this.config = config;
     }
 
     /**
@@ -81,13 +93,22 @@ public class DiscordInteractionDispatcher {
 
     private void dispatch(Map<String, Object> interaction, String interactionToken) {
         String discordUserId = extractInvokingUserId(interaction);
+
+        // /link runs BEFORE the identity gate — by definition the user is not yet linked. The
+        // interaction carries the snowflake; we mint a token the user redeems in the web app.
+        if (isLinkCommand(interaction)) {
+            handleLinkCommand(discordUserId, extractInvokingUsername(interaction), interactionToken);
+            return;
+        }
+
         Optional<String> tacticlUserId = identityResolver.resolve(discordUserId);
 
         if (tacticlUserId.isEmpty()) {
             // Hard precondition: never dispatch on behalf of an unlinked Discord identity.
             log.info("Discord interaction from unlinked user {} — prompting to link", discordUserId);
             safeFollowup(interactionToken,
-                "🔗 Link your Tacticl account first (Settings → Integrations → Discord), then retry.");
+                "🔗 Link your Tacticl account first: run `/link` here to get a code, then paste it in "
+                    + "Tacticl (Settings → Integrations → Discord). Then retry.");
             return;
         }
 
@@ -113,6 +134,57 @@ public class DiscordInteractionDispatcher {
         }
         bindingRepo.save(DiscordRunBinding.create(
             run.getId(), channelId, request.origin().threadHandle()));
+    }
+
+    /** True when the interaction is the {@code /link} CHAT_INPUT slash command. */
+    @SuppressWarnings("unchecked")
+    private boolean isLinkCommand(Map<String, Object> interaction) {
+        if (asInt(interaction.get("type")) != TYPE_APPLICATION_COMMAND) {
+            return false;
+        }
+        Object dataObj = interaction.get("data");
+        if (dataObj instanceof Map<?, ?> data) {
+            int commandType = data.get("type") instanceof Number n ? n.intValue() : COMMAND_CHAT_INPUT;
+            return LINK_COMMAND_NAME.equals(data.get("name")) && commandType == COMMAND_CHAT_INPUT;
+        }
+        return false;
+    }
+
+    /** Mints a link token for the invoking snowflake and replies with it (ephemeral). */
+    private void handleLinkCommand(String discordUserId, String discordUsername, String interactionToken) {
+        if (discordUserId == null || discordUserId.isBlank()) {
+            safeFollowup(interactionToken, "⚠️ Couldn't read your Discord id — try again.");
+            return;
+        }
+        try {
+            String token = linker.beginLink(discordUserId, discordUsername);
+            safeFollowup(interactionToken,
+                "🔗 To finish linking, paste this code in Tacticl (Settings → Integrations → Discord):\n"
+                    + "`" + token + "`\nIt expires in " + config.getLinkTokenTtlMinutes() + " minutes.");
+        } catch (Exception e) {
+            log.warn("Discord /link failed for snowflake {}", discordUserId, e);
+            safeFollowup(interactionToken, "⚠️ Couldn't generate a link code — try again.");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private String extractInvokingUsername(Map<String, Object> interaction) {
+        Object memberObj = interaction.get("member");
+        if (memberObj instanceof Map<?, ?> member && member.get("user") instanceof Map<?, ?> user) {
+            Object username = user.get("username");
+            if (username != null) {
+                return String.valueOf(username);
+            }
+        }
+        Object userObj = interaction.get("user");
+        if (userObj instanceof Map<?, ?> user && user.get("username") != null) {
+            return String.valueOf(user.get("username"));
+        }
+        return null;
+    }
+
+    private static int asInt(Object o) {
+        return o instanceof Number n ? n.intValue() : -1;
     }
 
     @SuppressWarnings("unchecked")

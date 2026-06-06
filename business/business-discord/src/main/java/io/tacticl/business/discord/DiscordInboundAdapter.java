@@ -1,5 +1,6 @@
 package io.tacticl.business.discord;
 
+import io.tacticl.business.pipeline.ingress.Attachment;
 import io.tacticl.business.pipeline.ingress.ChannelType;
 import io.tacticl.business.pipeline.ingress.CheckpointDecisionPayload;
 import io.tacticl.business.pipeline.ingress.IngressKind;
@@ -9,6 +10,7 @@ import io.tacticl.data.pipeline.entity.CheckpointDecision;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -87,18 +89,30 @@ public class DiscordInboundAdapter {
     private IngressRequest normalizeCommand(Map<String, Object> interaction, String tacticlUserId) {
         Map<String, Object> data = asMap(interaction.get("data"));
         int commandType = asInt(data.get("type"), COMMAND_CHAT_INPUT);
-        String text = switch (commandType) {
-            case COMMAND_CHAT_INPUT -> extractPromptOption(data);
-            case COMMAND_MESSAGE -> extractTargetedMessageContent(data);
+
+        String text;
+        List<Attachment> attachments;
+        switch (commandType) {
+            case COMMAND_CHAT_INPUT -> {
+                text = extractPromptOption(data);
+                attachments = List.of();
+            }
+            case COMMAND_MESSAGE -> {
+                // "Send to PDLC" on an alert message: carry both the body and any attached
+                // screenshots/logs so the fix run has the canonical alert artifact.
+                Map<String, Object> message = resolveTargetedMessage(data);
+                attachments = extractAttachments(message.get("attachments"));
+                text = messageText(message, attachments);
+            }
             default -> throw new IllegalArgumentException("unsupported command type: " + commandType);
-        };
+        }
 
         return new IngressRequest(
             buildOrigin(interaction),
             tacticlUserId,
             IngressKind.EXPLICIT_TRIGGER,
             text,
-            List.of(),
+            attachments,
             null,
             interactionId(interaction),
             null
@@ -161,19 +175,54 @@ public class DiscordInboundAdapter {
 
     /**
      * For a "Send to PDLC" message context-menu, the targeted message id is in {@code data.target_id}
-     * and the message body itself is in {@code data.resolved.messages[target_id].content}.
+     * and the message itself (content + attachments) is in {@code data.resolved.messages[target_id]}.
      */
-    @SuppressWarnings("unchecked")
-    private String extractTargetedMessageContent(Map<String, Object> data) {
+    private Map<String, Object> resolveTargetedMessage(Map<String, Object> data) {
         String targetId = asString(data.get("target_id"));
         Map<String, Object> resolved = asMap(data.get("resolved"));
         Map<String, Object> messages = asMap(resolved.get("messages"));
-        Map<String, Object> message = asMap(messages.get(targetId));
+        return asMap(messages.get(targetId));
+    }
+
+    /**
+     * The spark text for a "Send to PDLC": the message body, or a sensible default when the alert is
+     * an image/log-only post (no caption). Throws only when there is neither text nor an attachment.
+     */
+    private String messageText(Map<String, Object> message, List<Attachment> attachments) {
         String content = asString(message.get("content"));
-        if (content == null || content.isBlank()) {
-            throw new IllegalArgumentException("targeted message has no text content");
+        if (content != null && !content.isBlank()) {
+            return content;
         }
-        return content;
+        if (!attachments.isEmpty()) {
+            return "Investigate and fix the issue shown in the attached "
+                + (attachments.size() == 1 ? "file." : attachments.size() + " files.");
+        }
+        throw new IllegalArgumentException("targeted message has no text content or attachments");
+    }
+
+    /**
+     * Maps Discord attachment objects ({@code filename}, {@code content_type}, {@code url},
+     * {@code id}, {@code size}) onto transport-neutral {@link Attachment} refs. No bytes are
+     * fetched — the CDN URL is recorded for later materialization.
+     */
+    @SuppressWarnings("unchecked")
+    private List<Attachment> extractAttachments(Object attachmentsObj) {
+        if (!(attachmentsObj instanceof List<?> list) || list.isEmpty()) {
+            return List.of();
+        }
+        List<Attachment> out = new ArrayList<>();
+        for (Object o : list) {
+            if (o instanceof Map<?, ?> raw) {
+                Map<String, Object> att = (Map<String, Object>) raw;
+                out.add(new Attachment(
+                    asString(att.get("filename")),
+                    asString(att.get("content_type")),
+                    asString(att.get("url")),
+                    asString(att.get("id")),
+                    asLong(att.get("size"))));
+            }
+        }
+        return out.isEmpty() ? List.of() : List.copyOf(out);
     }
 
     /**
@@ -232,5 +281,19 @@ public class DiscordInboundAdapter {
             }
         }
         return fallback;
+    }
+
+    private static long asLong(Object o) {
+        if (o instanceof Number n) {
+            return n.longValue();
+        }
+        if (o instanceof String s) {
+            try {
+                return Long.parseLong(s.trim());
+            } catch (NumberFormatException e) {
+                return 0L;
+            }
+        }
+        return 0L;
     }
 }

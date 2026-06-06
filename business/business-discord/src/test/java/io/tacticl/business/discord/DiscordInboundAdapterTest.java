@@ -68,6 +68,94 @@ class DiscordInboundAdapterTest {
     }
 
     @Test
+    void normalize_contextMenuWithAttachments_extractsScreenshotRefs() {
+        Map<String, Object> interaction = Map.of(
+            "id", "int-att",
+            "type", 2,
+            "guild_id", "guild-9",
+            "channel_id", "chan-7",
+            "data", Map.of(
+                "type", 3,
+                "name", "Send to PDLC",
+                "target_id", "msg-100",
+                "resolved", Map.of(
+                    "messages", Map.of("msg-100", Map.of(
+                        "content", "prod is throwing 500s",
+                        "attachments", List.of(Map.of(
+                            "id", "att-1",
+                            "filename", "trace.png",
+                            "content_type", "image/png",
+                            "url", "https://cdn.discordapp.com/attachments/x/y/trace.png",
+                            "size", 84211
+                        ))
+                    ))
+                )
+            )
+        );
+
+        IngressRequest req = adapter.normalize(interaction, "user-42");
+
+        assertThat(req.text()).isEqualTo("prod is throwing 500s");
+        assertThat(req.attachments()).hasSize(1);
+        var att = req.attachments().get(0);
+        assertThat(att.filename()).isEqualTo("trace.png");
+        assertThat(att.contentType()).isEqualTo("image/png");
+        assertThat(att.sourceUrl()).isEqualTo("https://cdn.discordapp.com/attachments/x/y/trace.png");
+        assertThat(att.sourceRef()).isEqualTo("att-1");
+        assertThat(att.sizeBytes()).isEqualTo(84211L);
+    }
+
+    @Test
+    void normalize_contextMenuImageOnlyAlert_usesDefaultTextAndKeepsAttachment() {
+        // An alert posted as just a screenshot (no caption) must still be actionable.
+        Map<String, Object> interaction = Map.of(
+            "id", "int-img",
+            "type", 2,
+            "guild_id", "guild-9",
+            "channel_id", "chan-7",
+            "data", Map.of(
+                "type", 3,
+                "name", "Send to PDLC",
+                "target_id", "msg-101",
+                "resolved", Map.of(
+                    "messages", Map.of("msg-101", Map.of(
+                        "content", "",
+                        "attachments", List.of(Map.of(
+                            "id", "att-9", "filename", "error.png",
+                            "content_type", "image/png", "url", "https://cdn/err.png", "size", 1024
+                        ))
+                    ))
+                )
+            )
+        );
+
+        IngressRequest req = adapter.normalize(interaction, "user-42");
+
+        assertThat(req.kind()).isEqualTo(IngressKind.EXPLICIT_TRIGGER);
+        assertThat(req.text()).isNotBlank();
+        assertThat(req.attachments()).hasSize(1);
+    }
+
+    @Test
+    void normalize_contextMenuNoTextNoAttachment_throws() {
+        Map<String, Object> interaction = Map.of(
+            "id", "int-empty",
+            "type", 2,
+            "guild_id", "guild-9",
+            "channel_id", "chan-7",
+            "data", Map.of(
+                "type", 3,
+                "name", "Send to PDLC",
+                "target_id", "msg-102",
+                "resolved", Map.of("messages", Map.of("msg-102", Map.of("content", "")))
+            )
+        );
+
+        assertThatThrownBy(() -> adapter.normalize(interaction, "user-42"))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void normalize_approveButton_returnsCheckpointDecisionApproved() {
         IngressRequest req = adapter.normalize(buttonInteraction("pdlc:approve:spark-5:cp-3"), "user-42");
 
