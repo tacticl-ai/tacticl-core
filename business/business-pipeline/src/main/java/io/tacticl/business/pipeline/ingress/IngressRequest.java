@@ -24,6 +24,9 @@ import java.util.List;
  * @param correlationId transport-native idempotency/trace key (e.g. Discord interaction id);
  *                      used for dedup upstream and log correlation. Nullable.
  * @param decision      checkpoint decision payload; required for CHECKPOINT_DECISION, null otherwise
+ * @param repoUrl       caller-supplied target repository for EXPLICIT_TRIGGER (e.g. a repo the
+ *                      arbiter's create_repo skill just provisioned). When present it OVERRIDES the
+ *                      resolved EntryPoint's repoUrl; null ⇒ fall back to the EntryPoint. Nullable.
  */
 public record IngressRequest(
     RunOrigin origin,
@@ -33,9 +36,17 @@ public record IngressRequest(
     List<Attachment> attachments,
     String productHint,
     String correlationId,
-    CheckpointDecisionPayload decision
+    CheckpointDecisionPayload decision,
+    String repoUrl
 ) {
     public IngressRequest {
         attachments = attachments == null ? List.of() : List.copyOf(attachments);
+    }
+
+    /** Back-compat constructor for callers that don't supply a repoUrl (non-voice channels). */
+    public IngressRequest(RunOrigin origin, String tacticlUserId, IngressKind kind, String text,
+                          List<Attachment> attachments, String productHint, String correlationId,
+                          CheckpointDecisionPayload decision) {
+        this(origin, tacticlUserId, kind, text, attachments, productHint, correlationId, decision, null);
     }
 }

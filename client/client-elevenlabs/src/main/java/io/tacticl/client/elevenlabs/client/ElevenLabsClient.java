@@ -237,14 +237,13 @@ public class ElevenLabsClient {
             if (ws == null) {
                 return;
             }
-            try {
-                ObjectNode end = mapper.createObjectNode();
-                end.put("text", "");
-                // Fire-and-forget; do NOT join — barge-in requires sub-millisecond return.
-                ws.sendText(mapper.writeValueAsString(end), true);
-            } catch (Exception e) {
-                logger.debug("ElevenLabs end frame send raced shutdown: {}", e.toString());
-            }
+            // Do NOT send a graceful EOS terminator here. java.net.http.WebSocket forbids a
+            // sendText while a previous send's CompletableFuture is still pending, and close()
+            // (a new turn's stop()/barge-in) races the in-flight init/text/flush chain from
+            // speak(). A direct ws.sendText() that bypasses the send-serialization chain
+            // interleaves frames on the wire → ElevenLabs rejects the stream with an error
+            // frame (surfaces as UPSTREAM_ERROR, silencing the reply). On supersede/barge-in we
+            // are discarding the remaining audio anyway, so abort() is the correct teardown.
             try {
                 ws.abort();
             } catch (Exception e) {
@@ -329,6 +328,10 @@ public class ElevenLabsClient {
                 String msg = messageNode != null && !messageNode.isNull()
                     ? messageNode.asString()
                     : errorNode.asString();
+                // Surface the raw ElevenLabs error frame — CidadelException#getMessage only
+                // yields the code (UPSTREAM_ERROR), hiding what ElevenLabs actually rejected.
+                logger.warn("ElevenLabs upstream error frame: {} (raw={})", msg,
+                    json.length() > 400 ? json.substring(0, 400) : json);
                 errorHandler.accept(new CidadelException(ElevenLabsErrorDetails.UPSTREAM_ERROR, MODULE_NAME, msg));
                 return;
             }

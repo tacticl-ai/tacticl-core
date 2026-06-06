@@ -22,6 +22,13 @@ dependencies {
     // Conversation persona brain (primary engine): the arbiter ConverseTurn gRPC
     // client. business→client edge is permitted by the layering rules.
     implementation(project(":client:client-ai-arbiter"))
+    // GitHubConfig supplies the resolved Tacticl PAT (github.app-token from Vault),
+    // sent on the ConverseTurn request so the arbiter's create_repo skill can provision
+    // a repo. Mirrors business-conversation's GitHubConfig injection.
+    implementation(project(":client:client-github"))
+    // UserRepoService: the user's known repos, sent as ConverseTurn grounding so the
+    // analyst can offer them once requirements are understood.
+    implementation(project(":business:business-profile"))
     // Parent provides: exception, logging, web, jackson, test, junit
 
     testRuntimeOnly(libs.junit.platform.launcher)

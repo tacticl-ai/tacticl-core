@@ -89,8 +89,23 @@ class VoiceConversationTurnHandlerTest {
 
         handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "build a health endpoint");
 
-        verify(voiceSessionService).startPipelineFromConversation(session, "build a /health endpoint");
+        // No repoUrl in the tool input → null (EntryPoint fallback downstream).
+        verify(voiceSessionService).startPipelineFromConversation(session, "build a /health endpoint", null);
         verify(tts).speak("Starting that now.");
+    }
+
+    @Test
+    void handleTurn_startPipelineWithRepoUrl_threadsProvisionedRepo() {
+        engineDrives(sink -> {
+            sink.onToolUse("start_pipeline",
+                "{\"sparkInput\":\"build a /health endpoint\",\"repoUrl\":\"https://github.com/tacticl-ai/health.git\"}");
+            sink.onDone();
+        });
+
+        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "yes go ahead");
+
+        verify(voiceSessionService).startPipelineFromConversation(
+            session, "build a /health endpoint", "https://github.com/tacticl-ai/health.git");
     }
 
     @Test

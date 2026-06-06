@@ -15,6 +15,10 @@ import java.util.List;
  * @param personaHint optional persona id override; blank/null → the arbiter routes
  * @param history     prior turns this session, oldest first (may be empty)
  * @param locale      optional BCP-47 locale; may be null
+ * @param githubToken per-turn GitHub PAT for the arbiter's create_repo skill; the shared
+ *                    arbiter stores none of its own. Blank/null → repo provisioning is off.
+ * @param repos       the user's known repos (recent-first) as grounding; the analyst offers
+ *                    them once requirements are understood. May be empty.
  */
 public record ConverseTurnInput(String productId,
                                 String userId,
@@ -23,5 +27,7 @@ public record ConverseTurnInput(String productId,
                                 String text,
                                 String personaHint,
                                 List<ConvTurn> history,
-                                String locale) {
+                                String locale,
+                                String githubToken,
+                                List<ConvRepoRef> repos) {
 }

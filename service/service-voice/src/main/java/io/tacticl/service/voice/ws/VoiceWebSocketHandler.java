@@ -123,6 +123,7 @@ public class VoiceWebSocketHandler extends AbstractWebSocketHandler {
         switch (type) {
             case "start" -> sessionService.startTurn(voiceSession);
             case "stop" -> sessionService.stopTurn(voiceSession);
+            case "text" -> sessionService.handleTypedText(voiceSession, asString(frame.get("text")));
             case "barge_in" -> sessionService.bargeIn(voiceSession);
             case "decision" -> sessionService.submitDecision(
                 voiceSession,

@@ -27,6 +27,10 @@ message SubmitPipelineRequest {
   string knowledge_namespace = 10;
   string repo_url = 11;
   map<string, int32> role_ttl_seconds = 12;
+  // Stable idempotency key (= the tacticl pipelineRunId). REQUIRED on the Temporal path:
+  // workflowId = pdlc-{idempotency_key} (REJECT_DUPLICATE), echoed back as pipeline_id we
+  // store as arbiterPipelineId + correlate callbacks by. Matches arbiter proto field 13.
+  string idempotency_key = 13;
 }
 
 message SubmitPipelineResponse {

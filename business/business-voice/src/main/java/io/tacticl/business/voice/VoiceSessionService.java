@@ -132,6 +132,7 @@ public class VoiceSessionService {
         if (session == null) {
             return;
         }
+        log.info("Voice startTurn — opening STT session={}", session.sessionId());
         // A new turn supersedes any in-flight narration.
         session.tts().stop();
         session.stt().open();
@@ -140,16 +141,44 @@ public class VoiceSessionService {
 
     /** Forward a mic PCM chunk to the STT leg (handles a BINARY UP frame). */
     public void pushAudio(VoiceSession session, byte[] pcmChunk) {
-        if (session != null) {
-            session.stt().sendAudio(pcmChunk);
+        if (session == null) {
+            return;
         }
+        // Audio arriving is itself proof the operator is speaking. If a {start}
+        // control frame was missed or raced to a different socket, the STT leg
+        // would be closed and every chunk dropped — so open it lazily on first
+        // audio. open() is idempotent, so this fires once per turn then no-ops.
+        if (!session.stt().isOpen()) {
+            log.info("Mic audio with STT closed — lazily opening STT session={}", session.sessionId());
+            startTurn(session);
+        }
+        session.stt().sendAudio(pcmChunk);
     }
 
     /** Stop capture (handles a {@code stop} frame). Final transcript arrives async via STT. */
     public void stopTurn(VoiceSession session) {
         if (session != null) {
+            log.info("Voice stopTurn session={}", session.sessionId());
             session.stt().close();
         }
+    }
+
+    /**
+     * Handle a typed command (a {@code text} control frame from the HUD composer — the
+     * operator typed instead of speaking). The client already renders the user's typed
+     * turn locally (it owns the operator turn), so we do NOT echo a user transcript here.
+     * A new typed turn supersedes any in-flight narration, then it routes exactly like a
+     * finalized spoken transcript: classify → dispatch (conversation turn or explicit
+     * trigger) → narrate the reply back (transcript + TTS).
+     */
+    public void handleTypedText(VoiceSession session, String text) {
+        if (session == null || text == null || text.isBlank()) {
+            return;
+        }
+        log.info("Voice typed text session={} ({} chars)", session.sessionId(), text.length());
+        // Supersede any in-flight reply, mirroring a fresh spoken turn / the client's tts.flush().
+        session.tts().stop();
+        onFinalTranscript(session, text);
     }
 
     /** Tear down a session on WS disconnect. */
@@ -179,7 +208,9 @@ public class VoiceSessionService {
         transition(session, VoiceState.THINKING);
         IngressKind kind = classify(transcript);
         try {
-            dispatchAndBind(session, kind, transcript);
+            // A spoken "build …" turn carries no provisioned repo (the analyst's create_repo
+            // path supplies one via start_pipeline); the EntryPoint's repo is used as fallback.
+            dispatchAndBind(session, kind, transcript, /* repoUrl */ null);
             // CONVERSATION_TURN: a wired ConversationTurnHandler narrates synchronously
             // within dispatch — it drives THINKING→SPEAKING and the TTS onDone settles
             // back to IDLE on its own. Only settle the orb ourselves if nothing took
@@ -203,12 +234,12 @@ public class VoiceSessionService {
      * spoken "build …" turn, so pipeline events narrate back into this session
      * unchanged. Authorization/entry-point failures surface as a clean error frame.
      */
-    public void startPipelineFromConversation(VoiceSession session, String sparkInput) {
+    public void startPipelineFromConversation(VoiceSession session, String sparkInput, String repoUrl) {
         if (session == null || sparkInput == null || sparkInput.isBlank()) {
             return;
         }
         try {
-            dispatchAndBind(session, IngressKind.EXPLICIT_TRIGGER, sparkInput);
+            dispatchAndBind(session, IngressKind.EXPLICIT_TRIGGER, sparkInput, repoUrl);
         } catch (CidadelException e) {
             emitError(session, "start_pipeline", e);
         }
@@ -219,7 +250,8 @@ public class VoiceSessionService {
      * this session (both registry indexes) and announce it with a {@code submitted}
      * HUD frame so {@link VoiceRunUpdateChannel} narrates progress back here.
      */
-    private Optional<PipelineRun> dispatchAndBind(VoiceSession session, IngressKind kind, String text) {
+    private Optional<PipelineRun> dispatchAndBind(VoiceSession session, IngressKind kind, String text,
+                                                  String repoUrl) {
         IngressRequest request = new IngressRequest(
             originFor(session),
             session.userId(),
@@ -228,7 +260,8 @@ public class VoiceSessionService {
             List.of(),
             /* productHint */ null,
             /* correlationId */ session.sessionId(),
-            /* decision */ null);
+            /* decision */ null,
+            /* repoUrl */ repoUrl);
         Optional<PipelineRun> run = ingressDispatchService.dispatch(request);
         run.ifPresent(r -> {
             session.bindRun(r.getId(), r.getSparkId());
@@ -326,7 +359,7 @@ public class VoiceSessionService {
     }
 
     private void emitError(VoiceSession session, String leg, Throwable t) {
-        log.warn("Voice {} error session={}: {}", leg, session.sessionId(), t.toString());
+        log.warn("Voice {} error session={}: {}", leg, session.sessionId(), t.getMessage(), t);
         session.outbound().sendControl(VoiceFrames.error(t.getMessage() != null ? t.getMessage() : leg + " error"));
     }
 

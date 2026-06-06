@@ -100,9 +100,9 @@ public class DeepgramClient {
     }
 
     URI buildEndpoint(DeepgramSessionConfig sessionConfig) {
-        // TODO: spec gap — SAD lists Deepgram base URL but not the exact query-string
-        // contract for utterance_end_ms vs endpointing. Defaulting to utterance_end_ms = endpointing
-        // (Deepgram's documented behaviour: UtteranceEnd events fire after N ms of silence).
+        // endpointing (≈300ms) finalizes a transcript segment; utterance_end_ms is a
+        // separate UtteranceEnd-event window Deepgram requires to be ≥ 1000ms — a smaller
+        // value fails the streaming handshake with HTTP 400. getUtteranceEndMs() clamps.
         String base = trimTrailingSlash(config.getApiBaseUrl());
         String query = String.format(
             "model=%s&encoding=linear16&sample_rate=%d&channels=1&interim_results=true"
@@ -110,7 +110,7 @@ public class DeepgramClient {
             urlEncode(config.getModel()),
             config.getSampleRate(),
             config.getEndpointingMs(),
-            config.getEndpointingMs(),
+            config.getUtteranceEndMs(),
             urlEncode(sessionConfig.language()));
         return URI.create(base + "/v1/listen?" + query);
     }

@@ -51,7 +51,8 @@ class ElevenLabsConfigTest {
             assertThat(cfg.getApiBaseUrl()).isEqualTo("wss://api.elevenlabs.io");
             assertThat(cfg.getModel()).isEqualTo("eleven_turbo_v2");
             assertThat(cfg.getDefaultOutputFormat()).isEqualTo("mp3_44100_128");
-            assertThat(cfg.getDefaultVoiceId()).isEqualTo("adam-stub-voice-id");
+            // Default voice is the ElevenLabs premade "George" (Jarvis-style), not the old stub.
+            assertThat(cfg.getDefaultVoiceId()).isEqualTo("JBFqnCBsd6RMkjVDRZzb");
         });
     }
 

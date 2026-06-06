@@ -18,6 +18,14 @@ public class DeepgramConfig {
 
     private int endpointingMs = 300;
 
+    /**
+     * Silence (ms) before Deepgram emits an {@code UtteranceEnd} event. This is a
+     * DIFFERENT knob from {@link #endpointingMs} (which finalizes a transcript
+     * segment) and Deepgram enforces a minimum of 1000ms — anything lower makes
+     * the streaming handshake fail with HTTP 400. Keep it ≥ 1000.
+     */
+    private int utteranceEndMs = 1000;
+
     private int sampleRate = 16000;
 
     public boolean isConfigured() {
@@ -54,6 +62,15 @@ public class DeepgramConfig {
 
     public void setEndpointingMs(int endpointingMs) {
         this.endpointingMs = endpointingMs;
+    }
+
+    /** UtteranceEnd silence window, clamped to Deepgram's 1000ms floor. */
+    public int getUtteranceEndMs() {
+        return Math.max(1000, utteranceEndMs);
+    }
+
+    public void setUtteranceEndMs(int utteranceEndMs) {
+        this.utteranceEndMs = utteranceEndMs;
     }
 
     public int getSampleRate() {

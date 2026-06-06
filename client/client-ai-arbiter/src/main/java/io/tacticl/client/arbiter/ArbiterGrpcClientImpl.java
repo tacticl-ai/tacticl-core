@@ -54,7 +54,11 @@ public class ArbiterGrpcClientImpl implements ArbiterPipelineService {
                 .setUserId(request.userId() != null ? request.userId() : "")
                 .setRepoUrl(request.repoUrl() != null ? request.repoUrl() : "")
                 .setKnowledgeNamespace(request.knowledgeNamespace() != null ? request.knowledgeNamespace() : "")
-                .setPlaybookConfigJson(request.playbookConfigJson() != null ? request.playbookConfigJson() : "");
+                .setPlaybookConfigJson(request.playbookConfigJson() != null ? request.playbookConfigJson() : "")
+                // Idempotency key = the pipelineRunId. On the Temporal path the arbiter derives
+                // workflowId = pdlc-{idempotency_key} (REJECT_DUPLICATE) and echoes it back as the
+                // pipeline_id we store + correlate callbacks by. On the legacy path it's ignored.
+                .setIdempotencyKey(request.pipelineRunId() != null ? request.pipelineRunId() : "");
 
         if (request.roleIdentities() != null) {
             builder.putAllRoleIdentities(request.roleIdentities());

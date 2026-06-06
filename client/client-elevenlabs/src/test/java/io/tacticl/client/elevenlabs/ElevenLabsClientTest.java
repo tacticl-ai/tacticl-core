@@ -37,6 +37,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -125,14 +126,18 @@ class ElevenLabsClientTest {
     }
 
     @Test
-    void closeSendsEndFrameAndAborts() {
+    void closeAbortsWithoutSendingEndFrame() {
         WebSocket ws = mockWebSocket();
         StreamingSession session = newAttachedSession();
         session.attach(ws);
 
         session.close();
 
-        verify(ws, atLeastOnce()).sendText(any(CharSequence.class), anyBoolean());
+        // Teardown is abort-only: a graceful EOS sendText races the in-flight send-serialization
+        // chain (a new turn's stop()/barge-in), interleaving frames on the wire so ElevenLabs
+        // rejects the stream (UPSTREAM_ERROR). On supersede we discard remaining audio anyway,
+        // so close() must NOT send a terminator — it aborts.
+        verify(ws, never()).sendText(any(CharSequence.class), anyBoolean());
         verify(ws).abort();
         assertFalse(session.isOpen());
     }

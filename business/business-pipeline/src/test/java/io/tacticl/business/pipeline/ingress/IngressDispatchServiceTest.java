@@ -34,6 +34,8 @@ class IngressDispatchServiceTest {
     @Mock PdlcV2Service pdlcV2Service;
     @Mock ObjectProvider<ConversationTurnHandler> conversationProvider;
     @Mock ObjectProvider<AttachmentMaterializer> materializerProvider;
+    @Mock ObjectProvider<io.strategiz.social.client.github.config.GitHubConfig> gitHubConfigProvider;
+    @Mock ObjectProvider<io.tacticl.business.profile.service.UserRepoService> userRepoServiceProvider;
 
     IngressDispatchService service;
 
@@ -43,7 +45,8 @@ class IngressDispatchServiceTest {
     @BeforeEach
     void setUp() {
         service = new IngressDispatchService(entryPointResolver, sparkService,
-            sparkClassifierService, pdlcV2Service, conversationProvider, materializerProvider);
+            sparkClassifierService, pdlcV2Service, conversationProvider, materializerProvider,
+            gitHubConfigProvider, userRepoServiceProvider);
     }
 
     private EntryPoint entryPoint() {
@@ -83,6 +86,82 @@ class IngressDispatchServiceTest {
         assertThat(product.getValue()).isEqualTo("tacticl");
         verify(sparkClassifierService).classify("Add login");
         verify(sparkService).classify(spark.getId(), ADMIN, SparkType.CODE);
+    }
+
+    @Test
+    void dispatch_explicitTrigger_usesResolvedPatAndRequestRepoUrl_overridingEntryPoint() {
+        // A resolved Tacticl PAT + a caller-supplied repoUrl (the arbiter-provisioned repo)
+        // must OVERRIDE the EntryPoint's repoUrl + (unresolved) github token ref.
+        var gh = mock(io.strategiz.social.client.github.config.GitHubConfig.class);
+        when(gh.getAppToken()).thenReturn("ghp_resolved_pat");
+        when(gitHubConfigProvider.getIfAvailable()).thenReturn(gh);
+        when(entryPointResolver.resolve(any(RunOrigin.class))).thenReturn(entryPoint());
+        Spark spark = Spark.create(ADMIN, "Add login");
+        when(sparkService.create(eq(ADMIN), eq("Add login"), eq(SparkInitiatorSource.DISCORD),
+            eq(ADMIN), isNull())).thenReturn(spark);
+        when(sparkClassifierService.classify("Add login")).thenReturn(SparkType.CODE);
+        PipelineRun run = PipelineRun.create(ADMIN, spark.getId(), "Add login", "https://repo",
+            "FULL_PDLC", List.of(), 7.5);
+        when(pdlcV2Service.submitPipeline(anyString(), anyString(), anyString(), anyString(),
+            anyString(), anyString(), anyList(), anyString(), anyDouble())).thenReturn(run);
+
+        IngressRequest req = new IngressRequest(discordOrigin(), ADMIN, IngressKind.EXPLICIT_TRIGGER,
+            "Add login", List.of(), "tacticl", "interaction-1", null,
+            "https://github.com/tacticl-ai/login.git");
+        service.dispatch(req);
+
+        // repoUrl from the request, token = the resolved PAT (NOT the EntryPoint's ref).
+        verify(pdlcV2Service).submitPipeline(eq("tacticl"), eq(ADMIN), eq(spark.getId()),
+            eq("Add login"), eq("https://github.com/tacticl-ai/login.git"), eq("FULL_PDLC"),
+            eq(List.of()), eq("ghp_resolved_pat"), eq(7.5));
+    }
+
+    @Test
+    void dispatch_explicitTrigger_registersRepoToUserMemory() {
+        var repoMemory = mock(io.tacticl.business.profile.service.UserRepoService.class);
+        when(userRepoServiceProvider.getIfAvailable()).thenReturn(repoMemory);
+        when(entryPointResolver.resolve(any(RunOrigin.class))).thenReturn(entryPoint());
+        Spark spark = Spark.create(ADMIN, "Add login");
+        when(sparkService.create(eq(ADMIN), eq("Add login"), eq(SparkInitiatorSource.DISCORD),
+            eq(ADMIN), isNull())).thenReturn(spark);
+        when(sparkClassifierService.classify("Add login")).thenReturn(SparkType.CODE);
+        PipelineRun run = PipelineRun.create(ADMIN, spark.getId(), "Add login", "https://repo",
+            "FULL_PDLC", List.of(), 7.5);
+        when(pdlcV2Service.submitPipeline(anyString(), anyString(), anyString(), anyString(),
+            anyString(), anyString(), anyList(), anyString(), anyDouble())).thenReturn(run);
+
+        // Caller-supplied repoUrl (arbiter-provisioned) → registered as CREATED.
+        IngressRequest req = new IngressRequest(discordOrigin(), ADMIN, IngressKind.EXPLICIT_TRIGGER,
+            "Add login", List.of(), "tacticl", "interaction-1", null,
+            "https://github.com/tacticl-ai/login.git");
+        service.dispatch(req);
+
+        verify(repoMemory).registerRepoUse(ADMIN, "https://github.com/tacticl-ai/login.git",
+            io.tacticl.data.profile.entity.RepoSource.CREATED);
+    }
+
+    @Test
+    void dispatch_explicitTrigger_repoMemoryFailureDoesNotBlockSubmit() {
+        var repoMemory = mock(io.tacticl.business.profile.service.UserRepoService.class);
+        when(userRepoServiceProvider.getIfAvailable()).thenReturn(repoMemory);
+        doThrow(new RuntimeException("mongo down")).when(repoMemory)
+            .registerRepoUse(anyString(), anyString(), any());
+        when(entryPointResolver.resolve(any(RunOrigin.class))).thenReturn(entryPoint());
+        Spark spark = Spark.create(ADMIN, "Add login");
+        when(sparkService.create(eq(ADMIN), eq("Add login"), eq(SparkInitiatorSource.DISCORD),
+            eq(ADMIN), isNull())).thenReturn(spark);
+        when(sparkClassifierService.classify("Add login")).thenReturn(SparkType.CODE);
+        PipelineRun run = PipelineRun.create(ADMIN, spark.getId(), "Add login", "https://repo",
+            "FULL_PDLC", List.of(), 7.5);
+        when(pdlcV2Service.submitPipeline(anyString(), anyString(), anyString(), anyString(),
+            anyString(), anyString(), anyList(), anyString(), anyDouble())).thenReturn(run);
+
+        Optional<PipelineRun> result = service.dispatch(trigger(ADMIN, "Add login", List.of()));
+
+        // Registry blew up but the pipeline still submitted.
+        assertThat(result).contains(run);
+        verify(pdlcV2Service).submitPipeline(anyString(), anyString(), anyString(), anyString(),
+            anyString(), anyString(), anyList(), anyString(), anyDouble());
     }
 
     @Test

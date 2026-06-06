@@ -25,6 +25,17 @@ message ConverseTurnRequest {
   repeated Turn history = 7;             // prior turns this session, oldest first
   repeated PipelineRef pipelines = 8;    // user's in-flight pipelines, for grounding (names not ids)
   string locale = 9;                     // optional
+  string github_token = 10;              // per-turn caller-supplied GitHub PAT for create_repo;
+                                         // the shared arbiter stores none of its own. blank => no provisioning.
+  repeated RepoRef repos = 11;           // user's known repos (recent-first), for grounding — the analyst
+                                         // offers these once requirements are understood, never leads with them.
+}
+
+message RepoRef {
+  string owner = 1;                      // GitHub owner: a user login or org
+  string name = 2;                       // repo name
+  string repo_url = 3;                   // canonical https URL
+  string kind = 4;                       // "USER" | "ORG" | "UNKNOWN"
 }
 
 message Turn {

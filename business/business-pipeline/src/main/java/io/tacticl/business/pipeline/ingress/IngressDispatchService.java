@@ -1,6 +1,9 @@
 package io.tacticl.business.pipeline.ingress;
 
 import io.cidadel.framework.exception.CidadelException;
+import io.strategiz.social.client.github.config.GitHubConfig;
+import io.tacticl.business.profile.service.UserRepoService;
+import io.tacticl.data.profile.entity.RepoSource;
 import io.tacticl.business.pipeline.service.PdlcV2Service;
 import io.tacticl.business.sparks.service.SparkClassifierService;
 import io.tacticl.business.sparks.service.SparkService;
@@ -43,19 +46,27 @@ public class IngressDispatchService {
     private final PdlcV2Service pdlcV2Service;
     private final ObjectProvider<ConversationTurnHandler> conversationTurnHandler;
     private final ObjectProvider<AttachmentMaterializer> attachmentMaterializer;
+    /** Supplies the resolved Tacticl PAT (github.app-token) for pipeline clone/commit. Optional. */
+    private final ObjectProvider<GitHubConfig> gitHubConfig;
+    /** Per-user repo memory — auto-registers the repo a build uses. Optional/best-effort. */
+    private final ObjectProvider<UserRepoService> userRepoService;
 
     public IngressDispatchService(EntryPointResolver entryPointResolver,
                                   SparkService sparkService,
                                   SparkClassifierService sparkClassifierService,
                                   PdlcV2Service pdlcV2Service,
                                   ObjectProvider<ConversationTurnHandler> conversationTurnHandler,
-                                  ObjectProvider<AttachmentMaterializer> attachmentMaterializer) {
+                                  ObjectProvider<AttachmentMaterializer> attachmentMaterializer,
+                                  ObjectProvider<GitHubConfig> gitHubConfig,
+                                  ObjectProvider<UserRepoService> userRepoService) {
         this.entryPointResolver = entryPointResolver;
         this.sparkService = sparkService;
         this.sparkClassifierService = sparkClassifierService;
         this.pdlcV2Service = pdlcV2Service;
         this.conversationTurnHandler = conversationTurnHandler;
         this.attachmentMaterializer = attachmentMaterializer;
+        this.gitHubConfig = gitHubConfig;
+        this.userRepoService = userRepoService;
     }
 
     /**
@@ -109,17 +120,43 @@ public class IngressDispatchService {
                  request.origin().channel(), entryPoint.getProductId(), spark.getId(), type,
                  attachmentRefs.size());
 
-        // TODO(vault): githubTokenRef is a Vault path; resolve to a token once a Vault collaborator
-        // is wired into this layer. Passed through as-is for now (dispatch is dormant pre-Discord).
+        // Repo: a caller-supplied repoUrl (e.g. the repo the arbiter's create_repo skill just
+        // provisioned for a voice build) wins; otherwise fall back to the EntryPoint's repo.
+        String repoUrl = (request.repoUrl() != null && !request.repoUrl().isBlank())
+            ? request.repoUrl() : entryPoint.getRepoUrl();
+
+        // Token: prefer the resolved Tacticl PAT (Vault github.app-token) so the arbiter can
+        // actually clone/commit; fall back to the EntryPoint's (legacy, possibly-unresolved) ref.
+        GitHubConfig gh = gitHubConfig.getIfAvailable();
+        String githubToken = (gh != null && gh.getAppToken() != null && !gh.getAppToken().isBlank())
+            ? gh.getAppToken() : entryPoint.getGithubTokenRef();
+
+        // Per-user repo memory: remember the repo this build uses so the analyst can offer it
+        // next time. Best-effort — a registry failure must never block the pipeline submit.
+        // A caller-supplied repoUrl means the analyst just provisioned it (CREATED); an
+        // EntryPoint-sourced repoUrl is a reused/attached repo (ATTACHED).
+        if (repoUrl != null && !repoUrl.isBlank()) {
+            UserRepoService repoMemory = userRepoService.getIfAvailable();
+            if (repoMemory != null) {
+                RepoSource source = (request.repoUrl() != null && !request.repoUrl().isBlank())
+                    ? RepoSource.CREATED : RepoSource.ATTACHED;
+                try {
+                    repoMemory.registerRepoUse(userId, repoUrl, source);
+                } catch (Exception e) {
+                    log.warn("Repo memory registration failed user={} repo={}: {}", userId, repoUrl, e.toString());
+                }
+            }
+        }
+
         return pdlcV2Service.submitPipeline(
             entryPoint.getProductId(),
             userId,
             spark.getId(),
             request.text(),
-            entryPoint.getRepoUrl(),
+            repoUrl,
             entryPoint.getDefaultPlaybook(),
             /* skipRoles */ List.of(),
-            entryPoint.getGithubTokenRef(),
+            githubToken,
             entryPoint.getCostCeilingUsd()
         );
     }

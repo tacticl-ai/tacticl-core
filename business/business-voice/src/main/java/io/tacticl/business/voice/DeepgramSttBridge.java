@@ -28,6 +28,11 @@ public class DeepgramSttBridge {
 
     private volatile DeepgramSession session;
 
+    /** Diagnostic counters — first chunk + periodic so we can see audio actually flowing. */
+    private final java.util.concurrent.atomic.AtomicLong audioSent = new java.util.concurrent.atomic.AtomicLong();
+
+    private final java.util.concurrent.atomic.AtomicLong audioDropped = new java.util.concurrent.atomic.AtomicLong();
+
     private volatile Consumer<String> onPartial = t -> {
     };
 
@@ -91,7 +96,9 @@ public class DeepgramSttBridge {
             s.onSpeechStarted(this::dispatchSpeechStarted);
             s.onError(this::dispatchError);
             this.session = s;
-            log.debug("Deepgram STT bridge opened");
+            audioSent.set(0);
+            audioDropped.set(0);
+            log.info("Deepgram STT bridge opened (session open={})", s.isOpen());
         } catch (Exception e) {
             log.warn("Deepgram STT bridge open failed: {}", e.toString());
             dispatchError(e);
@@ -105,9 +112,20 @@ public class DeepgramSttBridge {
     public void sendAudio(byte[] pcmChunk) {
         DeepgramSession s = this.session;
         if (s == null || !s.isOpen() || pcmChunk == null || pcmChunk.length == 0) {
+            if (pcmChunk != null && pcmChunk.length > 0) {
+                long d = audioDropped.incrementAndGet();
+                if (d == 1 || d % 200 == 0) {
+                    log.warn("Dropping mic audio — STT session {} (dropped={})",
+                        s == null ? "null" : (s.isOpen() ? "open" : "not-open"), d);
+                }
+            }
             return;
         }
         try {
+            long n = audioSent.incrementAndGet();
+            if (n == 1 || n % 200 == 0) {
+                log.info("Mic audio → Deepgram chunk #{} ({} bytes)", n, pcmChunk.length);
+            }
             s.sendAudio(pcmChunk);
         } catch (Exception e) {
             dispatchError(e);
@@ -135,12 +153,14 @@ public class DeepgramSttBridge {
 
     private void dispatchPartial(String text) {
         if (text != null && !text.isBlank()) {
+            log.info("Deepgram partial: '{}'", text);
             onPartial.accept(text);
         }
     }
 
     private void dispatchFinal(String text) {
         if (text != null && !text.isBlank()) {
+            log.info("Deepgram FINAL transcript: '{}'", text);
             onFinal.accept(text);
         }
     }

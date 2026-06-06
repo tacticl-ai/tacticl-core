@@ -3,6 +3,7 @@ package io.tacticl.client.arbiter.conversation;
 import cidadel.ai.arbiter.conversation.v1.ArbiterConversationServiceGrpc;
 import cidadel.ai.arbiter.conversation.v1.ConverseEvent;
 import cidadel.ai.arbiter.conversation.v1.ConverseTurnRequest;
+import cidadel.ai.arbiter.conversation.v1.RepoRef;
 import cidadel.ai.arbiter.conversation.v1.Turn;
 import io.grpc.stub.StreamObserver;
 import java.util.concurrent.TimeUnit;
@@ -88,7 +89,8 @@ public class ArbiterConversationGrpcClient implements ConversationServiceClient 
             .setTurnId(nz(input.turnId()))
             .setText(nz(input.text()))
             .setPersonaHint(nz(input.personaHint()))
-            .setLocale(nz(input.locale()));
+            .setLocale(nz(input.locale()))
+            .setGithubToken(nz(input.githubToken()));
         if (input.history() != null) {
             for (ConvTurn turn : input.history()) {
                 if (turn == null) {
@@ -98,6 +100,19 @@ public class ArbiterConversationGrpcClient implements ConversationServiceClient 
                     .setRole(nz(turn.role()))
                     .setText(nz(turn.text()))
                     .setPersonaId(nz(turn.personaId()))
+                    .build());
+            }
+        }
+        if (input.repos() != null) {
+            for (ConvRepoRef r : input.repos()) {
+                if (r == null) {
+                    continue;
+                }
+                b.addRepos(RepoRef.newBuilder()
+                    .setOwner(nz(r.owner()))
+                    .setName(nz(r.name()))
+                    .setRepoUrl(nz(r.repoUrl()))
+                    .setKind(nz(r.kind()))
                     .build());
             }
         }

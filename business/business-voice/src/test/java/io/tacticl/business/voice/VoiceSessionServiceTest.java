@@ -159,6 +159,38 @@ class VoiceSessionServiceTest {
     }
 
     @Test
+    void handleTypedText_routesThroughDispatchAndSupersedesNarration() {
+        RecordingOutbound out = new RecordingOutbound();
+        VoiceSession session = open(out);
+        when(ingress.dispatch(any())).thenReturn(Optional.empty());
+
+        service.handleTypedText(session, "how is the run going");
+
+        // Supersedes any in-flight narration, then routes identically to a spoken final.
+        verify(tts).stop();
+        ArgumentCaptor<IngressRequest> captor = ArgumentCaptor.forClass(IngressRequest.class);
+        verify(ingress).dispatch(captor.capture());
+        IngressRequest req = captor.getValue();
+        assertThat(req.kind()).isEqualTo(IngressKind.CONVERSATION_TURN);
+        assertThat(req.text()).isEqualTo("how is the run going");
+        assertThat(req.origin().channel().name()).isEqualTo("VOICE");
+        // The client owns/renders the user's typed turn — the server must NOT echo a user transcript.
+        assertThat(out.framesOfType("transcript").stream()
+            .noneMatch(f -> "user".equals(f.get("role")))).isTrue();
+    }
+
+    @Test
+    void handleTypedText_blankOrNull_isNoOp() {
+        RecordingOutbound out = new RecordingOutbound();
+        VoiceSession session = open(out);
+
+        service.handleTypedText(session, "   ");
+        service.handleTypedText(session, null);
+
+        verify(ingress, never()).dispatch(any());
+    }
+
+    @Test
     void onFinalTranscript_blank_throwsEmptyTranscript() {
         RecordingOutbound out = new RecordingOutbound();
         VoiceSession session = open(out);

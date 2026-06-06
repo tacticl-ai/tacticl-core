@@ -50,6 +50,7 @@ public class VoiceConversationTurnHandler implements ConversationTurnHandler {
         this.engine = engine;
         this.voiceSessionService = voiceSessionService;
         this.properties = properties;
+        log.info("Voice conversation brain wired: {}", engine.getClass().getSimpleName());
     }
 
     @Override
@@ -115,14 +116,19 @@ public class VoiceConversationTurnHandler implements ConversationTurnHandler {
         public void onToolUse(String name, String inputJson) {
             if (SKILL_START_PIPELINE.equals(name)) {
                 String sparkInput = sparkInputOf(inputJson);
+                // The analyst's create_repo skill (executed in the arbiter) provisions the repo and
+                // hands its URL back to the model, which passes it here. Null ⇒ EntryPoint fallback.
+                String repoUrl = repoUrlOf(inputJson);
                 if (sparkInput != null && !sparkInput.isBlank()) {
                     // Reuse the proven local trigger path so pipeline events narrate back here.
-                    voiceSessionService.startPipelineFromConversation(session, sparkInput);
+                    voiceSessionService.startPipelineFromConversation(session, sparkInput, repoUrl);
                 } else {
                     log.warn("start_pipeline tool_use missing sparkInput session={}", session.sessionId());
                 }
             } else {
-                log.debug("Ignoring unsupported tool_use '{}' session={}", name, session.sessionId());
+                // create_repo and other arbiter-internal tools are executed inside the arbiter; the
+                // voice plane only acts on the terminal start_pipeline. Nothing to do here.
+                log.debug("Ignoring non-terminal tool_use '{}' session={}", name, session.sessionId());
             }
         }
 
@@ -162,14 +168,24 @@ public class VoiceConversationTurnHandler implements ConversationTurnHandler {
 
     /** Extract {@code sparkInput} from a {@code start_pipeline} tool input JSON; null if absent. */
     private static String sparkInputOf(String inputJson) {
+        return stringField(inputJson, "sparkInput", "spark_input");
+    }
+
+    /** Extract {@code repoUrl} from a {@code start_pipeline} tool input JSON; null if absent. */
+    private static String repoUrlOf(String inputJson) {
+        return stringField(inputJson, "repoUrl", "repo_url");
+    }
+
+    /** Read the first present, non-blank string field (camel or snake case) from a tool input JSON. */
+    private static String stringField(String inputJson, String camel, String snake) {
         if (inputJson == null || inputJson.isBlank()) {
             return null;
         }
         try {
             JsonNode root = JSON.readTree(inputJson);
-            JsonNode v = root.path("sparkInput");
+            JsonNode v = root.path(camel);
             if (v.isMissingNode() || v.isNull()) {
-                v = root.path("spark_input");
+                v = root.path(snake);
             }
             String s = v.asString("");
             return s.isBlank() ? null : s;
