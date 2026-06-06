@@ -134,14 +134,35 @@ public class PdlcV2Service {
         pipelineCheckpointRepository.save(checkpoint);
 
         if (run.getArbiterPipelineId() != null) {
-            arbiterPipelineService.resolveCheckpoint(
-                run.getArbiterPipelineId(), checkpointId, decision.name(), feedback
-            );
+            if (checkpoint.getAskId() != null && !checkpoint.getAskId().isBlank()) {
+                // Temporal merge/interview gate: signal the workflow (workflowId ==
+                // arbiterPipelineId == pdlc-{pipelineRunId}), echoing askId+gateNonce so the
+                // gate accepts the live ask (first-decision-wins, replay defense).
+                arbiterPipelineService.signalDecision(
+                    run.getArbiterPipelineId(), checkpoint.getAskId(),
+                    mapToArbiterDecision(decision), /* approvedSha */ "",
+                    checkpoint.getGateNonce(), userId, feedback
+                );
+            } else {
+                // Legacy/shell checkpoint (no Temporal correlation ids).
+                arbiterPipelineService.resolveCheckpoint(
+                    run.getArbiterPipelineId(), checkpointId, decision.name(), feedback
+                );
+            }
         }
 
         run.resumeFromCheckpoint();
         pipelineRunRepository.save(run);
         log.info("Resolved checkpoint {} for run {} with decision {}", checkpointId, run.getId(), decision);
+    }
+
+    /** Map tacticl's checkpoint verdict onto the arbiter's MergeDecisionKind string. */
+    private static String mapToArbiterDecision(CheckpointDecision d) {
+        return switch (d) {
+            case APPROVED -> "APPROVE_MERGE";
+            case REWORK -> "GRANT_REWORK";
+            case CANCEL -> "REJECT";
+        };
     }
 
     public void cancelPipeline(String userId, String sparkId) {
@@ -217,9 +238,27 @@ public class PdlcV2Service {
                     pipelineRunId, "ROLE_STARTED", role, role, null);
                 case "agent_completed" -> new PipelineCallbackEvent(
                     pipelineRunId, "ROLE_COMPLETED", role, role, "{\"costUsd\":0}");
-                case "blocked" -> new PipelineCallbackEvent(
-                    pipelineRunId, "CHECKPOINT_REQUESTED", role, role,
-                    "{\"type\":\"ROLE_BLOCKED\",\"artifactPaths\":{}}");
+                case "blocked" -> {
+                    // The arbiter's blocked callback carries {askId, gateNonce, role} in
+                    // `message` — capture them so the checkpoint can echo them back to the
+                    // Temporal merge gate on resolution (SignalPipelineDecision).
+                    String askId = "";
+                    String gateNonce = "";
+                    if (message != null && !message.isBlank()) {
+                        try {
+                            JsonNode m = JSON.readTree(message);
+                            askId = m.path("askId").asString("");
+                            gateNonce = m.path("gateNonce").asString("");
+                        } catch (Exception ignored) {
+                            // non-JSON message → no correlation ids (legacy/shell blocked)
+                        }
+                    }
+                    String payload = "{\"type\":\"ROLE_BLOCKED\",\"artifactPaths\":{}"
+                        + ",\"askId\":\"" + askId.replace("\"", "\\\"") + "\""
+                        + ",\"gateNonce\":\"" + gateNonce.replace("\"", "\\\"") + "\"}";
+                    yield new PipelineCallbackEvent(
+                        pipelineRunId, "CHECKPOINT_REQUESTED", role, role, payload);
+                }
                 default -> null;
             };
         }
@@ -316,6 +355,11 @@ public class PdlcV2Service {
         PipelineCheckpoint checkpoint = PipelineCheckpoint.create(
             run.getId(), run.getSparkId(), event.phase(), type, artifactPaths
         );
+        // Temporal merge-gate correlation (null/blank for legacy/shell checkpoints).
+        String askId = payload.path("askId").asString("");
+        String gateNonce = payload.path("gateNonce").asString("");
+        if (!askId.isBlank()) checkpoint.setAskId(askId);
+        if (!gateNonce.isBlank()) checkpoint.setGateNonce(gateNonce);
         pipelineCheckpointRepository.save(checkpoint);
         run.pauseAtCheckpoint(checkpoint.getId(), event.phase());
         pipelineRunRepository.save(run);

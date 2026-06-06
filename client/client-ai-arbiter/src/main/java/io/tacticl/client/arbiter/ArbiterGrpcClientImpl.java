@@ -5,6 +5,8 @@ import cidadel.ai.arbiter.pipeline.v1.CancelPipelineRequest;
 import cidadel.ai.arbiter.pipeline.v1.GetPipelineResultRequest;
 import cidadel.ai.arbiter.pipeline.v1.GetPipelineResultResponse;
 import cidadel.ai.arbiter.pipeline.v1.ResolveCheckpointRequest;
+import cidadel.ai.arbiter.pipeline.v1.SignalPipelineDecisionRequest;
+import cidadel.ai.arbiter.pipeline.v1.SignalPipelineDecisionResponse;
 import io.tacticl.client.arbiter.dto.PipelineResultResponse;
 import io.tacticl.client.arbiter.dto.SubmitPipelineRequest;
 import io.tacticl.client.arbiter.dto.SubmitPipelineResponse;
@@ -115,6 +117,28 @@ public class ArbiterGrpcClientImpl implements ArbiterPipelineService {
         log.info("Resolving checkpoint in arbiter: arbiterPipelineId={} checkpointId={} decision={}",
                  arbiterPipelineId, checkpointId, decision);
         stub.withDeadlineAfter(10, TimeUnit.SECONDS).resolveCheckpoint(protoReq);
+    }
+
+    @Override
+    public void signalDecision(String workflowId, String askId, String decision,
+                               String approvedSha, String gateNonce, String approver, String reason) {
+        SignalPipelineDecisionRequest protoReq = SignalPipelineDecisionRequest.newBuilder()
+            .setWorkflowId(workflowId != null ? workflowId : "")
+            .setAskId(askId != null ? askId : "")
+            .setDecision(decision != null ? decision : "")
+            .setApprovedSha(approvedSha != null ? approvedSha : "")
+            .setGateNonce(gateNonce != null ? gateNonce : "")
+            .setApprover(approver != null ? approver : "")
+            .setReason(reason != null ? reason : "")
+            .build();
+        log.info("Signalling pipeline decision: workflowId={} askId={} decision={}",
+                 workflowId, askId, decision);
+        SignalPipelineDecisionResponse resp =
+            stub.withDeadlineAfter(10, TimeUnit.SECONDS).signalPipelineDecision(protoReq);
+        if (!resp.getAccepted()) {
+            log.warn("Arbiter did NOT accept pipeline decision workflowId={} askId={}: {}",
+                     workflowId, askId, resp.getReason());
+        }
     }
 
     private String buildContextJson(SubmitPipelineRequest request) {

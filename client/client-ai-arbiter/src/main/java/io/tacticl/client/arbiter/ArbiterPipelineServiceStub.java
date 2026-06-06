@@ -38,4 +38,11 @@ public class ArbiterPipelineServiceStub implements ArbiterPipelineService {
         log.info("[STUB] resolveCheckpoint: arbiterPipelineId={} checkpointId={} decision={}",
                  arbiterPipelineId, checkpointId, decision);
     }
+
+    @Override
+    public void signalDecision(String workflowId, String askId, String decision,
+                               String approvedSha, String gateNonce, String approver, String reason) {
+        log.info("[STUB] signalDecision: workflowId={} askId={} decision={}",
+                 workflowId, askId, decision);
+    }
 }

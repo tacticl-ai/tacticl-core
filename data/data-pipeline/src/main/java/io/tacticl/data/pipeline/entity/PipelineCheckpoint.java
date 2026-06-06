@@ -52,6 +52,15 @@ public class PipelineCheckpoint {
     private String feedback;
 
     /**
+     * Temporal merge/interview gate correlation (from the arbiter's {@code blocked}
+     * callback). Echoed back on resolution via SignalPipelineDecision so the workflow
+     * validates the live ask (first-decision-wins, replay defense). Null for legacy/non-
+     * Temporal checkpoints.
+     */
+    private String askId;
+    private String gateNonce;
+
+    /**
      * Session id that resolved this checkpoint (per SAD §9.3). Cross-session
      * checkpoints can be answered by any of the user's sessions.
      */
@@ -114,6 +123,10 @@ public class PipelineCheckpoint {
     }
     public Map<String, String> getArtifactPaths() { return artifactPaths; }
     public String getHitlUrl() { return hitlUrl; }
+    public String getAskId() { return askId; }
+    public void setAskId(String askId) { this.askId = askId; }
+    public String getGateNonce() { return gateNonce; }
+    public void setGateNonce(String gateNonce) { this.gateNonce = gateNonce; }
     public String getDecision() { return decision; }
     public String getFeedback() { return feedback; }
     public String getResolvedBy() { return resolvedBy; }

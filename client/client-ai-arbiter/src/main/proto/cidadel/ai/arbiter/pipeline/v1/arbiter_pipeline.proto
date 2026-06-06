@@ -12,6 +12,9 @@ service ArbiterPipelineService {
   rpc CancelPipeline(CancelPipelineRequest) returns (CancelPipelineResponse);
   rpc GetPipelineResult(GetPipelineResultRequest) returns (GetPipelineResultResponse);
   rpc ResolveCheckpoint(ResolveCheckpointRequest) returns (ResolveCheckpointResponse);
+  // Resume a parked merge/interview gate on the Temporal path (replaces ResolveCheckpoint
+  // for Temporal-run pipelines). Matches the arbiter's SignalPipelineDecision (field 11).
+  rpc SignalPipelineDecision(SignalPipelineDecisionRequest) returns (SignalPipelineDecisionResponse);
 }
 
 message SubmitPipelineRequest {
@@ -82,4 +85,21 @@ message ResolveCheckpointRequest {
 
 message ResolveCheckpointResponse {
   bool accepted = 1;
+}
+
+message SignalPipelineDecisionRequest {
+  string workflow_id = 1;
+  string intake_id = 2;
+  string ask_id = 3;
+  string decision = 4;
+  string approved_sha = 5;
+  string gate_nonce = 6;
+  string approver = 7;
+  string reason = 8;
+  int64 decided_at_ms = 9;
+}
+
+message SignalPipelineDecisionResponse {
+  bool accepted = 1;
+  string reason = 2;
 }
