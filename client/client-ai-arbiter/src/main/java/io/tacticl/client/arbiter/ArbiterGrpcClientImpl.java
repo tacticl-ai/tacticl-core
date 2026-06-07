@@ -147,6 +147,11 @@ public class ArbiterGrpcClientImpl implements ArbiterPipelineService {
         context.put("pipeline_run_id", request.pipelineRunId());
         context.put("spark_id", request.sparkId());
         context.put("spark_request", request.sparkRequest());
+        // The arbiter workspace assembler writes context/user-prompt.md ONLY from the
+        // camelCase `userPrompt` key (workspace-assembler.ts) — so the agent gets a clean
+        // prompt file with the report instead of having to dig it out of pipeline-config.json.
+        // Kept alongside snake_case spark_request (Handlebars {{spark_request}} + back-compat).
+        context.put("userPrompt", request.sparkRequest());
         context.put("skip_roles", request.skipRoles() != null ? request.skipRoles() : List.of());
         context.put("cost_ceiling_usd", request.costCeilingUsd());
         try {
