@@ -24,6 +24,19 @@ class PlaybookSpecResolverTest {
     }
 
     @Test
+    void resolve_pdlcFix_emitsMergeGateConfigNotLegacyRoles() {
+        // The arbiter Temporal path reads a PdlcPlaybookConfig; the human PR gate engages
+        // ONLY when mergeGateRole is present. Must NOT be the legacy {name, roles} shape.
+        String spec = resolver.resolve("pdlc-fix");
+        assertThat(spec)
+            .contains("mergeGateRole").contains("test")
+            .contains("reworkEntryRole").contains("implementer")
+            .contains("reworkMax")
+            .doesNotContain("\"roles\"")
+            .doesNotContain("FULL_PDLC");
+    }
+
+    @Test
     void resolve_allKnownPlaybooks_noException() {
         for (String name : new String[]{"FULL_PDLC","BUG_FIX","SMALL_FEATURE",
                 "REFACTOR","INFRA_CHANGE","DOCS_ONLY","UI_CHANGE","SECURITY_PATCH"}) {

@@ -29,10 +29,36 @@ public class PlaybookSpecResolver {
     );
 
     /**
-     * Returns a JSON string describing the playbook configuration.
-     * Falls back to FULL_PDLC if the playbook name is unknown.
+     * Arbiter Temporal pipelines ({@code pdlc-fix} | {@code pdlc-feature}) consume a
+     * {@code PdlcPlaybookConfig} ({@code mergeGateRole}/{@code reworkEntryRole}/{@code reworkMax}),
+     * NOT the legacy {@code {name, roles}} shape the in-JVM shell path uses. The arbiter's merge
+     * gate — the single human PR-approval checkpoint — engages ONLY when {@code mergeGateRole} is
+     * set (cidadel-ai-arbiter resolve-bundle.ts). These configs are keyed to the lean
+     * {@code pdlc-fix} registry DAG (investigator → implementer → test): the gate sits at
+     * {@code test} and a GRANT_REWORK re-opens {@code implementer}.
+     */
+    private static final Map<String, Map<String, Object>> ARBITER_PLAYBOOK_CONFIG = Map.of(
+        "pdlc-fix", Map.of(
+            "mergeGateRole", "test",           // park for human PR approval once tests pass
+            "reworkEntryRole", "implementer",  // a GRANT_REWORK re-opens the implementer
+            "reworkMax", 1)                     // lean: one rework round, then escalate
+    );
+
+    /**
+     * Returns a JSON string describing the playbook configuration. For an arbiter Temporal
+     * pipeline this is a {@code PdlcPlaybookConfig}; otherwise the legacy {@code {name, roles}}
+     * spec (falling back to FULL_PDLC for an unknown legacy name).
      */
     public String resolve(String playbookName) {
+        Map<String, Object> arbiterConfig = ARBITER_PLAYBOOK_CONFIG.get(playbookName);
+        if (arbiterConfig != null) {
+            try {
+                return JSON.writeValueAsString(arbiterConfig);
+            } catch (JacksonException e) {
+                throw new RuntimeException("Failed to serialize arbiter playbook config", e);
+            }
+        }
+
         List<String> roles = PLAYBOOK_ROLES.get(playbookName);
         if (roles == null) {
             log.warn("Unknown playbook '{}', falling back to FULL_PDLC", playbookName);
