@@ -40,15 +40,36 @@ class DeepgramSessionImpl implements DeepgramSession {
 
     private static final String KEEPALIVE_PAYLOAD = "{\"type\":\"KeepAlive\"}";
 
+    private static final String CLOSE_STREAM_PAYLOAD = "{\"type\":\"CloseStream\"}";
+
     private static final long KEEPALIVE_INTERVAL_SECONDS = 8L;
+
+    /** How long close() waits for Deepgram to flush finals + close before aborting. */
+    private static final long DRAIN_TIMEOUT_MS = 2000L;
 
     private final JsonMapper objectMapper;
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
+    /** Set once close() starts draining — rejects new audio while late finals stream in. */
+    private final AtomicBoolean closing = new AtomicBoolean(false);
+
     private final StringBuilder textBuffer = new StringBuilder();
 
+    /**
+     * Finalized-but-not-speech-final segments of the current utterance
+     * ({@code is_final: true, speech_final: false}). Deepgram splits a long or
+     * noisy utterance into several such segments and the closing
+     * {@code speech_final} frame (or {@code UtteranceEnd}, or the post-CloseStream
+     * flush) may carry only the tail — often blank. The full utterance is the
+     * concatenation, so segments are buffered here and merged at flush time.
+     * Guarded by itself.
+     */
+    private final List<DeepgramFinalTranscript> pendingSegments = new ArrayList<>();
+
     private volatile WebSocket webSocket;
+
+    private volatile ScheduledExecutorService scheduler;
 
     private volatile ScheduledFuture<?> keepaliveTask;
 
@@ -81,6 +102,7 @@ class DeepgramSessionImpl implements DeepgramSession {
         if (scheduler == null) {
             return;
         }
+        this.scheduler = scheduler;
         this.keepaliveTask = scheduler.scheduleAtFixedRate(() -> {
             try {
                 WebSocket ws = this.webSocket;
@@ -99,7 +121,7 @@ class DeepgramSessionImpl implements DeepgramSession {
             throw new CidadelException(DeepgramErrorDetails.INVALID_FRAME, MODULE_NAME);
         }
         WebSocket ws = this.webSocket;
-        if (ws == null || closed.get()) {
+        if (ws == null || closed.get() || closing.get()) {
             throw new CidadelException(DeepgramErrorDetails.SESSION_CLOSED, MODULE_NAME);
         }
         try {
@@ -154,26 +176,68 @@ class DeepgramSessionImpl implements DeepgramSession {
     @Override
     public boolean isOpen() {
         WebSocket ws = this.webSocket;
-        return ws != null && !closed.get() && !ws.isOutputClosed();
+        return ws != null && !closed.get() && !closing.get() && !ws.isOutputClosed();
     }
 
+    /**
+     * Graceful close: sends Deepgram's {@code CloseStream} message so the server
+     * transcribes any buffered audio and flushes the remaining finals before
+     * closing the socket itself (a bare WS close frame would discard them — the
+     * operator's last words would vanish and the turn would never dispatch).
+     * The server's close lands in {@link #markClosed()}, which flushes any
+     * accumulated utterance; a watchdog aborts the socket if Deepgram doesn't
+     * close within {@link #DRAIN_TIMEOUT_MS}.
+     */
     @Override
     public void close() {
-        if (!closed.compareAndSet(false, true)) {
+        if (closed.get() || !closing.compareAndSet(false, true)) {
             return;
         }
         if (keepaliveTask != null) {
             keepaliveTask.cancel(false);
         }
         WebSocket ws = this.webSocket;
-        if (ws != null) {
+        if (ws == null) {
+            markClosed();
+            return;
+        }
+        try {
+            ws.sendText(CLOSE_STREAM_PAYLOAD, true);
+        } catch (Exception e) {
+            log.debug("Deepgram CloseStream send failed: {}", e.getMessage());
+            try {
+                ws.sendClose(WebSocket.NORMAL_CLOSURE, "client-close");
+            } catch (Exception e2) {
+                log.debug("Deepgram sendClose failed: {}", e2.getMessage());
+            }
+            markClosed();
+            return;
+        }
+        ScheduledExecutorService sch = this.scheduler;
+        if (sch == null) {
+            // No scheduler to watchdog the drain (tests / degenerate wiring):
+            // fall back to an immediate close after the flush request.
             try {
                 ws.sendClose(WebSocket.NORMAL_CLOSURE, "client-close");
             } catch (Exception e) {
                 log.debug("Deepgram sendClose failed: {}", e.getMessage());
             }
+            markClosed();
+            return;
         }
-        fireClose();
+        sch.schedule(() -> {
+            if (!closed.get()) {
+                log.debug("Deepgram drain timed out — aborting socket");
+                try {
+                    ws.abort();
+                } catch (Exception ignored) {
+                    // already gone
+                }
+                // markClosed flushes the pending utterance into the final handler,
+                // which may run a long dispatch — keep it off the shared scheduler.
+                java.util.concurrent.CompletableFuture.runAsync(this::markClosed);
+            }
+        }, DRAIN_TIMEOUT_MS, TimeUnit.MILLISECONDS);
     }
 
     /* ---------------- Inbound frame handling (called by listener) ---------------- */
@@ -200,7 +264,13 @@ class DeepgramSessionImpl implements DeepgramSession {
             switch (type) {
                 case "Results" -> handleResults(node);
                 case "SpeechStarted" -> safe(speechStartedHandler);
-                case "UtteranceEnd" -> safe(speechFinalHandler);
+                case "UtteranceEnd" -> {
+                    safe(speechFinalHandler);
+                    // VAD said the utterance is over but no speech_final frame came
+                    // (typical under background noise) — the buffered is_final
+                    // segments ARE the utterance; flush them as the final.
+                    flushPendingSegments(null);
+                }
                 case "Error" -> fireError(node);
                 case "Metadata" -> { /* ignore — diagnostics only */ }
                 default -> log.debug("Deepgram unknown message type: {}", type);
@@ -229,10 +299,19 @@ class DeepgramSessionImpl implements DeepgramSession {
         boolean speechFinal = boolValue(node.get("speech_final"));
 
         if (isFinal && speechFinal) {
-            DeepgramFinalTranscript ft = new DeepgramFinalTranscript(
+            // End of utterance — merge any earlier finalized segments with this
+            // tail (which Deepgram may send with only the tail text, or blank).
+            flushPendingSegments(new DeepgramFinalTranscript(text, confidence, words, requestId));
+        } else if (isFinal) {
+            // Segment finalized mid-utterance: buffer it for the eventual flush,
+            // and surface it as a partial so live captions keep up.
+            synchronized (pendingSegments) {
+                pendingSegments.add(new DeepgramFinalTranscript(text, confidence, words, requestId));
+            }
+            DeepgramPartialTranscript pt = new DeepgramPartialTranscript(
                 text, confidence, words, requestId);
             try {
-                finalHandler.accept(ft);
+                partialHandler.accept(pt);
             } catch (Exception e) {
                 fireError(e);
             }
@@ -244,6 +323,51 @@ class DeepgramSessionImpl implements DeepgramSession {
             } catch (Exception e) {
                 fireError(e);
             }
+        }
+    }
+
+    /**
+     * Merge the buffered {@code is_final} segments (plus an optional closing
+     * tail) into one utterance and fire the final handler. No-op when the merged
+     * transcript is blank — a silence-only flush must not dispatch a turn.
+     */
+    private void flushPendingSegments(DeepgramFinalTranscript tail) {
+        List<DeepgramFinalTranscript> segments;
+        synchronized (pendingSegments) {
+            segments = new ArrayList<>(pendingSegments);
+            pendingSegments.clear();
+        }
+        if (tail != null) {
+            segments.add(tail);
+        }
+        StringBuilder text = new StringBuilder();
+        List<WordTiming> words = new ArrayList<>();
+        double confidence = 0.0d;
+        String requestId = null;
+        for (DeepgramFinalTranscript segment : segments) {
+            if (segment.text() != null && !segment.text().isBlank()) {
+                if (!text.isEmpty()) {
+                    text.append(' ');
+                }
+                text.append(segment.text().trim());
+                confidence = segment.confidence();
+            }
+            if (segment.wordTimings() != null) {
+                words.addAll(segment.wordTimings());
+            }
+            if (segment.requestId() != null) {
+                requestId = segment.requestId();
+            }
+        }
+        if (text.isEmpty()) {
+            return;
+        }
+        DeepgramFinalTranscript merged = new DeepgramFinalTranscript(
+            text.toString(), confidence, words.isEmpty() ? null : words, requestId);
+        try {
+            finalHandler.accept(merged);
+        } catch (Exception e) {
+            fireError(e);
         }
     }
 
@@ -310,6 +434,10 @@ class DeepgramSessionImpl implements DeepgramSession {
             if (keepaliveTask != null) {
                 keepaliveTask.cancel(false);
             }
+            // The socket is gone — whatever segments accumulated are the last
+            // chance at this utterance (covers a drain where the post-CloseStream
+            // finals never carried speech_final).
+            flushPendingSegments(null);
             fireClose();
         }
     }

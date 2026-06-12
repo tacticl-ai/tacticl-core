@@ -199,6 +199,82 @@ class DeepgramClientTest {
         assertTrue(fired.get());
     }
 
+    /* --------------- Utterance accumulation — segmented finals --------------- */
+
+    @Test
+    void utteranceEndFlushesBufferedIsFinalSegmentsAsFinal() {
+        DeepgramSessionImpl session = new DeepgramSessionImpl();
+        AtomicReference<DeepgramFinalTranscript> got = new AtomicReference<>();
+        session.onFinalTranscript(got::set);
+
+        // VAD endpointing never set speech_final (noisy room) — the utterance
+        // arrives as an is_final segment followed by UtteranceEnd only.
+        session.handleTextFrame(resultsFrame("what's going on", true, false));
+        session.handleTextFrame("{\"type\":\"UtteranceEnd\"}");
+
+        assertNotNull(got.get(), "UtteranceEnd must flush buffered is_final segments");
+        assertEquals("what's going on", got.get().text());
+
+        // Buffer must be consumed — a second UtteranceEnd is a no-op.
+        got.set(null);
+        session.handleTextFrame("{\"type\":\"UtteranceEnd\"}");
+        assertNull(got.get(), "flush must clear the segment buffer");
+    }
+
+    @Test
+    void blankSpeechFinalTailMergesWithBufferedSegments() {
+        DeepgramSessionImpl session = new DeepgramSessionImpl();
+        AtomicReference<DeepgramFinalTranscript> got = new AtomicReference<>();
+        session.onFinalTranscript(got::set);
+
+        session.handleTextFrame(resultsFrame("deploy the fix", true, false));
+        session.handleTextFrame(resultsFrame("to production", true, false));
+        // Trailing silence segment: speech_final fires with an empty transcript.
+        session.handleTextFrame(resultsFrame("", true, true));
+
+        assertNotNull(got.get(), "speech_final must flush even with a blank tail");
+        assertEquals("deploy the fix to production", got.get().text());
+    }
+
+    @Test
+    void speechFinalTailTextIsAppendedAfterBufferedSegments() {
+        DeepgramSessionImpl session = new DeepgramSessionImpl();
+        AtomicReference<DeepgramFinalTranscript> got = new AtomicReference<>();
+        session.onFinalTranscript(got::set);
+
+        session.handleTextFrame(resultsFrame("build a health", true, false));
+        session.handleTextFrame(resultsFrame("endpoint", true, true));
+
+        assertEquals("build a health endpoint", got.get().text());
+    }
+
+    @Test
+    void utteranceEndWithoutBufferedSegmentsFiresNoFinal() {
+        DeepgramSessionImpl session = new DeepgramSessionImpl();
+        AtomicInteger finals = new AtomicInteger();
+        session.onFinalTranscript(f -> finals.incrementAndGet());
+
+        session.handleTextFrame("{\"type\":\"UtteranceEnd\"}");
+
+        assertEquals(0, finals.get(), "silence-only turn must not dispatch a final");
+    }
+
+    @Test
+    void markClosedFlushesBufferedSegmentsBeforeCloseHandler() {
+        DeepgramSessionImpl session = new DeepgramSessionImpl();
+        List<String> order = new ArrayList<>();
+        session.onFinalTranscript(f -> order.add("final:" + f.text()));
+        session.onClose(() -> order.add("close"));
+
+        // Operator released the button; CloseStream drain returned one more
+        // is_final segment but the socket closed before any speech_final.
+        session.handleTextFrame(resultsFrame("last words", true, false));
+        session.markClosed();
+
+        assertEquals(List.of("final:last words", "close"), order,
+            "pending utterance must flush as final before the close handler runs");
+    }
+
     @Test
     void errorFrameFiresErrorHandler() {
         DeepgramSessionImpl session = new DeepgramSessionImpl();
