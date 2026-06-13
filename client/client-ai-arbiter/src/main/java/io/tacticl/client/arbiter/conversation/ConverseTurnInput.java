@@ -19,6 +19,8 @@ import java.util.List;
  *                    arbiter stores none of its own. Blank/null → repo provisioning is off.
  * @param repos       the user's known repos (recent-first) as grounding; the analyst offers
  *                    them once requirements are understood. May be empty.
+ * @param pipelines   the user's in-flight pipelines (recent-first) as grounding, so the persona
+ *                    knows what's building and can report status without a tool call. May be empty.
  */
 public record ConverseTurnInput(String productId,
                                 String userId,
@@ -29,5 +31,6 @@ public record ConverseTurnInput(String productId,
                                 List<ConvTurn> history,
                                 String locale,
                                 String githubToken,
-                                List<ConvRepoRef> repos) {
+                                List<ConvRepoRef> repos,
+                                List<ConvPipelineRef> pipelines) {
 }

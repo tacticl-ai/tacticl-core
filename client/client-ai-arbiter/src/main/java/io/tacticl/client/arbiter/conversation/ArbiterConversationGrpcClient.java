@@ -3,6 +3,7 @@ package io.tacticl.client.arbiter.conversation;
 import cidadel.ai.arbiter.conversation.v1.ArbiterConversationServiceGrpc;
 import cidadel.ai.arbiter.conversation.v1.ConverseEvent;
 import cidadel.ai.arbiter.conversation.v1.ConverseTurnRequest;
+import cidadel.ai.arbiter.conversation.v1.PipelineRef;
 import cidadel.ai.arbiter.conversation.v1.RepoRef;
 import cidadel.ai.arbiter.conversation.v1.Turn;
 import io.grpc.stub.StreamObserver;
@@ -113,6 +114,20 @@ public class ArbiterConversationGrpcClient implements ConversationServiceClient 
                     .setName(nz(r.name()))
                     .setRepoUrl(nz(r.repoUrl()))
                     .setKind(nz(r.kind()))
+                    .build());
+            }
+        }
+        if (input.pipelines() != null) {
+            for (ConvPipelineRef p : input.pipelines()) {
+                if (p == null) {
+                    continue;
+                }
+                b.addPipelines(PipelineRef.newBuilder()
+                    .setPipelineRunId(nz(p.pipelineRunId()))
+                    .setName(nz(p.name()))
+                    .setStatus(nz(p.status()))
+                    .setCurrentRole(nz(p.currentRole()))
+                    .setBlockedCheckpointId(nz(p.blockedCheckpointId()))
                     .build());
             }
         }
