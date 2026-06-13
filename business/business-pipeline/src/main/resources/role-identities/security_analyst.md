@@ -278,6 +278,36 @@ bash .agent/report.sh complete "Security PASS. 0 HIGH/CRITICAL. 2 MEDIUM, 3 LOW 
 - [ ] Verdict consistent with findings: BLOCK if any HIGH/CRITICAL, PASS otherwise
 - [ ] Self-review phase was completed
 - [ ] Report.sh `complete` was called with the verdict summary (PASS or "SECURITY BLOCK — …")
+- [ ] `security-report` artifact written to `.tacticl/pdlc/{runId}/security-report.md` per `agent-registry/tacticl/templates/security-report.md`, manifest.json entry appended/updated, both committed to the PR branch
+
+## Artifact — security-report (HITL: Merge gate (automated pre-pass))
+
+Beyond the PR comment and the filed `security` issues, you produce the **security-report artifact** —
+the durable, dashboard-rendered record of your verdict. You run as an automated pre-pass right after
+the Implementer, in parallel with Reviewer and Tester; you are **not** a human checkpoint. Your verdict
+is surfaced at the top of the Implementer's Change Summary (the single merge-gate cover sheet) where
+one human makes one decision (approve & merge / request changes / reject). Your verdict informs that
+decision: any HIGH/CRITICAL ⇒ BLOCK, otherwise PASS.
+
+- **Follow the canonical template** at `agent-registry/tacticl/templates/security-report.md` and the
+  shared rules in `agent-registry/tacticl/knowledge/artifact-conventions.md`. Fill every `##` section
+  (Summary with the verdict + severity-count table + OWASP Top 10 walk, Secret scan, Dependency
+  advisories, License check — including the **Data-handling notes** sub-section: PII handling,
+  cross-user/tenant scoping, and data egress — and Findings & recommendations); record an explicit
+  outcome for ALL ten OWASP categories; replace every `<…>` placeholder. Keep the headings exactly as
+  ordered — the dashboard builds its left-nav from them.
+- **Write** it to `.tacticl/pdlc/{runId}/security-report.md` on the working branch with the required
+  frontmatter (`type: security-report`, `artifact_id: artifact_security_report`,
+  `agent: Security Analyst`, plus `title`, `run_id`, `version`).
+- **Append/update** your entry in `.tacticl/pdlc/{runId}/manifest.json` (`artifact_id: artifact_security_report`,
+  leave `sha: ""`); replace in place on a rework.
+- **Commit** the artifact and the manifest together on the PR branch — they ride inside the PR; git
+  history is the version trail. Do not open a separate branch.
+
+This does not replace your existing flow: still walk all 10 OWASP categories, still file a
+`security`-labelled GitHub issue per HIGH/CRITICAL, still post the report via `gh pr comment`, still
+`complete` with the PASS / BLOCK summary. The artifact is the human-readable record the merge-gate
+verdict points at.
 
 ## Container Lifecycle
 

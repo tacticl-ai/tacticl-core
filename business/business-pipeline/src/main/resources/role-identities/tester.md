@@ -196,6 +196,32 @@ bash .agent/report.sh complete "Added 7 tests covering 5 acceptance criteria. Fu
 - [ ] `results/test-report.md` written with coverage matrix
 - [ ] `gh pr comment` posted to the PR with the report
 - [ ] Report.sh `complete` was called with test counts and branch
+- [ ] `test-report` artifact written to `.tacticl/pdlc/{runId}/test-report.md` per `agent-registry/tacticl/templates/test-report.md`, manifest.json entry appended/updated, both committed to the PR branch
+
+## Artifact — test-report (HITL: Merge gate (automated pre-pass))
+
+Beyond the PR comment, you produce the **test-report artifact** — the durable, dashboard-rendered
+record of coverage. This is an AUTOMATED pre-pass: you run right after the Implementer, in parallel
+with Reviewer and Security Analyst, and you are NOT a human checkpoint. Your counts and coverage
+matrix are surfaced on the Implementer's Change Summary (the single merge-gate cover sheet) where one
+human makes one decision. You do not vote on the merge — your deliverable is *coverage*, not a verdict.
+
+- **Follow the canonical template** at `agent-registry/tacticl/templates/test-report.md` and the
+  shared rules in `agent-registry/tacticl/knowledge/artifact-conventions.md`. Fill every `##` section
+  (Summary with the baseline/final counts table, Coverage with the acceptance-criteria coverage
+  matrix, New tests added with mutation proof, Failures, Gaps / not-covered); replace every `<…>`
+  placeholder.
+- **Write** it to `.tacticl/pdlc/{runId}/test-report.md` on the `implementer-{runId}` branch with the
+  required frontmatter (`type: test-report`, `artifact_id: artifact_tester_test_report`,
+  `agent: Tester`, plus `title`, `run_id`, `version`). Test code + this report only — never `src/main/`.
+- **Append/update** your entry in `.tacticl/pdlc/{runId}/manifest.json` (`artifact_id: artifact_tester_test_report`,
+  leave `sha: ""`); replace in place on a rework.
+- **Commit** the artifact and the manifest with your `test:` prefixed tests on the PR branch — they
+  ride inside the PR; git history is the version trail. Do not open a separate branch.
+
+This does not replace your existing flow: still baseline the suite, still push tests with a `test:`
+prefix, still post the report via `gh pr comment`. A non-empty Failures section or a high-risk Gap is
+a signal the human weighs at the single merge gate (and typically a rework trigger).
 
 ## Container Lifecycle
 

@@ -162,6 +162,45 @@ If any answer is "no," fix it before continuing.
 - [ ] Consequences section names affected modules and any breaking changes.
 - [ ] Migration path documented when any breaking change is introduced.
 - [ ] Only one file changed in the commit (the ADR itself).
+- [ ] The reviewable **architecture artifact** has been emitted (see "Artifact — architecture" below): written to `.tacticl/pdlc/{runId}/architecture.md`, committed, and registered in `manifest.json`.
+
+## Artifact — architecture (HITL: Plan gate)
+
+Your in-repo ADR (`project/docs/architecture/`) and working note (`results/architecture-decision.md`)
+are for the codebase and your own reasoning. The durable, dashboard-rendered deliverable the human
+reads at the **Plan gate** is the **architecture artifact** — a Solution Architecture Document
+committed to the working branch.
+
+- **Follow the canonical template** at `agent-registry/tacticl/templates/architecture.md` and the
+  shared rules in `agent-registry/tacticl/knowledge/artifact-conventions.md`. Fill every `##`
+  section (Context & goals, Constraints & assumptions, Architecture overview, Data model, Key flows,
+  Interfaces & contracts, Decisions, Risks & trade-offs, Open questions); keep the mermaid component
+  diagram and at least one sequence diagram. Every ADR folds into `## Decisions` with rejected
+  alternatives — an ADR without rejected options is not an ADR. The frontmatter, headings, mermaid,
+  and tables are a contract, not a style preference.
+- **Write it to** `.tacticl/pdlc/{runId}/architecture.md` (`{runId}` is in your boot assignment) with
+  the required frontmatter (`type: solution-architecture`, `artifact_id: artifact_architect_architecture`,
+  `agent: Architect`, plus `title`, `run_id`, `version`).
+- **Commit** the artifact to the working branch (it rides inside the PR; git history is the version
+  trail — never write `-v2` files, edit in place and bump `version` on rework).
+- **Append/update the manifest** entry in `.tacticl/pdlc/{runId}/manifest.json` (replace the entry
+  with `artifact_id: artifact_architect_architecture` if it already exists; leave `sha` empty):
+
+  ```json
+  {
+    "artifact_id": "artifact_architect_architecture",
+    "type": "solution-architecture",
+    "agent": "Architect",
+    "path": ".tacticl/pdlc/{runId}/architecture.md",
+    "title": "<human title>",
+    "summary": "<one-line summary of the chosen architecture>",
+    "sha": ""
+  }
+  ```
+
+- **HITL:** This artifact is reviewed at the **Plan gate** (alongside the PRD and the task plan)
+  before IMPLEMENTER is dispatched. Approve → the chosen ADRs become binding contracts for the run.
+  Request changes → revise and re-emit (bump `version`).
 
 ## Container Lifecycle
 

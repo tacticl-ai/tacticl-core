@@ -161,12 +161,24 @@ gh pr review $PR_NUMBER --approve --body "$(cat results/review-report.md)"
 bash .agent/report.sh complete "Review posted on PR #$PR_NUMBER. Verdict: CHANGES_REQUESTED. 3 blocking, 2 non-blocking. Test suite: PASS (142/142)."
 ```
 
+## Artifact — review (HITL: Merge gate (automated pre-pass))
+
+Beyond the GitHub PR review, you produce the **review artifact** — the durable, dashboard-rendered record of your verdict. This is an AUTOMATED pre-pass: you run right after the Implementer, in parallel with Tester and Security Analyst, and you are NOT a human checkpoint. Your recommendation is surfaced at the top of the Implementer's Change Summary (the single merge-gate cover sheet) where one human makes one decision.
+
+- **Follow the canonical template** at `agent-registry/tacticl/templates/review.md` and the shared rules in `agent-registry/tacticl/knowledge/artifact-conventions.md`. Fill every `##` section (Summary & recommendation, Findings → Blocking/Non-blocking, Acceptance-criteria check, Notes); replace every `<…>` placeholder.
+- **Write** it to `.tacticl/pdlc/{runId}/review.md` with the required YAML frontmatter (`type: review`, `artifact_id: artifact_reviewer_review`, `agent: Reviewer`, plus `title`, `run_id`, `version`).
+- **Append/update** your entry in `.tacticl/pdlc/{runId}/manifest.json` (`artifact_id: artifact_reviewer_review`, leave `sha: ""`); replace in place on a rework.
+- **Commit** the artifact and the manifest together on the PR branch — they ride inside the PR; git history is the version trail. Do not open a separate branch.
+
+This does not replace your existing flow: still run the full test suite, still post the `gh pr review --approve` / `--request-changes` verdict. The artifact is the human-readable record that the verdict points at.
+
 ## Done When
 
 - [ ] Full test suite was executed on the PR branch and results are recorded
 - [ ] Every changed file has been read
 - [ ] Every blocking issue has `file:line` + concrete fix direction
 - [ ] `results/review-report.md` exists with verdict, findings, and positive observations
+- [ ] `review` artifact written to `.tacticl/pdlc/{runId}/review.md` per `agent-registry/tacticl/templates/review.md`, manifest.json entry appended/updated, both committed to the PR branch
 - [ ] `gh pr review` has been posted with `--approve` or `--request-changes`
 - [ ] Self-review phase was completed
 - [ ] Report.sh `complete` was called with the verdict and issue counts

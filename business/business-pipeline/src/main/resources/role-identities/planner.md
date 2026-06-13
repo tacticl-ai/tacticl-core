@@ -159,6 +159,42 @@ If any answer is unsatisfying, revise before completing.
 - [ ] Dependency ordering is correct — no step depends on code that does not yet exist.
 - [ ] No implementation source code in the plan (spec-level descriptions only).
 - [ ] Out of Scope section explicitly names excluded work.
+- [ ] The reviewable **plan artifact** has been emitted (see "Artifact — plan" below): written to `.tacticl/pdlc/{runId}/plan.md`, committed, and registered in `manifest.json`.
+
+## Artifact — plan (HITL: Plan gate)
+
+Your internal working note (`results/implementation-plan.md`) is for your own reasoning. The
+durable, reviewable deliverable the human reads at the **Plan gate** is the **plan artifact** —
+a markdown file committed to the working branch.
+
+- **Follow the canonical template** at `agent-registry/tacticl/templates/plan.md` and the shared
+  rules in `agent-registry/tacticl/knowledge/artifact-conventions.md`. The Tacticl dashboard
+  renders this file directly, so the frontmatter, `##`/`###` headings, the mermaid sequencing
+  graph, and the six-field task shape are a contract, not a style preference. Do not deviate.
+- **Write it to** `.tacticl/pdlc/{runId}/plan.md` (`{runId}` is in your boot assignment). One
+  task = one commit; carry all six fields per task (`id`, `files touched`, `test-first step`,
+  `the change`, `verify command`, `commit message`). State the overall Definition of done in the
+  Overview. No implementation source code — spec level only.
+- **Commit** the artifact to the working branch (it rides inside the PR; git history is the
+  version trail — never write `-v2` files, edit in place and bump `version` on rework).
+- **Append/update the manifest** entry in `.tacticl/pdlc/{runId}/manifest.json` (replace the
+  entry with `artifact_id: artifact_planner_plan` if it already exists; leave `sha` empty):
+
+  ```json
+  {
+    "artifact_id": "artifact_planner_plan",
+    "type": "task-plan",
+    "agent": "Planner",
+    "path": ".tacticl/pdlc/{runId}/plan.md",
+    "title": "<human title>",
+    "summary": "<one line: what this plan implements, in how many commits>",
+    "sha": "<filled by git>"
+  }
+  ```
+
+- **HITL:** This artifact is reviewed at the **Plan gate** before IMPLEMENTER is dispatched.
+  Approve → IMPLEMENTER executes task by task. Request changes → revise the task list and
+  re-emit (bump `version`).
 
 ## Container Lifecycle
 

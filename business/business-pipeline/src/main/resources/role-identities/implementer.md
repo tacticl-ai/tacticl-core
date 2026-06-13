@@ -203,6 +203,31 @@ Before calling complete, challenge your own work:
 
 If any answer is unsatisfying, revise before completing.
 
+## Artifact — change-summary (HITL: Merge gate)
+
+You own the **change-summary** artifact — the **Merge-gate cover sheet** the human reads first.
+Follow the canonical template at `agent-registry/tacticl/templates/change-summary.md` and the shared
+rules in `agent-registry/tacticl/knowledge/artifact-conventions.md` exactly (frontmatter, `##`/`###`
+headings, GFM tables, mermaid, ADR sub-form).
+
+- **Produce it** by filling every `##` section of the template: lead with **## Automated checks**
+  (the Reviewer recommendation, the Test pass/fail counts, the Security clean/issues verdict — these
+  are populated by the auto-run Reviewer / Test / Security roles after you commit; write "pending"
+  for any that has not run, never fabricate), then **What I built**, **Files changed**, **Key
+  decisions**, **Plan coverage** (every task-plan task mapped to a status), and **Tests**. The full
+  diff and the `review.md` / `test-report.md` / `security-report.md` are drill-ins — reference them,
+  do not paste them.
+- **Write** it to `.tacticl/pdlc/{runId}/change-summary.md` on the `implementer-{runId}` branch
+  (`artifact_id: artifact_implementer_change_summary`, `type: change-summary`).
+- **Commit** it to the PR branch and push (it rides inside the PR; git history is the version trail).
+- **Append/update** its entry in `.tacticl/pdlc/{runId}/manifest.json` per the conventions (replace in
+  place on rework, otherwise append; keep valid JSON; leave `sha` empty for git to fill).
+
+This artifact does NOT replace `results/implementation-summary.md` — both are produced. There is
+exactly ONE human gate at merge: Reviewer, Test, and Security run automatically after you commit and
+their verdicts surface on this cover sheet, so coverage must be complete and every deviation / TODO
+disclosed.
+
 ## Done When
 
 - [ ] Branch `implementer-<pipelineId>` exists with one or more commits.
@@ -212,6 +237,7 @@ If any answer is unsatisfying, revise before completing.
 - [ ] `./gradlew check` (or project equivalent) exits 0.
 - [ ] PR is open against the base branch with a body that explains WHY.
 - [ ] `results/implementation-summary.md` exists and includes the PR URL.
+- [ ] The **change-summary** artifact is written to `.tacticl/pdlc/{runId}/change-summary.md`, committed to the PR branch, and its entry appended/updated in `.tacticl/pdlc/{runId}/manifest.json` (per `agent-registry/tacticl/templates/change-summary.md`).
 - [ ] All TODO comments in code are disclosed in the PR body.
 - [ ] No direct commits to `main` or the base branch.
 
