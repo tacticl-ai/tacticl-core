@@ -41,6 +41,9 @@ public class VoiceSession {
     /** Open checkpoints keyed by checkpointId → backing sparkId, for decision mapping. */
     private final Map<String, String> openCheckpoints = new ConcurrentHashMap<>();
 
+    /** Text of the most recently narrated line — used to suppress consecutive duplicates. */
+    private final AtomicReference<String> lastNarration = new AtomicReference<>();
+
     /**
      * Rolling conversational memory for this session, oldest-first. Provider-neutral
      * {@link Utterance}s so the session entity stays decoupled from any LLM client;
@@ -128,11 +131,21 @@ public class VoiceSession {
      * @param role {@code "user"} or {@code "assistant"}
      */
     public void appendHistory(String role, String text) {
+        appendHistory(role, text, null);
+    }
+
+    /**
+     * Append a conversational turn carrying the producing persona id (for the
+     * arbiter's sticky-persona routing). {@code personaId} may be null.
+     *
+     * @param role {@code "user"} or {@code "assistant"}
+     */
+    public void appendHistory(String role, String text, String personaId) {
         if (role == null || text == null || text.isBlank()) {
             return;
         }
         synchronized (history) {
-            history.add(new Utterance(role, text));
+            history.add(new Utterance(role, text, personaId));
             while (history.size() > MAX_HISTORY) {
                 history.remove(0);
             }
@@ -146,7 +159,22 @@ public class VoiceSession {
         }
     }
 
-    /** One conversational turn: who spoke and what they said. Provider-neutral. */
-    public record Utterance(String role, String text) {
+    /**
+     * Records {@code text} as the most recent narration and returns true only if it
+     * differs from the immediately previous one. Lets a narration channel skip
+     * re-rendering / re-speaking a line identical to the one just played (e.g. a
+     * role-retry storm re-emitting the same {@code ROLE_STARTED}).
+     */
+    public boolean markNarration(String text) {
+        return !java.util.Objects.equals(text, lastNarration.getAndSet(text));
+    }
+
+    /** One conversational turn: who spoke, what they said, and (optionally) which persona. */
+    public record Utterance(String role, String text, String personaId) {
+
+        /** Persona-less turn (user turns, in-JVM fallback replies). */
+        public Utterance(String role, String text) {
+            this(role, text, null);
+        }
     }
 }

@@ -109,6 +109,39 @@ class VoiceConversationTurnHandlerTest {
     }
 
     @Test
+    void handleTurn_toolOnlyTurn_recordsUserAndActionInMemory() {
+        // A tool-only turn (start_pipeline, no spoken reply) must still leave both the
+        // user utterance and the action in history — otherwise the next turn is blind
+        // to what just happened and the brain re-asks for confirmation forever.
+        engineDrives(sink -> {
+            sink.onToolUse("start_pipeline", "{\"sparkInput\":\"build a /health endpoint\"}");
+            sink.onDone();
+        });
+
+        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "yes go ahead");
+
+        verify(voiceSessionService).startPipelineFromConversation(session, "build a /health endpoint", null);
+        assertThat(session.history()).containsExactly(
+            new VoiceSession.Utterance("user", "yes go ahead"),
+            new VoiceSession.Utterance("assistant", "Starting the build pipeline now."));
+    }
+
+    @Test
+    void handleTurn_threadsPersonaIntoAssistantHistory() {
+        engineDrives(sink -> {
+            sink.onPersona("product-manager");
+            sink.onToken("What problem are you solving?");
+            sink.onDone();
+        });
+
+        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "I want a feature");
+
+        assertThat(session.history()).containsExactly(
+            new VoiceSession.Utterance("user", "I want a feature", null),
+            new VoiceSession.Utterance("assistant", "What problem are you solving?", "product-manager"));
+    }
+
+    @Test
     void handleTurn_unknownToolUse_isIgnored() {
         engineDrives(sink -> {
             sink.onToolUse("web_search", "{\"query\":\"x\"}");

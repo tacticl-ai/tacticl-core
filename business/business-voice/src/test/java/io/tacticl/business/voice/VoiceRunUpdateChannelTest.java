@@ -71,6 +71,33 @@ class VoiceRunUpdateChannelTest {
     }
 
     @Test
+    void emit_roleEchoedAsPhase_doesNotProduceWorkingOnItself() {
+        // Upstream sometimes echoes the role into the phase field (role=PM, phase=PM),
+        // which used to render the nonsensical "PM is working on PM."
+        channel.emit(event("ROLE_STARTED", "PM", "PM", null));
+
+        assertThat(out.framesOfType("transcript"))
+            .anyMatch(f -> "PM is working.".equals(f.get("text")));
+        assertThat(out.framesOfType("transcript"))
+            .noneMatch(f -> String.valueOf(f.get("text")).contains("working on PM"));
+    }
+
+    @Test
+    void emit_repeatedIdenticalRoleStarted_coalescesAndSpeaksOnce() {
+        // A retried role re-emits the same ROLE_STARTED; it must patch one bubble
+        // (stable id) and speak only once (consecutive-duplicate suppression).
+        channel.emit(event("ROLE_STARTED", "Implementer", "code", null));
+        channel.emit(event("ROLE_STARTED", "Implementer", "code", null));
+        channel.emit(event("ROLE_STARTED", "Implementer", "code", null));
+
+        List<Map<String, Object>> assistantTranscripts = out.framesOfType("transcript").stream()
+            .filter(f -> "assistant".equals(f.get("role")))
+            .toList();
+        assertThat(assistantTranscripts).hasSize(1);
+        verify(tts).speak("Implementer is working on code.");
+    }
+
+    @Test
     void emit_checkpoint_emitsCheckpointFrameAndRegistersMapping() {
         channel.emit(event("CHECKPOINT_REQUESTED", "Reviewer", "review",
             "{\"checkpointId\":\"cp-77\"}"));

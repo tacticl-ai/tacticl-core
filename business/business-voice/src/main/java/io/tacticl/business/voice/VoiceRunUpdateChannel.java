@@ -78,7 +78,17 @@ public class VoiceRunUpdateChannel implements PipelineEventChannel {
             session.registerCheckpoint(narration.checkpointId(), session.activeSparkId());
         }
 
-        narrate(session, narration.speech());
+        narrate(session, narrationId(event), narration);
+    }
+
+    /**
+     * Stable transcript id for a narration: one bubble per (run, event type, role).
+     * A retried role re-emitting the same {@code ROLE_STARTED} patches that one
+     * bubble in place instead of appending a duplicate (the web store merges by id).
+     */
+    private static String narrationId(PipelineCallbackEvent event) {
+        return "run-" + event.pipelineRunId() + "-" + event.eventType()
+            + (event.role() == null || event.role().isBlank() ? "" : "-" + event.role());
     }
 
     @Override
@@ -88,31 +98,46 @@ public class VoiceRunUpdateChannel implements PipelineEventChannel {
     }
 
     /** Speak a line: assistant transcript frame + state speaking + TTS audio. */
-    private void narrate(VoiceSession session, String text) {
+    private void narrate(VoiceSession session, String transcriptId, Narration narration) {
+        String text = narration.speech();
         if (text == null || text.isBlank()) {
             return;
         }
+        // Suppress a line identical to the one just played — a role-retry storm
+        // re-emits the same ROLE_STARTED, which would otherwise re-speak and (with a
+        // fresh id) stack duplicate bubbles. The deterministic id already coalesces
+        // the bubble; this stops the redundant TTS.
+        if (!session.markNarration(text)) {
+            return;
+        }
         session.outbound().sendControl(
-            VoiceFrames.transcript("assistant", "a-" + java.util.UUID.randomUUID(), text, false));
+            VoiceFrames.transcript("assistant", transcriptId, text, false));
         session.setState(VoiceState.SPEAKING);
         session.outbound().sendControl(VoiceFrames.state(VoiceState.SPEAKING));
         session.tts().speak(text);
+        // Record only lifecycle narration into conversation memory so the brain knows
+        // what the orb told the operator (e.g. "Pipeline started/completed/failed").
+        // Per-role progress chatter is deliberately NOT recorded — it would crowd out
+        // the real dialogue within the bounded history.
+        if (narration.remember()) {
+            session.appendHistory("assistant", text);
+        }
     }
 
     /** Map an event type to a narration line + optional checkpoint id; null = ignore. */
     private Narration render(PipelineCallbackEvent event, VoiceSession session) {
         String role = role(event);
         return switch (event.eventType()) {
-            case "PIPELINE_STARTED" -> new Narration("Pipeline started.", null);
-            case "ROLE_STARTED" -> new Narration(role + " is working" + phaseSuffix(event) + ".", null);
-            case "ROLE_COMPLETED" -> new Narration(role + " finished.", null);
-            case "ROLE_REWORK" -> new Narration(role + " is reworking.", null);
+            case "PIPELINE_STARTED" -> new Narration("Pipeline started.", null, true);
+            case "ROLE_STARTED" -> new Narration(role + " is working" + phaseSuffix(event, role) + ".", null, false);
+            case "ROLE_COMPLETED" -> new Narration(role + " finished.", null, false);
+            case "ROLE_REWORK" -> new Narration(role + " is reworking.", null, false);
             case "CHECKPOINT_REQUESTED", "CHECKPOINT_PENDING", "REVIEWER_NEEDS_APPROVAL" ->
                 new Narration(role + " needs your approval. Say approve, request changes, or reject.",
-                    checkpointId(event));
-            case "PIPELINE_COMPLETED" -> new Narration("Pipeline completed.", null);
-            case "PIPELINE_FAILED" -> new Narration("Pipeline failed." + reasonSuffix(event), null);
-            case "PIPELINE_CANCELLED" -> new Narration("Pipeline cancelled.", null);
+                    checkpointId(event), true);
+            case "PIPELINE_COMPLETED" -> new Narration("Pipeline completed.", null, true);
+            case "PIPELINE_FAILED" -> new Narration("Pipeline failed." + reasonSuffix(event), null, true);
+            case "PIPELINE_CANCELLED" -> new Narration("Pipeline cancelled.", null, true);
             default -> null;
         };
     }
@@ -121,9 +146,17 @@ public class VoiceRunUpdateChannel implements PipelineEventChannel {
         return (event.role() == null || event.role().isBlank()) ? "The agent" : event.role();
     }
 
-    private static String phaseSuffix(PipelineCallbackEvent event) {
+    /**
+     * " on {phase}" — but only when the phase adds information. Upstream sometimes
+     * echoes the role into the phase field (e.g. role=PM, phase=PM), which produced
+     * the nonsensical "PM is working on PM."; drop the suffix when phase == role.
+     */
+    private static String phaseSuffix(PipelineCallbackEvent event, String role) {
         String phase = event.phase();
-        return (phase == null || phase.isBlank()) ? "" : " on " + phase;
+        if (phase == null || phase.isBlank() || phase.equalsIgnoreCase(role)) {
+            return "";
+        }
+        return " on " + phase;
     }
 
     private String reasonSuffix(PipelineCallbackEvent event) {
@@ -158,7 +191,11 @@ public class VoiceRunUpdateChannel implements PipelineEventChannel {
         return s.isEmpty() ? null : s;
     }
 
-    /** A rendered narration: the spoken line + an optional checkpoint id to surface. */
-    private record Narration(String speech, String checkpointId) {
+    /**
+     * A rendered narration: the spoken line, an optional checkpoint id to surface,
+     * and whether it should be recorded into conversation memory ({@code remember}
+     * — true for pipeline lifecycle + checkpoints, false for per-role chatter).
+     */
+    private record Narration(String speech, String checkpointId, boolean remember) {
     }
 }

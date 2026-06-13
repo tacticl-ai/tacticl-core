@@ -96,9 +96,23 @@ public class VoiceConversationTurnHandler implements ConversationTurnHandler {
         private final String transcriptId = "a-" + UUID.randomUUID();
         private final StringBuilder reply = new StringBuilder();
 
+        /** Persona the brain chose for this turn (arbiter path) — recorded with the reply. */
+        private volatile String personaId;
+        /** Whether this turn fired the start_pipeline skill (drives a tool-only memory marker). */
+        private boolean pipelineStarted;
+        /** Guards against recording the user utterance more than once per turn. */
+        private boolean userRecorded;
+
         SessionSink(VoiceSession session, String userText) {
             this.session = session;
             this.userText = userText;
+        }
+
+        @Override
+        public void onPersona(String personaId) {
+            if (personaId != null && !personaId.isBlank()) {
+                this.personaId = personaId;
+            }
         }
 
         @Override
@@ -122,6 +136,7 @@ public class VoiceConversationTurnHandler implements ConversationTurnHandler {
                 if (sparkInput != null && !sparkInput.isBlank()) {
                     // Reuse the proven local trigger path so pipeline events narrate back here.
                     voiceSessionService.startPipelineFromConversation(session, sparkInput, repoUrl);
+                    pipelineStarted = true;
                 } else {
                     log.warn("start_pipeline tool_use missing sparkInput session={}", session.sessionId());
                 }
@@ -135,9 +150,17 @@ public class VoiceConversationTurnHandler implements ConversationTurnHandler {
         @Override
         public void onDone() {
             String text = reply.toString().trim();
+            // Always record the user's turn — even a tool-only turn (start_pipeline)
+            // or an empty reply MUST stay in memory, or the next turn's history is
+            // blind to what was just said/done and the brain contradicts itself.
+            recordUserOnce();
             if (text.isEmpty()) {
-                // No spoken reply (e.g. the turn only fired a skill) — settle the orb if
-                // nothing else took it (start_pipeline narration will drive it otherwise).
+                // No spoken reply. If the turn started a build, record that action so the
+                // brain knows it already acted and doesn't re-ask for confirmation forever.
+                if (pipelineStarted) {
+                    session.appendHistory("assistant", "Starting the build pipeline now.", personaId);
+                }
+                // Settle the orb if nothing else took it (pipeline narration drives it otherwise).
                 if (session.state() == VoiceState.THINKING) {
                     session.setState(VoiceState.IDLE);
                     session.outbound().sendControl(VoiceFrames.state(VoiceState.IDLE));
@@ -152,8 +175,15 @@ public class VoiceConversationTurnHandler implements ConversationTurnHandler {
             session.outbound().sendControl(VoiceFrames.state(VoiceState.SPEAKING));
             session.tts().speak(text);
 
-            session.appendHistory("user", userText);
-            session.appendHistory("assistant", text);
+            session.appendHistory("assistant", text, personaId);
+        }
+
+        /** Record the user utterance exactly once per turn (regardless of reply/tool path). */
+        private void recordUserOnce() {
+            if (!userRecorded) {
+                userRecorded = true;
+                session.appendHistory("user", userText);
+            }
         }
 
         @Override

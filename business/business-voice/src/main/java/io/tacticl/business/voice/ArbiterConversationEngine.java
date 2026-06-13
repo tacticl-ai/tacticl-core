@@ -65,7 +65,14 @@ public class ArbiterConversationEngine implements ConversationEngine {
 
         client.converseTurn(input, new ConverseEventListener() {
             @Override
+            public void onStarted(String personaId) {
+                sink.onPersona(personaId);
+            }
+
+            @Override
             public void onToken(String textDelta, String personaId) {
+                // Late safety net if 'started' was skipped — capture the persona from a token too.
+                sink.onPersona(personaId);
                 sink.onToken(textDelta);
             }
 
@@ -91,7 +98,7 @@ public class ArbiterConversationEngine implements ConversationEngine {
             return List.of();
         }
         return history.stream()
-            .map(u -> new ConvTurn(u.role(), u.text(), /* personaId */ null))
+            .map(u -> new ConvTurn(u.role(), u.text(), u.personaId()))
             .toList();
     }
 

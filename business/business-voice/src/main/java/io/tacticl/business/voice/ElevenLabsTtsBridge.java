@@ -98,7 +98,7 @@ public class ElevenLabsTtsBridge {
         try {
             ElevenLabsSession s = client.open(sessionConfig());
             s.onAudioChunk(this::dispatchChunk);
-            s.onDone(this::dispatchDone);
+            s.onDone(() -> dispatchDone(s));
             s.onError(this::dispatchError);
             this.session = s;
             s.sendTextChunk(text);
@@ -148,7 +148,25 @@ public class ElevenLabsTtsBridge {
         }
     }
 
-    private void dispatchDone() {
+    /**
+     * The utterance's audio is fully streamed. Close the streaming-input socket now
+     * rather than leaving it open idle — ElevenLabs closes an idle input socket after
+     * ~20s with close code 1008 {@code input_timeout_exceeded}, which the client
+     * surfaces as a spurious {@code UPSTREAM_ERROR} badge even though the reply played
+     * fine. Closing after the final chunk races no in-flight send (all audio is in),
+     * so it does not reintroduce the frame-interleave bug that {@link #stop()} avoids.
+     */
+    private synchronized void dispatchDone(ElevenLabsSession finished) {
+        if (finished != null) {
+            if (this.session == finished) {
+                this.session = null;
+            }
+            try {
+                finished.close();
+            } catch (Exception e) {
+                log.debug("ElevenLabs TTS close-on-done raced: {}", e.toString());
+            }
+        }
         onDone.run();
     }
 

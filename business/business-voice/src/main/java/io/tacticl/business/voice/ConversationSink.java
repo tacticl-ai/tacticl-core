@@ -14,6 +14,14 @@ public interface ConversationSink {
     void onToken(String delta);
 
     /**
+     * The persona the brain selected for this turn (sticky-persona routing key).
+     * Fires once at turn start on the arbiter path; never on the in-JVM fallback.
+     * Default no-op so engines that don't route by persona need not call it.
+     */
+    default void onPersona(String personaId) {
+    }
+
+    /**
      * The persona invoked a side-effecting skill the caller must execute
      * (Phase 1: {@code start_pipeline}).
      */
