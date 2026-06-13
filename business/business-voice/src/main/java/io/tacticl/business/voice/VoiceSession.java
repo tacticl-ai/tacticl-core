@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 /**
  * Mutable per-connection state for one voice session. Created by
@@ -43,6 +44,13 @@ public class VoiceSession {
 
     /** Text of the most recently narrated line — used to suppress consecutive duplicates. */
     private final AtomicReference<String> lastNarration = new AtomicReference<>();
+
+    /**
+     * Optional sink notified of each newly-appended turn, for durable write-through
+     * (set by {@code VoiceSessionService} to persist into the conversation store).
+     * Not fired by {@link #seedHistory} — rehydrated turns are already persisted.
+     */
+    private volatile Consumer<Utterance> historyListener;
 
     /**
      * Rolling conversational memory for this session, oldest-first. Provider-neutral
@@ -144,12 +152,39 @@ public class VoiceSession {
         if (role == null || text == null || text.isBlank()) {
             return;
         }
+        Utterance utterance = new Utterance(role, text, personaId);
         synchronized (history) {
-            history.add(new Utterance(role, text, personaId));
+            history.add(utterance);
             while (history.size() > MAX_HISTORY) {
                 history.remove(0);
             }
         }
+        Consumer<Utterance> listener = this.historyListener;
+        if (listener != null) {
+            listener.accept(utterance);
+        }
+    }
+
+    /**
+     * Seed rehydrated turns (from durable storage) into memory WITHOUT firing the
+     * {@link #historyListener} — those turns are already persisted. Trims to the
+     * most recent {@link #MAX_HISTORY}.
+     */
+    public void seedHistory(List<Utterance> prior) {
+        if (prior == null || prior.isEmpty()) {
+            return;
+        }
+        synchronized (history) {
+            history.addAll(prior);
+            while (history.size() > MAX_HISTORY) {
+                history.remove(0);
+            }
+        }
+    }
+
+    /** Register the durable write-through sink for newly-appended turns. */
+    public void setHistoryListener(Consumer<Utterance> listener) {
+        this.historyListener = listener;
     }
 
     /** An immutable snapshot of this session's conversation memory, oldest-first. */

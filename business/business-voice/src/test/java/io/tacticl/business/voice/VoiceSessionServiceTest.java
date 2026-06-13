@@ -13,6 +13,8 @@ import io.cidadel.framework.exception.CidadelException;
 import io.tacticl.business.pipeline.ingress.IngressDispatchService;
 import io.tacticl.business.pipeline.ingress.IngressKind;
 import io.tacticl.business.pipeline.ingress.IngressRequest;
+import io.tacticl.data.cloudorchestrator.entity.Turn;
+import io.tacticl.data.conversation.entity.ConversationSession;
 import io.tacticl.data.pipeline.entity.CheckpointDecision;
 import io.tacticl.data.pipeline.entity.PipelineRun;
 import java.util.List;
@@ -33,6 +35,7 @@ class VoiceSessionServiceTest {
     private VoiceSessionRegistry registry;
     private DeepgramSttBridge stt;
     private ElevenLabsTtsBridge tts;
+    private VoiceConversationStore conversationStore;
     private VoiceSessionService service;
 
     @BeforeEach
@@ -65,7 +68,10 @@ class VoiceSessionServiceTest {
         };
         VoiceProperties props = new VoiceProperties();
         props.setEnabled(true);
-        service = new VoiceSessionService(sttFactory, ttsFactory, ingress, registry, props);
+        conversationStore = mock(VoiceConversationStore.class);
+        // Default: no durable conversation → ephemeral session (random id, no write-through).
+        when(conversationStore.resolveConversation(any(), any())).thenReturn(Optional.empty());
+        service = new VoiceSessionService(sttFactory, ttsFactory, ingress, registry, conversationStore, props);
     }
 
     private VoiceSession open(RecordingOutbound out) {
@@ -100,6 +106,28 @@ class VoiceSessionServiceTest {
         assertThat(registry.activeSessions()).isEqualTo(1);
         verify(stt).onFinal(any());
         verify(tts).onAudioChunk(any());
+    }
+
+    @Test
+    void openSession_resumesConversation_seedsHistoryAndPersistsNewTurns() {
+        ConversationSession convo = ConversationSession.create("user-1", "prior topic");
+        convo.appendTurn(Turn.user("earlier question", "voice"));
+        convo.appendTurn(Turn.assistant("product-manager", "earlier answer", "voice"));
+        when(conversationStore.resolveConversation("user-1", "conv-1")).thenReturn(Optional.of(convo));
+
+        RecordingOutbound out = new RecordingOutbound();
+        VoiceSession session = service.openSession("user-1", "conv-1", out);
+
+        // The session adopts the conversation id, rehydrates prior turns, and tells the client.
+        assertThat(session.sessionId()).isEqualTo(convo.getId());
+        assertThat(session.history()).containsExactly(
+            new VoiceSession.Utterance("user", "earlier question", null),
+            new VoiceSession.Utterance("assistant", "earlier answer", "product-manager"));
+        assertThat(out.framesOfType("conversation")).isNotEmpty();
+
+        // A new turn is written through to the durable store.
+        session.appendHistory("user", "a new question");
+        verify(conversationStore).appendTurn(convo.getId(), "user-1", "user", "a new question", null);
     }
 
     @Test

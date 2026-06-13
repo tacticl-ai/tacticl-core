@@ -84,7 +84,11 @@ public class VoiceWebSocketHandler extends AbstractWebSocketHandler {
             return;
         }
 
-        VoiceSession voiceSession = sessionService.openSession(userId.get(), new WebSocketVoiceOutbound(session));
+        // Optional ?cid=<conversationId> resumes a prior conversation (ownership is
+        // re-checked server-side); absent ⇒ a fresh conversation is created.
+        String conversationId = extractQueryParam(session, "cid");
+        VoiceSession voiceSession = sessionService.openSession(
+            userId.get(), conversationId, new WebSocketVoiceOutbound(session));
         session.getAttributes().put(ATTR_VOICE_SESSION, voiceSession);
         session.getAttributes().put(ATTR_TOKEN, token);
         sessions.put(session.getId(), voiceSession);
@@ -153,14 +157,19 @@ public class VoiceWebSocketHandler extends AbstractWebSocketHandler {
     }
 
     private static String extractToken(WebSocketSession session) {
+        return extractQueryParam(session, "token");
+    }
+
+    private static String extractQueryParam(WebSocketSession session, String key) {
         URI uri = session.getUri();
         if (uri == null || uri.getQuery() == null) {
             return null;
         }
         for (String pair : uri.getQuery().split("&")) {
             int eq = pair.indexOf('=');
-            if (eq > 0 && "token".equals(pair.substring(0, eq))) {
-                return pair.substring(eq + 1);
+            if (eq > 0 && key.equals(pair.substring(0, eq))) {
+                return java.net.URLDecoder.decode(
+                    pair.substring(eq + 1), java.nio.charset.StandardCharsets.UTF_8);
             }
         }
         return null;

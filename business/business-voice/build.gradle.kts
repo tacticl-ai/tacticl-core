@@ -10,6 +10,11 @@ plugins {
 dependencies {
     implementation(project(":data:data-cloud-orchestrator"))
     implementation(project(":data:data-pipeline"))
+    // Durable conversation persistence: voice turns are written into the new-model
+    // conversation_sessions collection (ConversationSession.turns), bypassing the
+    // deprecated ConversationService state machine. Lets a conversation be resumed
+    // across reconnects and listed by a conversation picker.
+    implementation(project(":data:data-conversation"))
     implementation(project(":client:client-deepgram"))
     implementation(project(":client:client-elevenlabs"))
     // business-pipeline supplies the ingress front door (IngressDispatchService,

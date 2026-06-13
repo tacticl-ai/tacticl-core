@@ -88,6 +88,22 @@ public final class VoiceFrames {
         return m;
     }
 
+    /**
+     * {@code {type:'conversation', id, title?}} — sent right after connect so the
+     * client learns which durable conversation this session is bound to (the
+     * server-assigned id for a new conversation, or the resumed one). The client
+     * persists the id to resume on reload and refreshes its conversation picker.
+     */
+    public static Map<String, Object> conversation(String id, String title) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("type", "conversation");
+        m.put("id", id);
+        if (title != null) {
+            m.put("title", title);
+        }
+        return m;
+    }
+
     /** {@code {type:'error', message}}. */
     public static Map<String, Object> error(String message) {
         Map<String, Object> m = new LinkedHashMap<>();

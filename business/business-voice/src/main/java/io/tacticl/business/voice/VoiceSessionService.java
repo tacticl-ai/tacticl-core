@@ -7,6 +7,7 @@ import io.tacticl.business.pipeline.ingress.IngressDispatchService;
 import io.tacticl.business.pipeline.ingress.IngressKind;
 import io.tacticl.business.pipeline.ingress.IngressRequest;
 import io.tacticl.business.pipeline.ingress.RunOrigin;
+import io.tacticl.data.conversation.entity.ConversationSession;
 import io.tacticl.data.pipeline.entity.CheckpointDecision;
 import io.tacticl.data.pipeline.entity.PipelineRun;
 import java.util.List;
@@ -73,17 +74,21 @@ public class VoiceSessionService {
 
     private final VoiceSessionRegistry registry;
 
+    private final VoiceConversationStore conversationStore;
+
     private final String voiceId;
 
     public VoiceSessionService(DeepgramSttBridgeFactory sttFactory,
                                ElevenLabsTtsBridgeFactory ttsFactory,
                                IngressDispatchService ingressDispatchService,
                                VoiceSessionRegistry registry,
+                               VoiceConversationStore conversationStore,
                                VoiceProperties properties) {
         this.sttFactory = sttFactory;
         this.ttsFactory = ttsFactory;
         this.ingressDispatchService = ingressDispatchService;
         this.registry = registry;
+        this.conversationStore = conversationStore;
         this.voiceId = properties.getVoiceId();
     }
 
@@ -99,10 +104,35 @@ public class VoiceSessionService {
      * @param outbound the transport sink the WS handler implements
      */
     public VoiceSession openSession(String userId, VoiceOutbound outbound) {
-        String sessionId = UUID.randomUUID().toString();
+        return openSession(userId, null, outbound);
+    }
+
+    /**
+     * Create and register a session bound to a durable conversation. When
+     * {@code requestedConversationId} names a conversation the user owns, that
+     * conversation is resumed (its prior turns rehydrate the brain's memory and its
+     * id is reused as the session id); otherwise a fresh conversation is created. The
+     * resolved id + title are sent to the client so it can resume later and list the
+     * conversation in the picker. New turns are written through to durable storage.
+     *
+     * @param userId                 the resolved (validated) tacticl user id
+     * @param requestedConversationId the conversation to resume, or null for a new one
+     * @param outbound               the transport sink the WS handler implements
+     */
+    public VoiceSession openSession(String userId, String requestedConversationId, VoiceOutbound outbound) {
+        Optional<ConversationSession> convo = conversationStore.resolveConversation(userId, requestedConversationId);
+        String sessionId = convo.map(ConversationSession::getId).orElseGet(() -> UUID.randomUUID().toString());
         DeepgramSttBridge stt = sttFactory.create();
         ElevenLabsTtsBridge tts = ttsFactory.create(voiceId);
         VoiceSession session = new VoiceSession(sessionId, userId, outbound, stt, tts);
+
+        // Resume: rehydrate prior turns into memory (brain context) and wire durable
+        // write-through so every new turn is persisted to the conversation store.
+        convo.ifPresent(c -> {
+            session.seedHistory(toUtterances(c.getTurns()));
+            session.setHistoryListener(u ->
+                conversationStore.appendTurn(sessionId, userId, u.role(), u.text(), u.personaId()));
+        });
 
         // TTS audio chunks stream straight down as BINARY frames; envelope + state
         // are driven by the turn loop. The done handler returns the orb to idle.
@@ -123,8 +153,23 @@ public class VoiceSessionService {
         stt.onError(t -> emitError(session, "stt", t));
 
         registry.register(session);
-        log.info("Voice session opened session={} user={}", sessionId, userId);
+        // Tell the client which conversation this is — for a brand-new conversation this
+        // is how it learns the server-assigned id to resume later and show in the picker.
+        convo.ifPresent(c -> outbound.sendControl(VoiceFrames.conversation(c.getId(), c.getTitle())));
+        log.info("Voice session opened session={} user={} resumedTurns={}", sessionId, userId,
+            convo.map(c -> c.getTurns() == null ? 0 : c.getTurns().size()).orElse(0));
         return session;
+    }
+
+    /** Map durable conversation turns onto the session's provider-neutral memory. */
+    private static List<VoiceSession.Utterance> toUtterances(List<io.tacticl.data.cloudorchestrator.entity.Turn> turns) {
+        if (turns == null || turns.isEmpty()) {
+            return List.of();
+        }
+        return turns.stream()
+            .filter(t -> t.getText() != null && !t.getText().isBlank())
+            .map(t -> new VoiceSession.Utterance(t.getRole(), t.getText(), t.getPersonaId()))
+            .toList();
     }
 
     /** Open the STT leg and flip the orb to listening (handles a {@code start} frame). */
