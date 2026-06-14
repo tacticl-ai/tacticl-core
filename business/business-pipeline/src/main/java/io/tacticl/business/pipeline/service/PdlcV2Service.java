@@ -97,6 +97,11 @@ public class PdlcV2Service {
         return pipelineRunRepository.findFirstBySparkIdAndUserIdOrderByCreatedAtDesc(sparkId, userId);
     }
 
+    /** All of the user's pipeline runs, newest first (Dashboard list view). */
+    public List<PipelineRun> listRuns(String userId) {
+        return pipelineRunRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
     public Optional<PipelineRun> getStatusByRunId(String userId, String pipelineRunId) {
         return pipelineRunRepository.findByIdAndUserId(pipelineRunId, userId);
     }

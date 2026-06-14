@@ -3,15 +3,19 @@ package io.tacticl.service.pipeline.controller;
 import io.cidadel.framework.authorization.annotation.AuthUser;
 import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.cidadel.service.base.controller.BaseController;
+import io.tacticl.business.pipeline.service.ArtifactRetrievalService;
 import io.tacticl.business.pipeline.service.PdlcV2Service;
 import io.tacticl.business.pipeline.service.PipelineEventEmitter;
 import io.tacticl.data.pipeline.entity.CheckpointDecision;
 import io.tacticl.data.pipeline.entity.PipelineRun;
+import io.tacticl.service.pipeline.dto.ArtifactContentDto;
+import io.tacticl.service.pipeline.dto.ArtifactManifestEntryDto;
 import io.tacticl.service.pipeline.dto.PipelineEventDto;
 import io.tacticl.service.pipeline.dto.PipelineRunDto;
 import io.tacticl.service.pipeline.dto.ResolveCheckpointDto;
 import io.tacticl.service.pipeline.dto.RoleArtifactDto;
 import io.tacticl.service.pipeline.dto.SubmitPipelineDto;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -34,11 +38,14 @@ public class PipelineController extends BaseController {
 
     private final PdlcV2Service pdlcV2Service;
     private final PipelineEventEmitter pipelineEventEmitter;
+    private final ArtifactRetrievalService artifactRetrievalService;
 
     public PipelineController(PdlcV2Service pdlcV2Service,
-                              PipelineEventEmitter pipelineEventEmitter) {
+                              PipelineEventEmitter pipelineEventEmitter,
+                              ArtifactRetrievalService artifactRetrievalService) {
         this.pdlcV2Service = pdlcV2Service;
         this.pipelineEventEmitter = pipelineEventEmitter;
+        this.artifactRetrievalService = artifactRetrievalService;
     }
 
     @Override
@@ -135,6 +142,43 @@ public class PipelineController extends BaseController {
             java.util.Map.of("artifactPath", artifactPath),
             1
         ));
+    }
+
+    /**
+     * List the PDLC artifacts for a spark's run, parsed from the committed
+     * {@code .tacticl/pdlc/{runId}/manifest.json}. Returns an empty list when GitHub is
+     * disabled or the manifest is not yet committed.
+     */
+    @GetMapping("/artifacts")
+    public ResponseEntity<List<ArtifactManifestEntryDto>> listArtifacts(
+            @AuthUser AuthenticatedUser user,
+            @PathVariable String sparkId) {
+        PipelineRun run = pdlcV2Service.getStatus(user.getUserId(), sparkId)
+                .orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Pipeline run not found for spark: " + sparkId));
+        List<ArtifactManifestEntryDto> entries = artifactRetrievalService.listArtifacts(run).stream()
+                .map(e -> new ArtifactManifestEntryDto(
+                    e.artifactId(), e.type(), e.agent(), e.path(), e.title(), e.summary()))
+                .toList();
+        return ResponseEntity.ok(entries);
+    }
+
+    /**
+     * Return the decoded markdown body of a single PDLC artifact by basename
+     * (e.g. {@code prd}, {@code architecture}, {@code plan}, {@code change-summary},
+     * {@code review}, {@code test-report}, {@code security-report}).
+     */
+    @GetMapping("/artifacts/{name}/content")
+    public ResponseEntity<ArtifactContentDto> getArtifactContent(
+            @AuthUser AuthenticatedUser user,
+            @PathVariable String sparkId,
+            @PathVariable String name) {
+        PipelineRun run = pdlcV2Service.getStatus(user.getUserId(), sparkId)
+                .orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Pipeline run not found for spark: " + sparkId));
+        return artifactRetrievalService.readArtifact(run, name)
+                .map(c -> ResponseEntity.ok(new ArtifactContentDto(c.name(), c.markdown(), c.sha())))
+                .orElse(ResponseEntity.<ArtifactContentDto>notFound().build());
     }
 
     @GetMapping("/events/history")
