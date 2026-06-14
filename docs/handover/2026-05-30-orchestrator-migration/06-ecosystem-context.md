@@ -329,7 +329,7 @@ The arbiter runs **only on platform-apps, NOT platform-infra.**
 | Context / location | URL | Notes |
 |--------------------|-----|-------|
 | Local dev (tacticl) | `https://localhost:8200` (**HTTPS**, not HTTP) | Vault context `tacticl`; for shared LLM clients use context `strategiz`. (`MEMORY.md`) |
-| Prod (Strategiz, Cloud Run) | `https://strategiz-vault-43628135674.us-east1.run.app` | (`MEMORY.md`) |
+| Prod (platform host) | `http://vault:8200` (compose) / `http://10.0.1.10:8200` (on-host) | Self-hosted Vault; Cloud Run decommissioned |
 | platform-apps (arbiter) | `http://10.0.1.10:8200` | `VAULT_TOKEN` in `/opt/cidadel/.env` on platform-apps. (arbiter CLAUDE.md, VERIFIED) |
 
 ### LLM provider secrets

@@ -265,5 +265,5 @@ bash .agent/report.sh complete "Infra updated on $IMPL_BRANCH. CI green. QA read
 - Services: `tacticl-core-qa` (2Gi) and `tacticl-core` (4Gi), both `us-east1`, public
 - Spring profiles: `qa` / `prod` — profile selected via `SPRING_PROFILES_ACTIVE` env var
 - Cloud Build uses `eclipse-temurin:21-jdk-noble`; Gradle 9.4.0 auto-provisions Java 25 via toolchain
-- Vault is `https://strategiz-vault-43628135674.us-east1.run.app` in prod
+- Vault is `http://vault:8200` (platform-host compose; `http://10.0.1.10:8200` on-host) in prod
 - Shared LLM client secrets live under `secret/strategiz/*` (inherited from strategiz product)

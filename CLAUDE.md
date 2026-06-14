@@ -15,6 +15,23 @@
 
 At the start of every session, read `../tacticl-docs/CLAUDE.md` (sibling repo in the VS Code multi-root workspace) for complete cross-repo ecosystem context (API contracts, deploy targets, architecture, conventions). This is the source of truth for all cross-cutting concerns.
 
+### Local sibling repos — TRAVERSE THESE (they ARE part of your codebase)
+
+All of these are checked out side-by-side under `/Users/cuztomizer/Documents/GitHub/` and are wired into `.claude/settings.local.json` → `permissions.additionalDirectories`. Read/Grep/Edit across them directly. **Never tell the user you "can't find" or "can't reach" cidadel — it's right here.**
+
+| Repo | What it is |
+|------|-----------|
+| `../cidadel-core` | Shared platform (Java/Gradle) — auth, tokens, AI engine framework, published to GitHub Packages. **Part of the codebase, not an external dependency.** |
+| `../cidadel-ai-arbiter` | TS Temporal engine — Cloud Agent Orchestrator + PDLC pipeline engine (post-2026-05-30 pivot) |
+| `../strategiz-core` | Sibling product backend (Java/Maven) — shares the framework + Vault |
+| `../tacticl-docs` | Shared ecosystem/architecture/convention docs |
+
+### Infrastructure — NOT Cloud Run (decommissioned long ago)
+
+Everything (backends, frontends, **Vault**) runs in Docker on the **Hetzner platform host** behind Caddy. Cloud Run is dead.
+- **Vault**: `http://vault:8200` inside the compose network (`http://10.0.1.10:8200` on-host). Anthropic creds are **OAuth-only** at `secret/shared/anthropic` + `secret/shared/anthropic-codegen` (no metered api-key, per the 2026-06 cost incident).
+- **Any `*-vault-*.us-east1.run.app` URL is DEAD** — do not use it, and delete it on sight. The canonical default in every deployment is `http://vault:8200`.
+
 ## Ecosystem (MUST READ before cross-cutting changes)
 
 Tacticl has 4 repos in a VS Code multi-root workspace. Changes to API paths, auth, WebSocket messages, or Firestore schema affect multiple repos.

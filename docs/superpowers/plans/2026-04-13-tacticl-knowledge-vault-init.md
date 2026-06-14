@@ -843,7 +843,7 @@ The dev Vault is configured with TLS. Using HTTP will result in connection refus
 ## How
 In any config file, environment variable, or code that connects to Vault: always use `https://localhost:8200`.
 
-Prod Vault URL: `https://strategiz-vault-43628135674.us-east1.run.app`
+Prod Vault URL: `http://vault:8200` (platform-host compose; `http://10.0.1.10:8200` on-host)
 
 Vault context for Tacticl secrets: `tacticl`
 Vault context for shared LLM API keys (Anthropic, OpenAI, Grok): `strategiz`
