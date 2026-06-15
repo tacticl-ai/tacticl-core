@@ -12,6 +12,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -160,7 +161,15 @@ public class DiscordRestClient {
         if (body == null || body.isBlank()) {
             return Map.of();
         }
-        return objectMapper.readValue(body, Map.class);
+        // Some endpoints return a JSON ARRAY, not an object — notably the bulk command-overwrite
+        // PUT /applications/{app}/guilds/{guild}/commands, whose caller discards the response.
+        // Deserializing an array into Map throws (MismatchedInputException), so branch on shape:
+        // only object responses carry fields callers read (e.g. a message's "id").
+        JsonNode node = objectMapper.readTree(body);
+        if (node.isObject()) {
+            return objectMapper.convertValue(node, Map.class);
+        }
+        return Map.of();
     }
 
     private void checkRateLimit() {
