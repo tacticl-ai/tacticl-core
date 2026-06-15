@@ -21,6 +21,10 @@ import java.util.List;
  *                    them once requirements are understood. May be empty.
  * @param pipelines   the user's in-flight pipelines (recent-first) as grounding, so the persona
  *                    knows what's building and can report status without a tool call. May be empty.
+ * @param canDispatch whether THIS turn's caller holds dispatch authority (an owner channel, or admin
+ *                    of the governing EntryPoint). The arbiter's alignment gate fails CLOSED unless
+ *                    true — a non-admin "yes" records alignment for audit but never authorizes the
+ *                    create_repo / start_pipeline skills. False is the safe default.
  */
 public record ConverseTurnInput(String productId,
                                 String userId,
@@ -32,5 +36,6 @@ public record ConverseTurnInput(String productId,
                                 String locale,
                                 String githubToken,
                                 List<ConvRepoRef> repos,
-                                List<ConvPipelineRef> pipelines) {
+                                List<ConvPipelineRef> pipelines,
+                                boolean canDispatch) {
 }

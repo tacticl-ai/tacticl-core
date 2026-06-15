@@ -11,11 +11,15 @@ import java.util.List;
  * @param turnId    idempotency id for this turn
  * @param userText  the final user transcript
  * @param history   this session's prior turns, oldest first (memory)
+ * @param canDispatch whether THIS turn's caller holds dispatch authority (an owner channel, or admin
+ *                  of the governing EntryPoint). Threaded to the arbiter so its alignment gate fails
+ *                  CLOSED for a non-admin "yes" — a non-admin can converse but never authorize a build.
  */
 public record ConversationContext(String productId,
                                   String userId,
                                   String sessionId,
                                   String turnId,
                                   String userText,
-                                  List<VoiceSession.Utterance> history) {
+                                  List<VoiceSession.Utterance> history,
+                                  boolean canDispatch) {
 }

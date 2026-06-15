@@ -17,6 +17,10 @@ public interface ConversationTurnHandler {
      * @param tacticlUserId resolved internal user id (already authorized/linked by the dispatcher)
      * @param origin        where the turn came from / where replies should be rendered
      * @param text          the user's message
+     * @param canDispatch   whether this caller may, in this turn, authorize a side-effecting dispatch
+     *                      (start a build). Owner channels (WEB/VOICE) act on the caller's own session
+     *                      ⇒ true; shared channels (DISCORD/TELEGRAM) require EntryPoint admin. The
+     *                      conversation brain's alignment gate fails CLOSED unless this is true.
      */
-    void handleTurn(String tacticlUserId, RunOrigin origin, String text);
+    void handleTurn(String tacticlUserId, RunOrigin origin, String text, boolean canDispatch);
 }

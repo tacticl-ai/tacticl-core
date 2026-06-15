@@ -189,7 +189,9 @@ public class IngressDispatchService {
     }
 
     private void handleConversationTurn(IngressRequest request) {
-        // Conversation turns require a linked identity but not admin rights.
+        // Conversation turns require a linked identity but not admin rights — anyone linked may
+        // CONVERSE. Whether they may also DISPATCH (authorize a build mid-conversation) is a
+        // separate, channel-aware bit threaded to the brain's alignment gate (which fails closed).
         String userId = requireLinked(request);
         ConversationTurnHandler handler = conversationTurnHandler.getIfAvailable();
         if (handler == null) {
@@ -197,7 +199,37 @@ public class IngressDispatchService {
                      + "(channel={} user={})", request.origin().channel(), userId);
             return;
         }
-        handler.handleTurn(userId, request.origin(), request.text());
+        // Compute the dispatch bit only once we know a handler will use it (avoids touching the
+        // EntryPoint registry on the drop path).
+        boolean canDispatch = resolveCanDispatch(request, userId);
+        handler.handleTurn(userId, request.origin(), request.text(), canDispatch);
+    }
+
+    /**
+     * Whether this caller may authorize a side-effecting dispatch (start a build) in this turn.
+     *
+     * <ul>
+     *   <li>WEB / VOICE — the caller is acting on their OWN authenticated (REST/PASETO) session, so
+     *       they own it and may dispatch their own build ⇒ {@code true}.</li>
+     *   <li>DISCORD / TELEGRAM — a shared channel; only an admin of the governing {@link EntryPoint}
+     *       may drive changes. Fail CLOSED when no EntryPoint resolves or the caller isn't an admin.</li>
+     * </ul>
+     *
+     * The brain ultimately re-checks server-side (alignment must be {@code alignedByAdmin}); this is
+     * the authoritative per-turn assertion of that bit, computed where the admin set actually lives.
+     */
+    private boolean resolveCanDispatch(IngressRequest request, String userId) {
+        return switch (request.origin().channel()) {
+            case WEB, VOICE -> true; // the caller owns this authenticated session
+            case DISCORD, TELEGRAM -> {
+                try {
+                    yield entryPointResolver.resolve(request.origin()).isAdmin(userId);
+                } catch (CidadelException e) {
+                    // No governing entry point ⇒ no one is an admin here ⇒ no dispatch (fail-closed).
+                    yield false;
+                }
+            }
+        };
     }
 
     /** Materializes attachments to durable storage when a materializer is wired; else refs pass through. */

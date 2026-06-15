@@ -54,7 +54,7 @@ public class VoiceConversationTurnHandler implements ConversationTurnHandler {
     }
 
     @Override
-    public void handleTurn(String tacticlUserId, RunOrigin origin, String text) {
+    public void handleTurn(String tacticlUserId, RunOrigin origin, String text, boolean canDispatch) {
         if (origin == null || text == null || text.isBlank()) {
             return;
         }
@@ -69,7 +69,7 @@ public class VoiceConversationTurnHandler implements ConversationTurnHandler {
 
         ConversationContext ctx = new ConversationContext(
             properties.getProductId(), tacticlUserId, session.sessionId(),
-            "t-" + UUID.randomUUID(), text, session.history());
+            "t-" + UUID.randomUUID(), text, session.history(), canDispatch);
         SessionSink sink = new SessionSink(session, text);
 
         // The handler runs on the STT final-transcript thread and must NOT throw —

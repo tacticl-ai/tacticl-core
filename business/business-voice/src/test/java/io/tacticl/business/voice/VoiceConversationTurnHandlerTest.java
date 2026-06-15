@@ -68,7 +68,7 @@ class VoiceConversationTurnHandlerTest {
             sink.onDone();
         });
 
-        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "I want a health check");
+        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "I want a health check", true);
 
         verify(engine).converse(any(ConversationContext.class), any(ConversationSink.class));
         assertThat(out.framesOfType("transcript")).anyMatch(f -> "assistant".equals(f.get("role")));
@@ -87,7 +87,7 @@ class VoiceConversationTurnHandlerTest {
             sink.onDone();
         });
 
-        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "build a health endpoint");
+        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "build a health endpoint", true);
 
         // No repoUrl in the tool input → null (EntryPoint fallback downstream).
         verify(voiceSessionService).startPipelineFromConversation(session, "build a /health endpoint", null);
@@ -102,7 +102,7 @@ class VoiceConversationTurnHandlerTest {
             sink.onDone();
         });
 
-        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "yes go ahead");
+        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "yes go ahead", true);
 
         verify(voiceSessionService).startPipelineFromConversation(
             session, "build a /health endpoint", "https://github.com/tacticl-ai/health.git");
@@ -118,7 +118,7 @@ class VoiceConversationTurnHandlerTest {
             sink.onDone();
         });
 
-        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "yes go ahead");
+        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "yes go ahead", true);
 
         verify(voiceSessionService).startPipelineFromConversation(session, "build a /health endpoint", null);
         assertThat(session.history()).containsExactly(
@@ -134,7 +134,7 @@ class VoiceConversationTurnHandlerTest {
             sink.onDone();
         });
 
-        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "I want a feature");
+        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "I want a feature", true);
 
         assertThat(session.history()).containsExactly(
             new VoiceSession.Utterance("user", "I want a feature", null),
@@ -149,7 +149,7 @@ class VoiceConversationTurnHandlerTest {
             sink.onDone();
         });
 
-        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "hi");
+        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "hi", true);
 
         verifyNoInteractions(voiceSessionService);
         verify(tts).speak("Here's what I think.");
@@ -157,7 +157,7 @@ class VoiceConversationTurnHandlerTest {
 
     @Test
     void handleTurn_noLiveSession_isNoOp() {
-        handler.handleTurn(USER_ID, voiceOrigin("unknown-session"), "hello");
+        handler.handleTurn(USER_ID, voiceOrigin("unknown-session"), "hello", true);
 
         verifyNoInteractions(engine);
         verifyNoInteractions(tts);
@@ -169,7 +169,7 @@ class VoiceConversationTurnHandlerTest {
     void handleTurn_engineError_emitsErrorFrameAndSettlesIdle() {
         engineDrives(sink -> sink.onError("upstream down"));
 
-        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "hello");
+        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "hello", true);
 
         assertThat(out.framesOfType("error")).isNotEmpty();
         assertThat(out.lastState()).contains("idle");
@@ -183,7 +183,7 @@ class VoiceConversationTurnHandlerTest {
             throw new RuntimeException("boom");
         }).when(engine).converse(any(ConversationContext.class), any(ConversationSink.class));
 
-        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "hello");
+        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "hello", true);
 
         assertThat(out.framesOfType("error")).isNotEmpty();
         assertThat(out.lastState()).contains("idle");
@@ -192,7 +192,7 @@ class VoiceConversationTurnHandlerTest {
 
     @Test
     void handleTurn_blankText_isNoOp() {
-        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "   ");
+        handler.handleTurn(USER_ID, voiceOrigin(SESSION_ID), "   ", true);
 
         verifyNoInteractions(engine);
         verifyNoInteractions(tts);

@@ -41,7 +41,12 @@ class ArbiterConversationEngineTest {
     }
 
     private ConversationContext ctx() {
-        return new ConversationContext("tacticl", USER, "sess-1", "turn-1", "how's it going?", List.of());
+        return ctx(true);
+    }
+
+    private ConversationContext ctx(boolean canDispatch) {
+        return new ConversationContext("tacticl", USER, "sess-1", "turn-1", "how's it going?",
+            List.of(), canDispatch);
     }
 
     private ConverseTurnInput capturedInput() {
@@ -110,5 +115,25 @@ class ArbiterConversationEngineTest {
         engine.converse(ctx(), mock(ConversationSink.class));
 
         assertThat(capturedInput().pipelines()).isEmpty();
+    }
+
+    @Test
+    void converse_threadsCanDispatchTrueToArbiter() {
+        when(pipelineRunRepository.findByUserIdOrderByCreatedAtDesc(USER)).thenReturn(List.of());
+
+        engine.converse(ctx(true), mock(ConversationSink.class));
+
+        assertThat(capturedInput().canDispatch()).isTrue();
+    }
+
+    @Test
+    void converse_threadsCanDispatchFalseToArbiter() {
+        when(pipelineRunRepository.findByUserIdOrderByCreatedAtDesc(USER)).thenReturn(List.of());
+
+        engine.converse(ctx(false), mock(ConversationSink.class));
+
+        // Fail-closed: a non-admin caller's turn carries canDispatch=false so the arbiter's
+        // alignment gate never authorizes a build from a "yes" it shouldn't trust.
+        assertThat(capturedInput().canDispatch()).isFalse();
     }
 }

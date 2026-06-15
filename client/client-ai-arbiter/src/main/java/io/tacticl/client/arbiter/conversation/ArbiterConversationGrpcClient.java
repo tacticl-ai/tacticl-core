@@ -25,13 +25,26 @@ public class ArbiterConversationGrpcClient implements ConversationServiceClient 
 
     private static final Logger log = LoggerFactory.getLogger(ArbiterConversationGrpcClient.class);
 
-    /** A voice turn must finish well inside the user's patience; cap the stream. */
-    private static final long DEADLINE_SECONDS = 60;
+    /**
+     * Fallback stream cap when none is configured. The Stage-2 brain is a persistent Claude Code
+     * session that may read the repo and run tools before its first token, so a single turn can take
+     * well over a minute — far past the old 60s voice cap, which would kill substantive turns. 300s
+     * is generous for a thinking turn yet still bounds a hung stream. Override per environment with
+     * {@code tacticl.voice.arbiter-conversation.deadline-seconds}.
+     */
+    private static final long DEFAULT_DEADLINE_SECONDS = 300;
 
     private final ArbiterConversationServiceGrpc.ArbiterConversationServiceStub stub;
+    private final long deadlineSeconds;
 
     public ArbiterConversationGrpcClient(ArbiterConversationServiceGrpc.ArbiterConversationServiceStub stub) {
+        this(stub, DEFAULT_DEADLINE_SECONDS);
+    }
+
+    public ArbiterConversationGrpcClient(ArbiterConversationServiceGrpc.ArbiterConversationServiceStub stub,
+                                         long deadlineSeconds) {
         this.stub = stub;
+        this.deadlineSeconds = deadlineSeconds > 0 ? deadlineSeconds : DEFAULT_DEADLINE_SECONDS;
     }
 
     @Override
@@ -39,7 +52,7 @@ public class ArbiterConversationGrpcClient implements ConversationServiceClient 
         ConverseTurnRequest request = toProto(input);
         AtomicBoolean finished = new AtomicBoolean(false);
 
-        stub.withDeadlineAfter(DEADLINE_SECONDS, TimeUnit.SECONDS)
+        stub.withDeadlineAfter(deadlineSeconds, TimeUnit.SECONDS)
             .converseTurn(request, new StreamObserver<>() {
                 @Override
                 public void onNext(ConverseEvent event) {
@@ -91,7 +104,8 @@ public class ArbiterConversationGrpcClient implements ConversationServiceClient 
             .setText(nz(input.text()))
             .setPersonaHint(nz(input.personaHint()))
             .setLocale(nz(input.locale()))
-            .setGithubToken(nz(input.githubToken()));
+            .setGithubToken(nz(input.githubToken()))
+            .setCanDispatch(input.canDispatch());
         if (input.history() != null) {
             for (ConvTurn turn : input.history()) {
                 if (turn == null) {

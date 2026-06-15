@@ -263,9 +263,11 @@ class IngressDispatchServiceTest {
     }
 
     @Test
-    void dispatch_conversationTurn_withHandler_delegatesToHandler() {
-        // A conversation turn is plain chat — it must NOT require (or even resolve)
-        // a build EntryPoint. Stubbing resolve() here would be unnecessary.
+    void dispatch_conversationTurn_discordAdmin_delegatesWithCanDispatchTrue() {
+        // A Discord conversation turn is plain chat (no EntryPoint REQUIRED — the turn proceeds even
+        // if none resolves), but the EntryPoint IS consulted best-effort to learn whether THIS caller
+        // may also authorize a build. An admin ⇒ canDispatch=true.
+        when(entryPointResolver.resolve(any(RunOrigin.class))).thenReturn(entryPoint());
         ConversationTurnHandler handler = mock(ConversationTurnHandler.class);
         when(conversationProvider.getIfAvailable()).thenReturn(handler);
         var origin = discordOrigin();
@@ -275,8 +277,54 @@ class IngressDispatchServiceTest {
         Optional<PipelineRun> result = service.dispatch(req);
 
         assertThat(result).isEmpty();
-        verify(handler).handleTurn(ADMIN, origin, "hello there");
-        // The EntryPoint registry is never consulted for conversation turns.
+        verify(handler).handleTurn(ADMIN, origin, "hello there", true);
+        verifyNoInteractions(pdlcV2Service);
+    }
+
+    @Test
+    void dispatch_conversationTurn_discordNonAdmin_delegatesWithCanDispatchFalse() {
+        // A non-admin on a shared channel may CONVERSE but never DISPATCH — fail-closed to false.
+        when(entryPointResolver.resolve(any(RunOrigin.class))).thenReturn(entryPoint());
+        ConversationTurnHandler handler = mock(ConversationTurnHandler.class);
+        when(conversationProvider.getIfAvailable()).thenReturn(handler);
+        var origin = discordOrigin();
+        var req = new IngressRequest(origin, OUTSIDER, IngressKind.CONVERSATION_TURN,
+            "hello there", List.of(), "tacticl", "interaction-5b", null);
+
+        service.dispatch(req);
+
+        verify(handler).handleTurn(OUTSIDER, origin, "hello there", false);
+    }
+
+    @Test
+    void dispatch_conversationTurn_discordNoEntryPoint_failsClosedToFalse() {
+        // No governing EntryPoint resolves ⇒ no admin set exists ⇒ no dispatch (but the chat still flows).
+        when(entryPointResolver.resolve(any(RunOrigin.class)))
+            .thenThrow(new CidadelException(IngressErrorDetails.ENTRY_POINT_NOT_FOUND, "business-pipeline", "x"));
+        ConversationTurnHandler handler = mock(ConversationTurnHandler.class);
+        when(conversationProvider.getIfAvailable()).thenReturn(handler);
+        var origin = discordOrigin();
+        var req = new IngressRequest(origin, ADMIN, IngressKind.CONVERSATION_TURN,
+            "hello there", List.of(), "tacticl", "interaction-5c", null);
+
+        service.dispatch(req);
+
+        verify(handler).handleTurn(ADMIN, origin, "hello there", false);
+    }
+
+    @Test
+    void dispatch_conversationTurn_voiceOwner_canDispatchTrue_withoutResolvingEntryPoint() {
+        // Owner channels (WEB/VOICE) act on the caller's own authenticated session ⇒ canDispatch=true,
+        // and the EntryPoint registry is NOT consulted at all.
+        ConversationTurnHandler handler = mock(ConversationTurnHandler.class);
+        when(conversationProvider.getIfAvailable()).thenReturn(handler);
+        var origin = new RunOrigin(ChannelType.VOICE, "sess-9", "sess-9", null);
+        var req = new IngressRequest(origin, ADMIN, IngressKind.CONVERSATION_TURN,
+            "build me a thing", List.of(), "tacticl", "interaction-5d", null);
+
+        service.dispatch(req);
+
+        verify(handler).handleTurn(ADMIN, origin, "build me a thing", true);
         verifyNoInteractions(entryPointResolver);
         verifyNoInteractions(pdlcV2Service);
     }

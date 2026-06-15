@@ -79,7 +79,10 @@ public class ArbiterConversationEngine implements ConversationEngine {
             // The user's in-flight pipelines as grounding, so the persona knows what's building
             // and can answer "how's it going / has the PM finished?" without a tool call. The
             // arbiter renders these into the system prompt every turn.
-            mapPipelines(ctx.userId()));
+            mapPipelines(ctx.userId()),
+            // Whether THIS turn's caller may authorize a dispatch. The arbiter's alignment gate fails
+            // CLOSED unless true — a non-admin "yes" never fires create_repo / start_pipeline.
+            ctx.canDispatch());
 
         client.converseTurn(input, new ConverseEventListener() {
             @Override

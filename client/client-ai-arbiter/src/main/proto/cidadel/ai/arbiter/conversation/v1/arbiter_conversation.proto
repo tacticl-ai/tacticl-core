@@ -29,6 +29,10 @@ message ConverseTurnRequest {
                                          // the shared arbiter stores none of its own. blank => no provisioning.
   repeated RepoRef repos = 11;           // user's known repos (recent-first), for grounding — the analyst
                                          // offers these once requirements are understood, never leads with them.
+  bool can_dispatch = 12;                // Phase 2: whether THIS turn's user holds dispatch authority
+                                         // (owner channel, or admin of the governing EntryPoint). The
+                                         // arbiter's alignment gate fails CLOSED unless this is true, so
+                                         // a non-admin "yes" never authorizes create_repo / start_pipeline.
 }
 
 message RepoRef {
