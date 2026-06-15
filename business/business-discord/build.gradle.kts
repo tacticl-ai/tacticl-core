@@ -5,6 +5,7 @@ plugins {
 
 dependencies {
     implementation(project(":client:client-discord"))
+    implementation(project(":client:client-ai-arbiter"))
     implementation(project(":data:data-discord"))
     implementation(project(":data:data-pipeline"))
     implementation(project(":data:data-sparks"))

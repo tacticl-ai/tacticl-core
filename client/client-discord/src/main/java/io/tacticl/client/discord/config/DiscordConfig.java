@@ -31,6 +31,15 @@ public class DiscordConfig {
     /** TTL for one-time account-link tokens. */
     private int linkTokenTtlMinutes = 15;
 
+    /**
+     * Whether to open the Gateway (WebSocket) connection for free-form messages. Independent of the
+     * REST/interactions path so the bot can stay online for slash commands with the gateway off.
+     */
+    private boolean gatewayEnabled = false;
+
+    /** Base Gateway URL (override for tests); {@code ?v=10&encoding=json} is appended by the client. */
+    private String gatewayUrl = "wss://gateway.discord.gg";
+
     public boolean isConfigured() {
         return publicKey != null && !publicKey.isEmpty()
             && botToken != null && !botToken.isEmpty()
@@ -65,4 +74,10 @@ public class DiscordConfig {
 
     public int getLinkTokenTtlMinutes() { return linkTokenTtlMinutes; }
     public void setLinkTokenTtlMinutes(int linkTokenTtlMinutes) { this.linkTokenTtlMinutes = linkTokenTtlMinutes; }
+
+    public boolean isGatewayEnabled() { return gatewayEnabled; }
+    public void setGatewayEnabled(boolean gatewayEnabled) { this.gatewayEnabled = gatewayEnabled; }
+
+    public String getGatewayUrl() { return gatewayUrl; }
+    public void setGatewayUrl(String gatewayUrl) { this.gatewayUrl = gatewayUrl; }
 }

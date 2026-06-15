@@ -1,5 +1,6 @@
 package io.tacticl.business.voice;
 
+import io.tacticl.business.pipeline.ingress.ChannelType;
 import io.tacticl.business.pipeline.ingress.ConversationTurnHandler;
 import io.tacticl.business.pipeline.ingress.RunOrigin;
 import java.util.Optional;
@@ -51,6 +52,12 @@ public class VoiceConversationTurnHandler implements ConversationTurnHandler {
         this.voiceSessionService = voiceSessionService;
         this.properties = properties;
         log.info("Voice conversation brain wired: {}", engine.getClass().getSimpleName());
+    }
+
+    /** The voice plane serves the VOICE channel — the in-app voice sphere (web /chat) and voice. */
+    @Override
+    public boolean supports(ChannelType channel) {
+        return channel == ChannelType.VOICE;
     }
 
     @Override

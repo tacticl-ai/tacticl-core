@@ -23,4 +23,11 @@ public interface ConversationTurnHandler {
      *                      conversation brain's alignment gate fails CLOSED unless this is true.
      */
     void handleTurn(String tacticlUserId, RunOrigin origin, String text, boolean canDispatch);
+
+    /**
+     * Whether this handler serves the given transport. The {@link RoutingConversationTurnHandler}
+     * uses this to dispatch each turn to the one handler that renders to the right surface (the
+     * voice sphere vs a Discord channel). A handler must serve exactly the channels it can reply on.
+     */
+    boolean supports(ChannelType channel);
 }
