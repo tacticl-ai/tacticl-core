@@ -193,8 +193,7 @@ public class ProductService {
         }
         Product product = found.get();
         product.delete();
-        product.setUpdatedAt(Instant.now());
-        productRepository.save(product);
+        productRepository.save(product); // updatedAt auto-set by @LastModifiedDate auditing
         log.info("Soft-deleted product id={} user={}", id, userId);
         return true;
     }

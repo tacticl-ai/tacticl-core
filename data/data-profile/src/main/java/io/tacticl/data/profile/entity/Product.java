@@ -1,7 +1,6 @@
 package io.tacticl.data.profile.entity;
 
 import io.tacticl.data.connections.base.BaseMongoEntity;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -30,8 +29,7 @@ public class Product extends BaseMongoEntity {
     /** Channel bindings (Discord/Telegram/WEB/VOICE) that route inbound work to this product. */
     private List<ChannelBinding> channels = new ArrayList<>();
 
-    private Instant createdAt;
-    private Instant updatedAt;
+    // createdAt / updatedAt are inherited from BaseMongoEntity (@CreatedDate / @LastModifiedDate).
 
     public static Product create(String userId, String name) {
         Product p = new Product();
@@ -39,9 +37,6 @@ public class Product extends BaseMongoEntity {
         p.name = name;
         p.repos = new ArrayList<>();
         p.channels = new ArrayList<>();
-        Instant now = Instant.now();
-        p.createdAt = now;
-        p.updatedAt = now;
         return p;
     }
 
@@ -83,9 +78,4 @@ public class Product extends BaseMongoEntity {
     public void setRepos(List<String> repos) { this.repos = repos; }
     public List<ChannelBinding> getChannels() { return channels; }
     public void setChannels(List<ChannelBinding> channels) { this.channels = channels; }
-
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
 }
