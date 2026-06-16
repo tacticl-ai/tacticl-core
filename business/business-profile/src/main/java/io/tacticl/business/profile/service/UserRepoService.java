@@ -68,6 +68,14 @@ public class UserRepoService {
                 });
     }
 
+    /** A user's repos, most-recently-used first (uncapped). */
+    public List<UserRepo> list(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return List.of();
+        }
+        return repository.findByCidadelUserIdAndIsActiveTrueOrderByLastUsedAtDesc(userId);
+    }
+
     /** A user's repos, most-recently-used first, capped to {@code limit}. */
     public List<UserRepo> recentRepos(String userId, int limit) {
         if (userId == null || userId.isBlank()) {
