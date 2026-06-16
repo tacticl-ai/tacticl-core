@@ -164,6 +164,13 @@ public class DiscordGatewayClient {
                 .buildAsync(uri, new GatewayListener(gen))
                 .toCompletableFuture()
                 .get(HANDSHAKE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            // webSocket is normally already assigned by onOpen (which fires before the first frame,
+            // so sendIdentify() never races a null socket). Re-assert here, unless a reconnect
+            // superseded this connection mid-handshake.
+            if (gen != generation.get()) {
+                try { ws.abort(); } catch (Exception ignore) { /* superseded */ }
+                return;
+            }
             this.webSocket = ws;
             log.info("Discord gateway connected ({}, resume={}, gen={})", uri.getHost(), resume, gen);
         } catch (Exception e) {
@@ -442,6 +449,12 @@ public class DiscordGatewayClient {
 
         @Override
         public void onOpen(WebSocket webSocket) {
+            // Publish the socket BEFORE any frame is delivered (onOpen precedes onText), so the
+            // HELLO→sendIdentify path never writes to a null socket (the connect-thread assignment
+            // can lose that race). Generation-guarded so a superseded connection can't clobber.
+            if (gen == generation.get()) {
+                DiscordGatewayClient.this.webSocket = webSocket;
+            }
             webSocket.request(1);
         }
 
