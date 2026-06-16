@@ -41,7 +41,17 @@ public class PlaybookSpecResolver {
         "pdlc-fix", Map.of(
             "mergeGateRole", "test",           // park for human PR approval once tests pass
             "reworkEntryRole", "implementer",  // a GRANT_REWORK re-opens the implementer
-            "reworkMax", 1)                     // lean: one rework round, then escalate
+            "reworkMax", 1),                    // lean: one rework round, then escalate
+        // User-initiated BUG_FIX — the default playbook for onboarded products and the
+        // Discord/Telegram EntryPoint default. Gate at TESTER (a node in the BUG_FIX DAG:
+        // researcher → implementer → reviewer → tester → retro) so research/implement/review/
+        // test all run, then the host pushes the branch + opens the PR and parks for the single
+        // human merge-approval. Without this, BUG_FIX fell to the legacy {name,roles} shape and
+        // the arbiter merge gate never engaged → no PR.
+        "BUG_FIX", Map.of(
+            "mergeGateRole", "tester",
+            "reworkEntryRole", "implementer",
+            "reworkMax", 1)
     );
 
     /**
