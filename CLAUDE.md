@@ -22,7 +22,7 @@ All of these are checked out side-by-side under `/Users/cuztomizer/Documents/Git
 | Repo | What it is |
 |------|-----------|
 | `../cidadel-core` | Shared platform (Java/Gradle) — auth, tokens, AI engine framework, published to GitHub Packages. **Part of the codebase, not an external dependency.** |
-| `../cidadel-ai-arbiter` | TS Temporal engine — Cloud Agent Orchestrator + PDLC pipeline engine (post-2026-05-30 pivot) |
+| `../cidadel-ai-arbiter` | TS Temporal engine — Cloud Agent Orchestrator + PDLC pipeline engine (post-2026-05-30 pivot). Deployed from here. ⚠️ Load-bearing invariant: every OAuth Anthropic request must lead with the Claude Code identity system block (`withClaudeCodeIdentity`) or Anthropic 429s and all OAuth LLM (incl. Strategiz mobile AI Signal) dies — never ship an arbiter build that drops it. See `../cidadel-ai-arbiter/CLAUDE.md`. |
 | `../strategiz-core` | Sibling product backend (Java/Maven) — shares the framework + Vault |
 | `../tacticl-docs` | Shared ecosystem/architecture/convention docs |
 
