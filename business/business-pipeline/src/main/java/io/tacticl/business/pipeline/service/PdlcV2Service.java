@@ -271,8 +271,14 @@ public class PdlcV2Service {
     }
 
     private String extractRoleFromAgentName(String agentName) {
-        // agentName format: "{type}-{pipelineId.slice(0,8)}-{nonce}" e.g., "pm-abc12345-ff01"
-        return agentName.split("-")[0].toUpperCase();
+        // Two agentName formats arrive:
+        //   • legacy shell: "{type}-{pipelineId.slice(0,8)}-{nonce}" e.g. "pm-abc12345-ff01"
+        //   • Temporal step: the raw step.type, which may ITSELF contain hyphens e.g. "fix-planner"
+        // Splitting on the first hyphen truncated hyphenated step types ("fix-planner" → "FIX").
+        // Instead strip only a trailing legacy "-{8 hex}-{>=2 hex}" id+nonce suffix when present;
+        // otherwise the whole string is the type.
+        String type = agentName.replaceFirst("-[0-9a-fA-F]{8}-[0-9a-fA-F]{2,}$", "");
+        return type.toUpperCase(java.util.Locale.ROOT);
     }
 
     @Async("pipelineCallbackExecutor")
