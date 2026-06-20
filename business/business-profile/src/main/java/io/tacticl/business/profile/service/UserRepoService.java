@@ -68,6 +68,61 @@ public class UserRepoService {
                 });
     }
 
+    /**
+     * Explicitly attach (grant) a repo to {@code userId} from the Settings UI. Idempotent
+     * upsert keyed by the canonical {@code (cidadelUserId, repoUrl)} — re-attaching an
+     * existing repo bumps its use/recency rather than duplicating. Unlike
+     * {@link #registerRepoUse}, this returns the persisted row and surfaces a parse failure
+     * (so the controller can answer 400) since it is a deliberate user action.
+     *
+     * @throws IllegalArgumentException if {@code repoUrl} is not a parseable GitHub repo URL
+     */
+    public UserRepo attach(String userId, String repoUrl) {
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("userId is required");
+        }
+        RepoRef ref = RepoRef.parse(repoUrl)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Not a GitHub repository URL: " + repoUrl));
+        Instant now = Instant.now();
+        return repository.findByCidadelUserIdAndRepoUrlAndIsActiveTrue(userId, ref.canonicalUrl())
+                .map(existing -> {
+                    existing.recordUse(now);
+                    UserRepo saved = repository.save(existing);
+                    log.info("Repo memory re-attached user={} repo={} useCount={}",
+                             userId, ref.canonicalUrl(), saved.getUseCount());
+                    return saved;
+                })
+                .orElseGet(() -> {
+                    RepoKind kind = inferKind(ref.owner());
+                    UserRepo saved = repository.save(UserRepo.create(userId, ref.owner(), ref.name(),
+                            ref.canonicalUrl(), kind, RepoSource.ATTACHED, now));
+                    log.info("Repo memory attached user={} repo={} kind={}",
+                             userId, ref.canonicalUrl(), kind);
+                    return saved;
+                });
+    }
+
+    /**
+     * Revoke (soft-delete) a repo a user has attached. Ownership-scoped: only the owning
+     * user's repo is touched. Returns {@code true} if a matching active repo was found and
+     * deactivated, {@code false} otherwise (so the controller can answer 404).
+     */
+    public boolean revoke(String userId, String repoId) {
+        if (userId == null || userId.isBlank() || repoId == null || repoId.isBlank()) {
+            return false;
+        }
+        return repository.findByIdAndCidadelUserId(repoId, userId)
+                .filter(UserRepo::isActive)
+                .map(repo -> {
+                    repo.delete();
+                    repository.save(repo);
+                    log.info("Repo memory revoked user={} repo={}", userId, repo.getRepoUrl());
+                    return true;
+                })
+                .orElse(false);
+    }
+
     /** A user's repos, most-recently-used first (uncapped). */
     public List<UserRepo> list(String userId) {
         if (userId == null || userId.isBlank()) {

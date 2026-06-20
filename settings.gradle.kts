@@ -44,6 +44,10 @@ include(":data:data-profile")
 include(":business:business-profile")
 include(":service:service-profile")
 
+include(":data:data-token")
+include(":business:business-token")
+// :service:service-token already declared in the top-level include(...) block above
+
 include(":client:client-telegram")
 include(":data:data-telegram")
 include(":business:business-telegram")

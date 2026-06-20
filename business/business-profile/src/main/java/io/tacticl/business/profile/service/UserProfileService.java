@@ -46,6 +46,23 @@ public class UserProfileService {
         }
     }
 
+    /**
+     * Update mutable profile fields ({@code displayName}, {@code avatarUrl}). Ensures the
+     * profile exists first (lazy-creates from the token), then applies only the non-null
+     * fields supplied by the caller (null = leave unchanged). Email is immutable here — it
+     * is sourced from the identity token, not user-editable.
+     */
+    public UserProfile update(AuthenticatedUser user, String displayName, String avatarUrl) {
+        UserProfile profile = getOrCreate(user);
+        if (displayName != null) {
+            profile.setDisplayName(displayName);
+        }
+        if (avatarUrl != null) {
+            profile.setAvatarUrl(avatarUrl);
+        }
+        return userProfileRepository.save(profile);
+    }
+
     public UserProfile updateSettings(String userId, int maxConcurrentSparks, double spendingLimit,
                                        java.util.List<String> domainAllowlist, java.util.List<String> domainBlocklist) {
         UserProfile profile = userProfileRepository.findByCidadelUserIdAndIsActiveTrue(userId)

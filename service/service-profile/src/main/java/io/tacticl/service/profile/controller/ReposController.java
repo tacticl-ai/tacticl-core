@@ -5,10 +5,16 @@ import io.cidadel.framework.authorization.annotation.RequireAuth;
 import io.cidadel.framework.authorization.context.AuthenticatedUser;
 import io.cidadel.service.base.controller.BaseController;
 import io.tacticl.business.profile.service.UserRepoService;
+import io.tacticl.data.profile.entity.UserRepo;
+import io.tacticl.service.profile.dto.AttachRepoRequest;
 import io.tacticl.service.profile.dto.RepoDto;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -38,5 +44,23 @@ public class ReposController extends BaseController {
                 .map(RepoDto::from)
                 .toList();
         return ResponseEntity.ok(repos);
+    }
+
+    /** Attach/grant a GitHub repo to the user's repo memory. */
+    @PostMapping
+    @RequireAuth
+    public ResponseEntity<RepoDto> attach(@AuthUser AuthenticatedUser user,
+                                          @RequestBody AttachRepoRequest body) {
+        UserRepo repo = userRepoService.attach(user.getUserId(), body.repoUrl());
+        return ResponseEntity.ok(RepoDto.from(repo));
+    }
+
+    /** Revoke (soft-delete) an attached repo. */
+    @DeleteMapping("/{repoId}")
+    @RequireAuth
+    public ResponseEntity<Void> revoke(@AuthUser AuthenticatedUser user,
+                                       @PathVariable String repoId) {
+        boolean revoked = userRepoService.revoke(user.getUserId(), repoId);
+        return revoked ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }
 }

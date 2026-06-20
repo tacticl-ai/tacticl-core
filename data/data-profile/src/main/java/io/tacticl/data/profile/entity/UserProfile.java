@@ -30,8 +30,10 @@ public class UserProfile extends BaseMongoEntity {
 
     public String getCidadelUserId() { return cidadelUserId; }
     public String getDisplayName() { return displayName; }
+    public void setDisplayName(String displayName) { this.displayName = displayName; }
     public String getEmail() { return email; }
     public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
 
     public int getMaxConcurrentSparks() { return maxConcurrentSparks; }
     public void setMaxConcurrentSparks(int maxConcurrentSparks) { this.maxConcurrentSparks = maxConcurrentSparks; }

@@ -13,4 +13,7 @@ public interface UserRepoRepository extends MongoRepository<UserRepo, String> {
 
     /** Grounding read: a user's repos, most-recently-used first (cap with Pageable/limit at the service). */
     List<UserRepo> findByCidadelUserIdAndIsActiveTrueOrderByLastUsedAtDesc(String cidadelUserId);
+
+    /** A single repo scoped to its owning user (ownership check for revoke). */
+    Optional<UserRepo> findByIdAndCidadelUserId(String id, String cidadelUserId);
 }

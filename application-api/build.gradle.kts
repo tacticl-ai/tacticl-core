@@ -24,6 +24,7 @@ dependencies {
     implementation(project(":service:service-pipeline"))
     implementation(project(":service:service-conversation"))
     implementation(project(":service:service-profile"))
+    implementation(project(":service:service-token"))
     implementation(project(":service:service-telegram"))
     implementation(project(":service:service-discord"))
     implementation(project(":service:service-voice"))
