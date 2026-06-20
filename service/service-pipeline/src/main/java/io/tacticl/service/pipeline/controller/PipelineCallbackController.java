@@ -43,7 +43,7 @@ public class PipelineCallbackController extends BaseController {
         }
         pdlcV2Service.handleArbiterCallback(
             body.pipelineId(), body.event(), body.agentName(), body.message(),
-            body.status(), body.errorMessage()
+            body.status(), body.resultJson(), body.errorMessage()
         );
         return ResponseEntity.ok().build();
     }

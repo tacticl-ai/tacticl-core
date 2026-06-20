@@ -46,10 +46,16 @@ public record PipelineRunDto(
                         activatedRoles.add(roleName);
                         String normalizedStatus = "RUNNING".equals(roleState.getStatus())
                             ? "EXECUTING" : roleState.getStatus();
+                        List<RoleResultDto.RoleTaskDto> tasks =
+                            roleState.getTasks() == null ? null
+                                : roleState.getTasks().stream()
+                                    .map(t -> new RoleResultDto.RoleTaskDto(t.getTitle(), t.getStatus()))
+                                    .toList();
                         roleResults.put(roleName, new RoleResultDto(
                             normalizedStatus,
                             roleState.getReworkCount() + 1,
-                            roleState.getCostUsd()
+                            roleState.getCostUsd(),
+                            tasks
                         ));
                         if ("RUNNING".equals(roleState.getStatus())) {
                             currentRoleHolder[0] = roleName;

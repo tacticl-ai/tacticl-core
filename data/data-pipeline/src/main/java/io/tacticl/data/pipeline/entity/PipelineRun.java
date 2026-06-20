@@ -166,6 +166,37 @@ public class PipelineRun {
         this.updatedAt = Instant.now();
     }
 
+    /**
+     * Attach the Planner-enumerated task list for a downstream {@code role} (Slice 3
+     * task-plan passthrough). Stored on the role's {@link RoleState} under the supplied
+     * {@code phase} (the planner's phase) so the flat {@code roleResults[role].tasks}
+     * projection in the DTO can surface it. Null/empty-safe: a null or empty list is a
+     * no-op so unrelated events never clobber an existing plan.
+     */
+    public void setRoleTasks(String phase, String role, List<RoleTask> tasks) {
+        if (role == null || tasks == null || tasks.isEmpty()) {
+            return;
+        }
+        RoleState roleState = findRoleState(role);
+        if (roleState == null) {
+            String phaseKey = phase != null ? phase : "PLAN";
+            PhaseState phaseState = phases.computeIfAbsent(phaseKey, k -> PhaseState.pending());
+            roleState = phaseState.getRoles().computeIfAbsent(role, k -> RoleState.pending());
+        }
+        roleState.setTasks(tasks);
+        this.updatedAt = Instant.now();
+    }
+
+    /** First {@link RoleState} matching {@code role} across all phases, or null if none yet. */
+    private RoleState findRoleState(String role) {
+        for (PhaseState phaseState : phases.values()) {
+            if (phaseState.getRoles() != null && phaseState.getRoles().containsKey(role)) {
+                return phaseState.getRoles().get(role);
+            }
+        }
+        return null;
+    }
+
     public void resumeFromCheckpoint() {
         this.status = PipelineStatus.RUNNING;
         this.currentCheckpointId = null;

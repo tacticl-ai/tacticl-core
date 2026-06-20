@@ -25,7 +25,7 @@ class PipelineCallbackControllerTest {
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         verify(service).handleArbiterCallback(
-            "arb-uuid-1", null, null, null, "COMPLETED", null);
+            "arb-uuid-1", null, null, null, "COMPLETED", "{}", null);
     }
 
     @Test
@@ -41,7 +41,7 @@ class PipelineCallbackControllerTest {
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         verify(service).handleArbiterCallback(
-            "arb-uuid-2", "agent_completed", "pm-abc12345-ff01", "done", null, null);
+            "arb-uuid-2", "agent_completed", "pm-abc12345-ff01", "done", null, null, null);
     }
 
     @Test
@@ -72,6 +72,6 @@ class PipelineCallbackControllerTest {
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         verify(service).handleArbiterCallback(
-            "arb-uuid-4", "progress", "pm-abcd1234-aa01", null, null, null);
+            "arb-uuid-4", "progress", "pm-abcd1234-aa01", null, null, null, null);
     }
 }

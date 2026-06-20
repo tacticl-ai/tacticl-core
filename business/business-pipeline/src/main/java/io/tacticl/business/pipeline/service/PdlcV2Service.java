@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -193,7 +194,7 @@ public class PdlcV2Service {
 
     public void handleArbiterCallback(String arbiterPipelineId, String event,
                                        String agentName, String message,
-                                       String status, String errorMessage) {
+                                       String status, String resultJson, String errorMessage) {
         Optional<PipelineRun> runOpt = pipelineRunRepository.findByArbiterPipelineId(arbiterPipelineId);
         if (runOpt.isEmpty()) {
             log.warn("No PipelineRun found for arbiterPipelineId={}", arbiterPipelineId);
@@ -210,7 +211,7 @@ public class PdlcV2Service {
         }
 
         PipelineCallbackEvent callbackEvent = translateArbiterEvent(
-            pipelineRunId, event, agentName, message, status, errorMessage);
+            pipelineRunId, event, agentName, message, status, resultJson, errorMessage);
         if (callbackEvent != null) {
             handleCallbackEvent(callbackEvent);
         }
@@ -218,7 +219,8 @@ public class PdlcV2Service {
 
     private PipelineCallbackEvent translateArbiterEvent(String pipelineRunId, String event,
                                                          String agentName, String message,
-                                                         String status, String errorMessage) {
+                                                         String status, String resultJson,
+                                                         String errorMessage) {
         // Terminal pipeline events
         if (status != null) {
             return switch (status) {
@@ -242,7 +244,8 @@ public class PdlcV2Service {
                 case "progress" -> new PipelineCallbackEvent(
                     pipelineRunId, "ROLE_STARTED", role, role, null);
                 case "agent_completed" -> new PipelineCallbackEvent(
-                    pipelineRunId, "ROLE_COMPLETED", role, role, "{\"costUsd\":0}");
+                    pipelineRunId, "ROLE_COMPLETED", role, role,
+                    buildRoleCompletedPayload(resultJson, pipelineRunId));
                 case "blocked" -> {
                     // The arbiter's blocked callback carries {askId, gateNonce, role} in
                     // `message` — capture them so the checkpoint can echo them back to the
@@ -268,6 +271,35 @@ public class PdlcV2Service {
             };
         }
         return null;
+    }
+
+    /**
+     * Build the ROLE_COMPLETED payload, carrying the Planner's task plan forward when present
+     * (Slice 3 passthrough). The arbiter forwards {@code resultJson = {"tasks": {role:[titles]}}}
+     * on the planner's {@code agent_completed} callback; we copy that {@code tasks} object into
+     * the payload so {@link #processRunEvent} can project it onto each downstream role. Most
+     * events carry no resultJson / no tasks — in that case we emit the plain cost-only payload.
+     */
+    private String buildRoleCompletedPayload(String resultJson, String pipelineRunId) {
+        String fallback = "{\"costUsd\":0}";
+        if (resultJson == null || resultJson.isBlank()) {
+            return fallback;
+        }
+        try {
+            JsonNode result = JSON.readTree(resultJson);
+            JsonNode tasks = result.path("tasks");
+            if (!tasks.isObject() || tasks.isEmpty()) {
+                return fallback;
+            }
+            var payload = JSON.createObjectNode();
+            payload.put("costUsd", 0);
+            payload.set("tasks", tasks);
+            return JSON.writeValueAsString(payload);
+        } catch (Exception e) {
+            log.warn("Failed to parse agent_completed resultJson for run {} — emitting cost-only payload: {}",
+                     pipelineRunId, e.getMessage());
+            return fallback;
+        }
     }
 
     private String extractRoleFromAgentName(String agentName) {
@@ -332,6 +364,10 @@ public class PdlcV2Service {
                         run.setArtifact(event.phase() + "_" + event.role(), path);
                     }
                 }
+                // Slice 3: the Planner emits a per-downstream-role task plan
+                // ({"tasks": {role:[titles]}}). Project each role's ordered task titles
+                // onto its RoleState as {title, status="pending"}. Null/empty-safe.
+                applyTaskPlan(run, event.phase(), payload.path("tasks"));
                 pipelineRunRepository.save(run);
             }
             case "ROLE_REWORK" -> {
@@ -354,6 +390,35 @@ public class PdlcV2Service {
             }
             default -> log.debug("Unhandled callback event type: {}", event.eventType());
         }
+    }
+
+    /**
+     * Project the Planner's task plan ({@code {role:[titles]}}) onto the run. For each
+     * downstream role key, builds an ordered {@code List<RoleTask>} (title + status="pending")
+     * and stores it on that role's projection. Null/empty/non-object {@code tasks} → no-op,
+     * so non-planner events never clobber the plan.
+     */
+    private void applyTaskPlan(PipelineRun run, String phase, JsonNode tasks) {
+        if (tasks == null || !tasks.isObject() || tasks.isEmpty()) {
+            return;
+        }
+        tasks.properties().forEach(entry -> {
+            JsonNode titles = entry.getValue();
+            if (titles == null || !titles.isArray() || titles.isEmpty()) {
+                return;
+            }
+            List<RoleTask> roleTasks = new ArrayList<>();
+            for (JsonNode title : titles) {
+                String t = title.asString("");
+                if (!t.isBlank()) {
+                    roleTasks.add(RoleTask.pending(t));
+                }
+            }
+            if (!roleTasks.isEmpty()) {
+                String role = entry.getKey().toUpperCase(java.util.Locale.ROOT);
+                run.setRoleTasks(phase, role, roleTasks);
+            }
+        });
     }
 
     private void handleCheckpointRequested(PipelineRun run, PipelineCallbackEvent event, JsonNode payload) {
