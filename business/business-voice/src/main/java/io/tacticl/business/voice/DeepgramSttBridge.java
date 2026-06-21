@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
  * drops surfaces via {@code onError} and the session simply re-opens on the next
  * {@code start}).
  */
-public class DeepgramSttBridge {
+public class DeepgramSttBridge implements SttBridge {
 
     private static final Logger log = LoggerFactory.getLogger(DeepgramSttBridge.class);
 
@@ -50,7 +50,8 @@ public class DeepgramSttBridge {
     }
 
     /** Register the interim-transcript handler (partial:true frames). */
-    public DeepgramSttBridge onPartial(Consumer<String> handler) {
+    @Override
+    public SttBridge onPartial(Consumer<String> handler) {
         this.onPartial = handler != null ? handler : t -> {
         };
         return this;
@@ -60,21 +61,24 @@ public class DeepgramSttBridge {
      * Register the final-transcript handler — the trigger for ingress dispatch.
      * Fired once per finalized utterance.
      */
-    public DeepgramSttBridge onFinal(Consumer<String> handler) {
+    @Override
+    public SttBridge onFinal(Consumer<String> handler) {
         this.onFinal = handler != null ? handler : t -> {
         };
         return this;
     }
 
     /** Register the VAD start-of-speech handler (drives the listening animation). */
-    public DeepgramSttBridge onSpeechStarted(Runnable handler) {
+    @Override
+    public SttBridge onSpeechStarted(Runnable handler) {
         this.onSpeechStarted = handler != null ? handler : () -> {
         };
         return this;
     }
 
     /** Register the terminal-error handler. */
-    public DeepgramSttBridge onError(Consumer<Throwable> handler) {
+    @Override
+    public SttBridge onError(Consumer<Throwable> handler) {
         this.onError = handler != null ? handler : e -> {
         };
         return this;
@@ -85,6 +89,7 @@ public class DeepgramSttBridge {
      * client callbacks to the registered handlers. Any open failure is routed to
      * {@code onError} rather than thrown, so a failed turn degrades to silence.
      */
+    @Override
     public synchronized void open() {
         if (session != null && session.isOpen()) {
             return;
@@ -109,6 +114,7 @@ public class DeepgramSttBridge {
      * Forward a 16 kHz mono s16le PCM chunk to Deepgram. Silently ignored if the
      * session is not open (e.g. a stray binary frame after barge-in).
      */
+    @Override
     public void sendAudio(byte[] pcmChunk) {
         DeepgramSession s = this.session;
         if (s == null || !s.isOpen() || pcmChunk == null || pcmChunk.length == 0) {
@@ -133,12 +139,14 @@ public class DeepgramSttBridge {
     }
 
     /** True when the underlying STT session is open and accepting frames. */
+    @Override
     public boolean isOpen() {
         DeepgramSession s = this.session;
         return s != null && s.isOpen();
     }
 
     /** Graceful close; safe to call repeatedly. */
+    @Override
     public synchronized void close() {
         DeepgramSession s = this.session;
         this.session = null;

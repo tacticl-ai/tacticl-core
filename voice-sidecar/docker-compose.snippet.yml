@@ -1,0 +1,63 @@
+# ---------------------------------------------------------------------------
+# voice-sidecar — compose snippet
+# ---------------------------------------------------------------------------
+# Drop this `voice-sidecar` service into deployment/docker-compose.yml (under
+# `services:`). It joins the existing external `platform-net` network (the
+# compose file's default), so tacticl-api can reach it at
+# ws://voice-sidecar:8700/v1/stt and ws://voice-sidecar:8700/v1/tts.
+#
+# The named volume `voice-models` persists lazily-downloaded model weights
+# across restarts. Add it to the top-level `volumes:` block in the main file.
+#
+# CPU note: Parakeet/NeMo are GPU-friendly. On a GPU host, build a CUDA image
+# and uncomment the `deploy.resources.reservations.devices` GPU block below.
+# ---------------------------------------------------------------------------
+
+services:
+  voice-sidecar:
+    build:
+      context: ./voice-sidecar
+      dockerfile: Dockerfile
+    image: voice-sidecar:latest
+    container_name: voice-sidecar
+    restart: unless-stopped
+    # Exposed only on the internal compose network by default (no host port).
+    # Uncomment to reach it from the host for local testing:
+    # ports:
+    #   - "8700:8700"
+    environment:
+      - PORT=8700
+      - STT_ENGINE=parakeet          # parakeet | faster_whisper
+      - TTS_ENGINE=kokoro            # kokoro | xtts  (xtts weights = non-commercial)
+      - TTS_VOICE=af_heart
+      - VAD_ENGINE=silero            # silero | webrtc
+      - MODEL_CACHE_DIR=/models
+    volumes:
+      - voice-models:/models
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8700/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+        # --- GPU host only: uncomment to grant the container an NVIDIA GPU ---
+        # reservations:
+        #   devices:
+        #     - driver: nvidia
+        #       count: 1
+        #       capabilities: [gpu]
+
+# Add to the top-level `volumes:` block in deployment/docker-compose.yml:
+volumes:
+  voice-models:
+
+# The main file already declares this network as the default — shown here for
+# reference; do NOT duplicate it when merging.
+networks:
+  default:
+    name: platform-net
+    external: true

@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
  * format the browser already plays (the protocol's canonical assumption), which
  * lets the transport skip the {@code audio_format} negotiation frame entirely.
  */
-public class ElevenLabsTtsBridge {
+public class ElevenLabsTtsBridge implements TtsBridge {
 
     private static final Logger log = LoggerFactory.getLogger(ElevenLabsTtsBridge.class);
 
@@ -64,21 +64,24 @@ public class ElevenLabsTtsBridge {
     }
 
     /** Register the per-chunk audio handler (raw PCM16 bytes → BINARY DOWN frame). */
-    public ElevenLabsTtsBridge onAudioChunk(Consumer<byte[]> handler) {
+    @Override
+    public TtsBridge onAudioChunk(Consumer<byte[]> handler) {
         this.onAudioChunk = handler != null ? handler : b -> {
         };
         return this;
     }
 
     /** Register the end-of-utterance handler. */
-    public ElevenLabsTtsBridge onDone(Runnable handler) {
+    @Override
+    public TtsBridge onDone(Runnable handler) {
         this.onDone = handler != null ? handler : () -> {
         };
         return this;
     }
 
     /** Register the error handler. */
-    public ElevenLabsTtsBridge onError(Consumer<Throwable> handler) {
+    @Override
+    public TtsBridge onError(Consumer<Throwable> handler) {
         this.onError = handler != null ? handler : e -> {
         };
         return this;
@@ -90,6 +93,7 @@ public class ElevenLabsTtsBridge {
      * text, and flushes so the sentence finishes audibly. Open failures route to
      * {@code onError} rather than throwing.
      */
+    @Override
     public synchronized void speak(String text) {
         if (text == null || text.isBlank()) {
             return;
@@ -111,6 +115,7 @@ public class ElevenLabsTtsBridge {
     }
 
     /** True when an utterance is currently streaming. */
+    @Override
     public boolean isSpeaking() {
         ElevenLabsSession s = this.session;
         return s != null && s.isOpen();
@@ -120,6 +125,7 @@ public class ElevenLabsTtsBridge {
      * Barge-in / stop. Non-blocking: aborts the current session and returns
      * immediately. Safe to call when nothing is playing.
      */
+    @Override
     public synchronized void stop() {
         ElevenLabsSession s = this.session;
         this.session = null;

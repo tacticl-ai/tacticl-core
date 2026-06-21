@@ -1,0 +1,56 @@
+# ---------------------------------------------------------------------------
+# Tacticl voice sidecar — Python dependencies
+# ---------------------------------------------------------------------------
+# The web server + audio core are always installed. The model engines are
+# heavy and import-lazy: install only the engines you actually run.
+#
+#   - Default stack = Parakeet (STT) + Kokoro (TTS).
+#   - faster-whisper is a lighter CPU-friendly STT fallback (STT_ENGINE=faster_whisper).
+#   - XTTS-v2 (coqui-tts) is OPTIONAL and its weights are NON-COMMERCIAL (CPML).
+#
+# Versions are pinned with lower bounds to stay reproducible-ish while letting
+# patch updates through. Pin exact versions in your deploy image if desired.
+
+# --- Web server / WS transport (always required) ---------------------------
+fastapi>=0.111,<1.0
+uvicorn[standard]>=0.30,<1.0
+websockets>=12.0
+
+# --- Audio core (always required) ------------------------------------------
+numpy>=1.26,<3.0
+soxr>=0.5.0            # fast, high-quality resampler (preferred backend)
+scipy>=1.11            # resample fallback if soxr is unavailable
+
+# --- VAD -------------------------------------------------------------------
+# silero-vad is loaded via torch.hub (needs torch, listed below). webrtcvad is
+# a lightweight C-extension alternative (VAD_ENGINE=webrtc).
+webrtcvad>=2.0.10
+
+# ---------------------------------------------------------------------------
+# STT engines — install the one(s) you run. Both are import-lazy.
+# ---------------------------------------------------------------------------
+# Parakeet (default) via NVIDIA NeMo. Large; pulls torch + many ASR deps.
+#   Uncomment to enable Parakeet:
+# nemo_toolkit[asr]>=2.0.0
+
+# faster-whisper fallback (CPU-friendly, much smaller than NeMo).
+faster-whisper>=1.0.0
+
+# ---------------------------------------------------------------------------
+# TTS engines — install the one(s) you run. Both are import-lazy.
+# ---------------------------------------------------------------------------
+# Kokoro (default, Apache-2.0 — commercial-safe). Pulls torch.
+kokoro>=0.7.0
+# soundfile/phonemizer are commonly needed by kokoro/coqui pipelines:
+soundfile>=0.12.1
+
+# XTTS-v2 (OPTIONAL, NON-COMMERCIAL weights — Coqui CPML). Heavy.
+#   Uncomment to enable XTTS:
+# coqui-tts>=0.24.0
+
+# ---------------------------------------------------------------------------
+# torch — required by silero VAD, Kokoro, and Parakeet. Install the CPU wheel
+# explicitly in the Dockerfile (or a CUDA wheel on a GPU host). Listed here for
+# clarity; on GPU hosts replace with the matching CUDA build.
+# ---------------------------------------------------------------------------
+torch>=2.2,<3.0

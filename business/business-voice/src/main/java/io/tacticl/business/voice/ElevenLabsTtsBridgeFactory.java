@@ -1,18 +1,18 @@
 package io.tacticl.business.voice;
 
 import io.tacticl.client.elevenlabs.client.ElevenLabsClient;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
 
 /**
  * Builds a fresh {@link ElevenLabsTtsBridge} per voice session. The
  * {@link ElevenLabsClient} is a stateless singleton; each bridge manages its own
  * short-lived per-utterance sessions, so the service needs a factory rather than
  * a shared instance. Trivially overridable in tests with a fake.
+ *
+ * <p>Not a {@code @Component}: {@link BusinessVoiceConfig} constructs this (or the
+ * local factory) and exposes the selected one as the single active
+ * {@link TtsBridgeFactory} bean per {@code tacticl.voice.tts-provider}.
  */
-@Component
-@ConditionalOnProperty(name = "tacticl.voice.enabled", havingValue = "true")
-public class ElevenLabsTtsBridgeFactory {
+public class ElevenLabsTtsBridgeFactory implements TtsBridgeFactory {
 
     private final ElevenLabsClient client;
 
@@ -23,7 +23,8 @@ public class ElevenLabsTtsBridgeFactory {
     /**
      * @param voiceId optional explicit voice id; {@code null} uses the client default.
      */
-    public ElevenLabsTtsBridge create(String voiceId) {
+    @Override
+    public TtsBridge create(String voiceId) {
         return new ElevenLabsTtsBridge(client, voiceId);
     }
 }

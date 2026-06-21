@@ -27,9 +27,9 @@ public class VoiceSession {
 
     private final VoiceOutbound outbound;
 
-    private final DeepgramSttBridge stt;
+    private final SttBridge stt;
 
-    private final ElevenLabsTtsBridge tts;
+    private final TtsBridge tts;
 
     /** The PDLC run this session is currently narrating (set on EXPLICIT_TRIGGER dispatch). */
     private final AtomicReference<String> activeRunId = new AtomicReference<>();
@@ -66,8 +66,8 @@ public class VoiceSession {
     public VoiceSession(String sessionId,
                         String userId,
                         VoiceOutbound outbound,
-                        DeepgramSttBridge stt,
-                        ElevenLabsTtsBridge tts) {
+                        SttBridge stt,
+                        TtsBridge tts) {
         this.sessionId = sessionId;
         this.userId = userId;
         this.outbound = outbound;
@@ -87,11 +87,11 @@ public class VoiceSession {
         return outbound;
     }
 
-    public DeepgramSttBridge stt() {
+    public SttBridge stt() {
         return stt;
     }
 
-    public ElevenLabsTtsBridge tts() {
+    public TtsBridge tts() {
         return tts;
     }
 

@@ -66,9 +66,9 @@ public class VoiceSessionService {
         "build ", "create ", "implement ", "fix ", "add ", "refactor ",
         "ship ", "generate ", "write ", "deploy ", "make ", "send to pdlc");
 
-    private final DeepgramSttBridgeFactory sttFactory;
+    private final SttBridgeFactory sttFactory;
 
-    private final ElevenLabsTtsBridgeFactory ttsFactory;
+    private final TtsBridgeFactory ttsFactory;
 
     private final IngressDispatchService ingressDispatchService;
 
@@ -78,8 +78,8 @@ public class VoiceSessionService {
 
     private final String voiceId;
 
-    public VoiceSessionService(DeepgramSttBridgeFactory sttFactory,
-                               ElevenLabsTtsBridgeFactory ttsFactory,
+    public VoiceSessionService(SttBridgeFactory sttFactory,
+                               TtsBridgeFactory ttsFactory,
                                IngressDispatchService ingressDispatchService,
                                VoiceSessionRegistry registry,
                                VoiceConversationStore conversationStore,
@@ -122,8 +122,8 @@ public class VoiceSessionService {
     public VoiceSession openSession(String userId, String requestedConversationId, VoiceOutbound outbound) {
         Optional<ConversationSession> convo = conversationStore.resolveConversation(userId, requestedConversationId);
         String sessionId = convo.map(ConversationSession::getId).orElseGet(() -> UUID.randomUUID().toString());
-        DeepgramSttBridge stt = sttFactory.create();
-        ElevenLabsTtsBridge tts = ttsFactory.create(voiceId);
+        SttBridge stt = sttFactory.create();
+        TtsBridge tts = ttsFactory.create(voiceId);
         VoiceSession session = new VoiceSession(sessionId, userId, outbound, stt, tts);
 
         // Resume: rehydrate prior turns into memory (brain context) and wire durable
