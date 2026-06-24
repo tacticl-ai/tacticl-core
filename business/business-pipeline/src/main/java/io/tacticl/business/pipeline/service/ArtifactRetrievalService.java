@@ -82,7 +82,7 @@ public class ArtifactRetrievalService {
         }
 
         String manifestPath = PDLC_BASE + run.getId() + "/" + MANIFEST;
-        Optional<GitHubFileContent> fileOpt = readFirstResolvable(client, repo, manifestPath, token);
+        Optional<GitHubFileContent> fileOpt = readFirstResolvable(run, client, repo, manifestPath, token);
         if (fileOpt.isEmpty()) {
             log.info("No manifest at {} in {} on any candidate ref", manifestPath, repo);
             return List.of();
@@ -133,7 +133,7 @@ public class ArtifactRetrievalService {
 
         String safeName = sanitizeName(name);
         String path = PDLC_BASE + run.getId() + "/" + safeName + ".md";
-        return readFirstResolvable(client, repo, path, token)
+        return readFirstResolvable(run, client, repo, path, token)
             .map(f -> new ArtifactContent(safeName, f.getDecodedContent(), f.getSha()));
     }
 
@@ -141,9 +141,9 @@ public class ArtifactRetrievalService {
      * Try the candidate refs in order, returning the first file that resolves.
      * Candidate order: (future stored branch first), then the repo default branch (empty ref).
      */
-    private Optional<GitHubFileContent> readFirstResolvable(GitHubClient client, String repo,
+    private Optional<GitHubFileContent> readFirstResolvable(PipelineRun run, GitHubClient client, String repo,
                                                             String path, String token) {
-        for (String ref : candidateRefs()) {
+        for (String ref : candidateRefs(run)) {
             try {
                 GitHubFileContent file = client.readFile(repo, path, ref, token);
                 if (file != null) {
@@ -160,12 +160,18 @@ public class ArtifactRetrievalService {
     }
 
     /**
-     * Ordered candidate refs. {@link PipelineRun} stores no branch today, so this is just the
-     * default branch (empty ref → GitHub resolves HEAD). Prepend a stored PR branch here once
-     * {@link PipelineRun} carries one.
+     * Ordered candidate refs. Try the pdlc-fix run branch first, then the default branch.
+     *
+     * <p>The arbiter pushes artifacts to {@code pdlc/fix/{intakeId}}, and {@code intakeId == run.getId()}.
+     * At the merge gate (branch pushed, pre-merge) the artifacts live on the run branch; post-merge the
+     * branch is gone, so the empty ref falls back to the default branch (where they merged). A non-existent
+     * branch ref just 404s and falls through to {@code ""} (already handled in {@link #readFirstResolvable}).
      */
-    private List<String> candidateRefs() {
-        // Empty ref resolves the repo default branch on the GitHub contents API.
+    private List<String> candidateRefs(PipelineRun run) {
+        // Run branch first (merge-gate, pre-merge), then empty ref → repo default branch (post-merge fallback).
+        if (run != null && run.getId() != null && !run.getId().isBlank()) {
+            return List.of("pdlc/fix/" + run.getId(), "");
+        }
         return List.of("");
     }
 
