@@ -145,28 +145,37 @@ public class PipelineController extends BaseController {
     }
 
     /**
-     * List the PDLC artifacts for a spark's run, parsed from the committed
-     * {@code .tacticl/pdlc/{runId}/manifest.json}. Returns an empty list when GitHub is
-     * disabled or the manifest is not yet committed.
+     * Manifest for the PDLC Artifacts viewer: a grouped rail of every expected role artifact,
+     * enriched from the committed {@code .tacticl/pdlc/{runId}/manifest.json} (authoritative
+     * {@code path}/{@code title}/{@code present}) and the run's per-role status.
+     *
+     * <p>Never 500s and never 404s for the no-data case: with no run, no artifacts, or GitHub
+     * disabled it returns the canonical skeleton (all {@code pending}, {@code present=false}).
+     * When the run exists but is unknown to this user it returns an empty list rather than leaking
+     * existence.
      */
     @GetMapping("/artifacts")
     public ResponseEntity<List<ArtifactManifestEntryDto>> listArtifacts(
             @AuthUser AuthenticatedUser user,
             @PathVariable String sparkId) {
-        PipelineRun run = pdlcV2Service.getStatus(user.getUserId(), sparkId)
-                .orElseThrow(() -> new ResponseStatusException(
-                    HttpStatus.NOT_FOUND, "Pipeline run not found for spark: " + sparkId));
-        List<ArtifactManifestEntryDto> entries = artifactRetrievalService.listArtifacts(run).stream()
-                .map(e -> new ArtifactManifestEntryDto(
-                    e.artifactId(), e.type(), e.agent(), e.path(), e.title(), e.summary()))
-                .toList();
-        return ResponseEntity.ok(entries);
+        PipelineRun run = pdlcV2Service.getStatus(user.getUserId(), sparkId).orElse(null);
+        if (run == null) {
+            // No run yet (or not this user's): emit the canonical skeleton so the rail can render
+            // its pending groups without a 404.
+            return ResponseEntity.ok(ArtifactManifestEntryDto.build(null, java.util.List.of()));
+        }
+        return ResponseEntity.ok(
+            ArtifactManifestEntryDto.build(run, artifactRetrievalService.listArtifacts(run)));
     }
 
     /**
-     * Return the decoded markdown body of a single PDLC artifact by basename
-     * (e.g. {@code prd}, {@code architecture}, {@code plan}, {@code change-summary},
-     * {@code review}, {@code test-report}, {@code security-report}).
+     * Return the decoded markdown body of a single PDLC artifact by its file stem
+     * (the {@code name} field of a manifest entry — e.g. {@code product-brief},
+     * {@code architecture}, {@code plan}, {@code change-summary}, {@code review},
+     * {@code test-report}, {@code security-report}; see {@link io.tacticl.service.pipeline.dto.PdlcArtifactCatalog}).
+     *
+     * <p>Returns {@code 404} (never {@code 500}) when GitHub is disabled or the file has not been
+     * committed to the repo yet; returns the decoded UTF-8 markdown + blob sha otherwise.
      */
     @GetMapping("/artifacts/{name}/content")
     public ResponseEntity<ArtifactContentDto> getArtifactContent(
