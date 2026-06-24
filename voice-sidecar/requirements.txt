@@ -24,7 +24,7 @@ scipy>=1.11            # resample fallback if soxr is unavailable
 # --- VAD -------------------------------------------------------------------
 # silero-vad is loaded via torch.hub (needs torch, listed below). webrtcvad is
 # a lightweight C-extension alternative (VAD_ENGINE=webrtc).
-webrtcvad>=2.0.10
+webrtcvad-wheels>=2.0.14   # prebuilt wheels (imports as `webrtcvad`); avoids needing a C compiler in the slim image
 
 # ---------------------------------------------------------------------------
 # STT engines — install the one(s) you run. Both are import-lazy.
