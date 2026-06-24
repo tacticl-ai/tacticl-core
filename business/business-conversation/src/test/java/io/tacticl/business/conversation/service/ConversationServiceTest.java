@@ -184,7 +184,7 @@ class ConversationServiceTest {
             "https://github.com/owner/repo",
             "https://github.com/owner/repo.git",
             "git@github.com:owner/repo.git",
-            true, "main");
+            true, "main", null);
         when(gitHubClient.createRepo("markdown-pdf", "cuztomizer", true, null, "ghp_test"))
             .thenReturn(repo);
 

@@ -26,6 +26,12 @@ public class Product extends BaseMongoEntity {
     /** Canonical GitHub repo URLs grouped under this product. */
     private List<String> repos = new ArrayList<>();
 
+    /**
+     * The user's chosen default repo (canonical GitHub repo URL). Backs {@code isDefault} in the
+     * repos-in-scope listing. Nullable.
+     */
+    private String defaultRepoUrl;
+
     /** Channel bindings (Discord/Telegram/WEB/VOICE) that route inbound work to this product. */
     private List<ChannelBinding> channels = new ArrayList<>();
 
@@ -76,6 +82,8 @@ public class Product extends BaseMongoEntity {
     public void setName(String name) { this.name = name; }
     public List<String> getRepos() { return repos; }
     public void setRepos(List<String> repos) { this.repos = repos; }
+    public String getDefaultRepoUrl() { return defaultRepoUrl; }
+    public void setDefaultRepoUrl(String defaultRepoUrl) { this.defaultRepoUrl = defaultRepoUrl; }
     public List<ChannelBinding> getChannels() { return channels; }
     public void setChannels(List<ChannelBinding> channels) { this.channels = channels; }
 }

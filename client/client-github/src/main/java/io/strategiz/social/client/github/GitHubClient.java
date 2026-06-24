@@ -694,6 +694,68 @@ public class GitHubClient {
 		}
 	}
 
+	/**
+	 * List every repository accessible to a GitHub App installation, using an installation access
+	 * token, via {@code GET /installation/repositories}. Paginates with {@code per_page=100} until a
+	 * page returns no repositories.
+	 *
+	 * <p>
+	 * Returns an empty list (never throws) when {@code installationToken} is {@code null}/blank so
+	 * org-scoped features degrade gracefully when the App is unconfigured.
+	 *
+	 * @param installationToken a GitHub App installation access token (see {@link GitHubAppAuth})
+	 * @return all repositories in scope for the installation
+	 * @throws CidadelException if a request fails
+	 */
+	public List<GitHubRepository> listInstallationRepos(String installationToken) {
+		if (installationToken == null || installationToken.isBlank()) {
+			return new ArrayList<>();
+		}
+		List<GitHubRepository> all = new ArrayList<>();
+		int page = 1;
+		while (true) {
+			consumeRateLimit();
+			final int currentPage = page;
+			try {
+				InstallationReposResponse response = restClient.get()
+					.uri("/installation/repositories?per_page=100&page={page}", currentPage)
+					.header("Authorization", "Bearer " + installationToken)
+					.retrieve()
+					.onStatus(this::isUnauthorized, (req, res) -> {
+						throw new CidadelException(GitHubErrorDetails.UNAUTHORIZED, MODULE_NAME,
+								"Invalid or expired installation token");
+					})
+					.onStatus(HttpStatusCode::isError, (req, res) -> {
+						throw new CidadelException(GitHubErrorDetails.API_ERROR, MODULE_NAME,
+								"GitHub API returned status " + res.getStatusCode().value()
+										+ " listing installation repositories");
+					})
+					.body(InstallationReposResponse.class);
+
+				List<GitHubRepository> repos = (response != null && response.repositories != null)
+						? response.repositories : new ArrayList<>();
+				if (repos.isEmpty()) {
+					break;
+				}
+				all.addAll(repos);
+				if (repos.size() < 100) {
+					break;
+				}
+				page++;
+			}
+			catch (CidadelException e) {
+				throw e;
+			}
+			catch (Exception e) {
+				log.error("Failed to list installation repositories (page {}): {}", currentPage,
+						e.getMessage(), e);
+				throw new CidadelException(GitHubErrorDetails.API_ERROR, MODULE_NAME, e);
+			}
+		}
+		log.info("Listed {} installation repositories", all.size());
+		return all;
+	}
+
 	// -------------------------------------------------------------------------
 	// Code search
 	// -------------------------------------------------------------------------
@@ -788,6 +850,21 @@ public class GitHubClient {
 
 		@JsonProperty("items")
 		List<GitHubFileContent> items;
+
+	}
+
+	/**
+	 * Wrapper for {@code GET /installation/repositories} which nests the repos under a
+	 * {@code repositories} key alongside {@code total_count}.
+	 */
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	private static class InstallationReposResponse {
+
+		@JsonProperty("total_count")
+		int totalCount;
+
+		@JsonProperty("repositories")
+		List<GitHubRepository> repositories;
 
 	}
 

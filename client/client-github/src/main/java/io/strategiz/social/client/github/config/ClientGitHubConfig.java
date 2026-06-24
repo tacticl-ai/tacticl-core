@@ -3,6 +3,7 @@ package io.strategiz.social.client.github.config;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Refill;
+import io.strategiz.social.client.github.GitHubAppAuth;
 import io.strategiz.social.client.github.GitHubClient;
 import java.time.Duration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -78,6 +79,28 @@ public class ClientGitHubConfig {
 	public GitHubClient gitHubClient(RestClient gitHubRestClient, Bucket gitHubRateLimiter,
 			GitHubConfig gitHubConfig) {
 		return new GitHubClient(gitHubRestClient, gitHubRateLimiter, gitHubConfig.getOwner());
+	}
+
+	/**
+	 * GitHub App config holder, populated from Vault by {@link GitHubAppVaultConfig} when the App is
+	 * enabled. Always present so downstream features degrade gracefully when the App is unconfigured.
+	 */
+	@Bean
+	public GitHubAppConfig gitHubAppConfig() {
+		return new GitHubAppConfig();
+	}
+
+	/**
+	 * GitHub App auth bean — mints installation tokens for org-scoped repo discovery. Constructed
+	 * unconditionally; if the App credentials are absent it reports {@code isEnabled()==false} and
+	 * callers fall back to empty results (never fails at startup).
+	 * @param gitHubRestClient configured RestClient (GitHub API base URL)
+	 * @param gitHubAppConfig App credentials (may be unconfigured)
+	 * @return GitHubAppAuth instance
+	 */
+	@Bean
+	public GitHubAppAuth gitHubAppAuth(RestClient gitHubRestClient, GitHubAppConfig gitHubAppConfig) {
+		return new GitHubAppAuth(gitHubRestClient, gitHubAppConfig);
 	}
 
 }

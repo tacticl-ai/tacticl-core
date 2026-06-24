@@ -26,5 +26,7 @@ public record GitHubRepository(
 		@JsonProperty("clone_url") String cloneUrl,
 		@JsonProperty("ssh_url") String sshUrl,
 		@JsonProperty("private") boolean isPrivate,
-		@JsonProperty("default_branch") String defaultBranch) {
+		@JsonProperty("default_branch") String defaultBranch,
+		/** Primary language as reported by GitHub on the repository object. May be {@code null}. */
+		String language) {
 }

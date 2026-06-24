@@ -20,6 +20,15 @@ public class Connection extends BaseMongoEntity {
     private Instant tokenExpiresAt;
     private Instant lastRefreshedAt;
 
+    /**
+     * GitHub App installation id for the user's linked org (single-org per user). Nullable; only
+     * set on the GITHUB connection once the App install callback completes.
+     */
+    private Long installationId;
+
+    /** GitHub org login the App installation belongs to. Nullable. */
+    private String orgLogin;
+
     public static Connection create(String userId, String provider, String vaultPath,
                                     String accountIdentity, List<String> scopes) {
         var c = new Connection();
@@ -48,4 +57,9 @@ public class Connection extends BaseMongoEntity {
     public List<String> getScopes() { return scopes; }
     public Instant getTokenExpiresAt() { return tokenExpiresAt; }
     public Instant getLastRefreshedAt() { return lastRefreshedAt; }
+
+    public Long getInstallationId() { return installationId; }
+    public void setInstallationId(Long installationId) { this.installationId = installationId; }
+    public String getOrgLogin() { return orgLogin; }
+    public void setOrgLogin(String orgLogin) { this.orgLogin = orgLogin; }
 }

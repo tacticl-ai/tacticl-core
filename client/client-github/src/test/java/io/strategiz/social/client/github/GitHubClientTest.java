@@ -620,7 +620,7 @@ class GitHubClientTest {
 		GitHubRepository expected = new GitHubRepository("new-repo", OWNER + "/new-repo",
 				"https://github.com/" + OWNER + "/new-repo",
 				"https://github.com/" + OWNER + "/new-repo.git",
-				"git@github.com:" + OWNER + "/new-repo.git", true, "main");
+				"git@github.com:" + OWNER + "/new-repo.git", true, "main", null);
 
 		stubPost0();
 		// Owner matches gitHubOwner config → expect /user/repos URI
@@ -643,7 +643,7 @@ class GitHubClientTest {
 		GitHubRepository expected = new GitHubRepository("new-repo", orgName + "/new-repo",
 				"https://github.com/" + orgName + "/new-repo",
 				"https://github.com/" + orgName + "/new-repo.git",
-				"git@github.com:" + orgName + "/new-repo.git", false, "main");
+				"git@github.com:" + orgName + "/new-repo.git", false, "main", null);
 
 		stubPost1(orgName);
 		// Owner differs from gitHubOwner config → expect /orgs/{owner}/repos URI
@@ -672,7 +672,7 @@ class GitHubClientTest {
 			return postBodySpec;
 		});
 		GitHubRepository stub = new GitHubRepository("new-repo", OWNER + "/new-repo",
-				"https://github.com/" + OWNER + "/new-repo", null, null, true, "main");
+				"https://github.com/" + OWNER + "/new-repo", null, null, true, "main", null);
 		when(postResponseSpec.body(GitHubRepository.class)).thenReturn(stub);
 
 		client.createRepo("new-repo", OWNER, true, "desc", ACCESS_TOKEN);
@@ -727,7 +727,7 @@ class GitHubClientTest {
 	void createRepo_ownerCaseInsensitiveMatch_postsToUserRepos() {
 		// "TEST-OWNER" should match "test-owner" config and route to /user/repos
 		GitHubRepository expected = new GitHubRepository("new-repo", OWNER + "/new-repo",
-				"https://github.com/" + OWNER + "/new-repo", null, null, true, "main");
+				"https://github.com/" + OWNER + "/new-repo", null, null, true, "main", null);
 
 		stubPost0();
 		when(postUriSpec.uri(eq("/user/repos"))).thenReturn(postBodySpec);
