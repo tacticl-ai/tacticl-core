@@ -95,6 +95,30 @@ class PdlcV2ServiceTest {
     }
 
     @Test
+    void submitPipeline_arbiterError_propagatesHardFailure_noInJvmFallback() {
+        // Simulate the gRPC submit failing the way a Temporal-routing rejection surfaces
+        // (FAILED_PRECONDITION → StatusRuntimeException, propagated by ArbiterGrpcClientImpl).
+        // io.grpc is not on business-pipeline's classpath (client-ai-arbiter exposes it as
+        // `implementation`), so a plain RuntimeException stands in for the propagated gRPC error.
+        when(pipelineRunRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(arbiterPipelineService.submitPipeline(any()))
+            .thenThrow(new RuntimeException("FAILED_PRECONDITION: tenant not routable on the Temporal path"));
+
+        assertThatThrownBy(() -> service.submitPipeline(
+            "tacticl", "user-1", "spark-1", "Add auth flow",
+            "github.com/user/repo", "FULL_PDLC", List.of(), "gh-token", 50.0
+        )).isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("FAILED_PRECONDITION");
+
+        // No in-JVM / legacy fallback and no retry onto a non-Temporal path: the arbiter submit is
+        // invoked exactly once and nothing else on the arbiter is touched afterwards.
+        verify(arbiterPipelineService, times(1)).submitPipeline(any());
+        verifyNoMoreInteractions(arbiterPipelineService);
+        // The spark back-reference write only happens AFTER a successful submit — never on failure.
+        verify(sparkRepository, never()).save(any());
+    }
+
+    @Test
     void getStatus_returnsRunForUserAndSpark() {
         PipelineRun run = PipelineRun.create("user-1", "spark-1", "req", "url", "BUG_FIX", List.of(), 10.0);
         when(pipelineRunRepository.findFirstBySparkIdAndUserIdOrderByCreatedAtDesc("spark-1", "user-1")).thenReturn(Optional.of(run));

@@ -72,6 +72,12 @@ public class ArbiterGrpcClientImpl implements ArbiterPipelineService {
         cidadel.ai.arbiter.pipeline.v1.SubmitPipelineRequest protoReq = builder.build();
 
         log.info("Submitting pipeline to arbiter: runId={} playbook={}", request.pipelineRunId(), request.playbook());
+        // HARD-FAILURE INVARIANT: this is the ONLY submit path. A gRPC error here
+        // (e.g. FAILED_PRECONDITION when the arbiter refuses to route the tenant onto the
+        // Temporal path) MUST propagate as a StatusRuntimeException to the originating channel.
+        // Never catch-and-fall-back to a legacy / in-JVM submit, and never retry onto a
+        // non-Temporal path — the channel (the gRPC ManagedChannel) carries no retry policy by
+        // design. Locked by ArbiterGrpcClientImplTest.submitPipeline_grpcFailedPrecondition_propagates.
         cidadel.ai.arbiter.pipeline.v1.SubmitPipelineResponse protoResp =
             stub.withDeadlineAfter(10, TimeUnit.SECONDS).submitPipeline(protoReq);
         log.info("Arbiter accepted pipeline: arbiterPipelineId={} status={}", protoResp.getPipelineId(), protoResp.getStatus());
