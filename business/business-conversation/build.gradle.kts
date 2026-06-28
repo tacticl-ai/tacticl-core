@@ -10,6 +10,6 @@ dependencies {
     implementation(project(":business:business-sparks"))
     implementation(project(":business:business-pipeline"))
     implementation(project(":client:client-github"))
-    implementation(libs.cidadel.client.anthropic.direct)
+    implementation(project(":client:client-ai-arbiter"))
     // Parent provides: exception, logging, web, jackson, test, junit
 }
