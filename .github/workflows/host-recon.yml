@@ -1,0 +1,36 @@
+name: host-recon
+
+# Read-only ground-truth dump of the live platform-apps deploy state, via the
+# host runner (SSH is proxy-blocked). Used to verify exact compose service names,
+# image: tags, and host-side Dockerfiles before generating per-repo deploy workflows.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  recon:
+    runs-on: [self-hosted, tacticl-deploy]
+    steps:
+      - name: Dump live compose + image facts
+        run: |
+          set -uo pipefail
+          cd /opt/cidadel
+          echo "===== service -> image (resolved compose) ====="
+          docker compose config --format json 2>/dev/null | python3 -c '
+          import sys,json
+          d=json.load(sys.stdin)
+          for n,s in sorted(d.get("services",{}).items()):
+              print(f"{n}\timage={s.get(\"image\",\"?\")}")
+          ' 2>/dev/null || docker compose config 2>/dev/null | grep -nE "^  [a-zA-Z0-9_-]+:$|image:"
+          echo ""
+          echo "===== host-side Dockerfiles in /opt/cidadel ====="
+          ls -1 /opt/cidadel/Dockerfile* 2>/dev/null || echo "(none)"
+          echo ""
+          echo "===== compose files present ====="
+          ls -1 /opt/cidadel/docker-compose*.yml 2>/dev/null; ls -1 /opt/strategiz/docker-compose*.yml 2>/dev/null || true
+          echo ""
+          echo "===== running containers (name -> image) ====="
+          docker ps --format '{{.Names}}	{{.Image}}' | sort
+          echo ""
+          echo "===== local image tags for the products ====="
+          docker images --format '{{.Repository}}:{{.Tag}}' | grep -iE 'cidadel|strategiz|pointstax|tacticl|marketiz|travl' | sort
