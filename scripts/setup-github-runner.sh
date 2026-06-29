@@ -15,8 +15,13 @@ set -euo pipefail
 
 REPO_URL="https://github.com/tacticl-ai/tacticl-core"
 # Auto-detect the latest runner release (override with RUNNER_VERSION=x.y.z).
-RUNNER_VERSION="${RUNNER_VERSION:-$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest \
-  | grep -m1 '"tag_name"' | sed -E 's/.*"v?([^"]+)".*/\1/')}"
+# Capture curl output FIRST, then parse — piping curl straight into `grep -m1`
+# SIGPIPEs curl, which under `set -o pipefail` aborts the script (curl exit 23).
+if [[ -z "${RUNNER_VERSION:-}" ]]; then
+  _rel="$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest)"
+  _tag="$(printf '%s\n' "$_rel" | grep '"tag_name"')"; _tag="${_tag%%$'\n'*}"
+  RUNNER_VERSION="$(printf '%s' "$_tag" | sed -E 's/.*"v?([^"]+)".*/\1/')"
+fi
 LABELS="tacticl-deploy"
 RUNNER_NAME="platform-apps"
 RUNNER_DIR="/opt/cidadel/actions-runner"

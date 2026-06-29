@@ -22,6 +22,8 @@ on:
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
+      - 'scripts/**'
+      - 'deployment/**'
   # Manual run can ALSO deploy (pull + restart on the host) when you pick an environment.
   workflow_dispatch:
     inputs:
@@ -117,14 +119,17 @@ jobs:
           esac
 
           cd /opt/cidadel
-          if $do_prod; then
-            echo "==> restarting tacticl-api-prod"
-            docker compose up -d --no-deps tacticl-api-prod
-          fi
-          if $do_qa; then
-            echo "==> restarting tacticl-api-qa"
-            docker compose up -d --no-deps tacticl-api-qa
-          fi
+          # Only act on services actually defined on this host (qa may not exist).
+          up_if_exists () {
+            if docker compose config --services 2>/dev/null | grep -qx "$1"; then
+              echo "==> restarting $1"
+              docker compose up -d --no-deps "$1"
+            else
+              echo "==> service $1 not defined on this host — skipping"
+            fi
+          }
+          if $do_prod; then up_if_exists tacticl-api-prod; fi
+          if $do_qa; then up_if_exists tacticl-api-qa; fi
 
           # Housekeeping — each build leaves the prior image dangling (May 2026 host incident).
           docker image prune -f 2>&1 | grep 'Total reclaimed' || true
