@@ -14,7 +14,9 @@
 set -euo pipefail
 
 REPO_URL="https://github.com/tacticl-ai/tacticl-core"
-RUNNER_VERSION="2.328.0"           # bump as GitHub releases newer runners
+# Auto-detect the latest runner release (override with RUNNER_VERSION=x.y.z).
+RUNNER_VERSION="${RUNNER_VERSION:-$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest \
+  | grep -m1 '"tag_name"' | sed -E 's/.*"v?([^"]+)".*/\1/')}"
 LABELS="tacticl-deploy"
 RUNNER_NAME="platform-apps"
 RUNNER_DIR="/opt/cidadel/actions-runner"
@@ -27,6 +29,14 @@ if [[ "$(id -u)" -ne 0 ]]; then
 fi
 
 command -v docker >/dev/null || { echo "docker not found on this host" >&2; exit 1; }
+
+# Safety: make sure we're on the APP host (platform-apps) where tacticl-api + the
+# compose file live — NOT platform-infra. Override with SKIP_HOST_CHECK=1.
+if [[ "${SKIP_HOST_CHECK:-0}" != "1" && ! -f /opt/cidadel/docker-compose.yml ]]; then
+  echo "ERROR: /opt/cidadel/docker-compose.yml not found." >&2
+  echo "       This must run on platform-apps (the app host). Set SKIP_HOST_CHECK=1 to override." >&2
+  exit 1
+fi
 
 mkdir -p "$RUNNER_DIR"
 cd "$RUNNER_DIR"
