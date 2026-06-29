@@ -1,0 +1,131 @@
+name: deploy-tacticl-api
+
+# Build the tacticl-api image on a GitHub-hosted runner (off your local network,
+# so a broken local SSH / firewalled jump host no longer blocks shipping), push it
+# to GHCR, then have a SELF-HOSTED runner ON platform-apps pull + restart the
+# container. The self-hosted runner connects OUTBOUND to GitHub, so it never needs
+# inbound SSH to the host — which is firewalled from arbitrary IPs (incl. GitHub runners).
+#
+# Required repo secret:
+#   GH_PACKAGES_TOKEN  classic PAT (ghp_…) with read:packages + cidadel-platform
+#                      membership — used by Gradle to read the private
+#                      cidadel-platform/cidadel-core packages. (GHCR push/pull use
+#                      the built-in GITHUB_TOKEN.)
+#
+# Self-hosted runner: register one on platform-apps with label `tacticl-deploy`
+#   (see scripts/setup-github-runner.sh + deployment/runbooks/github-actions-deploy.md).
+
+on:
+  # Every merge to main builds + pushes a fresh image (no deploy — keeps prod untouched).
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+  # Manual run can ALSO deploy (pull + restart on the host) when you pick an environment.
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deploy target after build'
+        type: choice
+        default: prod
+        options: [prod, qa, both, none]
+
+concurrency:
+  group: deploy-tacticl-api
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}   # ghcr.io/tacticl-ai/tacticl-core
+
+jobs:
+  build:
+    name: Build JAR + image, push to GHCR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # Mirror cidadel-core CI: Gradle 9.4.0 runs fine on Java 25.
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build bootJar (application-api.jar)
+        env:
+          # Gradle reads the PRIVATE cidadel-platform/cidadel-core maven packages.
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+        run: |
+          ./gradlew :application-api:bootJar -x test --no-daemon
+          test -f application-api/build/libs/application-api.jar \
+            || { echo "::error::application-api.jar not produced"; ls -l application-api/build/libs; exit 1; }
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+
+  deploy:
+    name: Pull + restart on platform-apps
+    needs: build
+    # Only deploy on a manual run with a real target — merges build images but never touch prod.
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.environment != 'none' }}
+    runs-on: [self-hosted, tacticl-deploy]
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Pull image + restart container(s)
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.sha }}
+          TARGET: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+
+          docker pull "${IMAGE}:${SHA}"
+          # docker-compose.yml on the host pins tacticl-api:latest for both prod and qa.
+          docker tag "${IMAGE}:${SHA}" tacticl-api:latest
+
+          do_prod=false; do_qa=false
+          case "$TARGET" in
+            prod) do_prod=true ;;
+            qa)   do_qa=true ;;
+            both) do_prod=true; do_qa=true ;;
+          esac
+
+          cd /opt/cidadel
+          if $do_prod; then
+            echo "==> restarting tacticl-api-prod"
+            docker compose up -d --no-deps tacticl-api-prod
+          fi
+          if $do_qa; then
+            echo "==> restarting tacticl-api-qa"
+            docker compose up -d --no-deps tacticl-api-qa
+          fi
+
+          # Housekeeping — each build leaves the prior image dangling (May 2026 host incident).
+          docker image prune -f 2>&1 | grep 'Total reclaimed' || true
+          docker logout ghcr.io || true
