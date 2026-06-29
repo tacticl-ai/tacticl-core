@@ -1,0 +1,48 @@
+name: install-org-runners
+
+# Bootstrap additional ORG-LEVEL self-hosted runners on platform-apps WITHOUT
+# needing a live SSH session — the cruise proxy blocks SSH, but HTTPS/GitHub work.
+# This job runs ON the existing self-hosted runner (already on the host, as root),
+# so it installs sibling runners locally. Org registration tokens come from the
+# ORG_RUNNER_TOKENS secret (one "org<space>token" line per org; tokens ~1h TTL).
+
+on:
+  workflow_dispatch:
+    inputs:
+      orgs:
+        description: 'orgs to install (space/comma separated; must have a line in ORG_RUNNER_TOKENS)'
+        default: 'tacticl-ai cidadel-platform strategiz-io pointstax Marketiz TravlTime'
+      runner_version:
+        description: 'actions runner version'
+        default: '2.335.1'
+
+concurrency:
+  group: install-org-runners
+  cancel-in-progress: false
+
+jobs:
+  install:
+    runs-on: [self-hosted, tacticl-deploy]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install org runners on this host
+        env:
+          TOKENS: ${{ secrets.ORG_RUNNER_TOKENS }}
+          ORGS: ${{ inputs.orgs }}
+          RUNNER_VERSION: ${{ inputs.runner_version }}
+        run: |
+          set -uo pipefail
+          chmod +x scripts/setup-org-runner.sh
+          fail=0
+          for org in $(printf '%s' "$ORGS" | tr ',' ' '); do
+            [ -z "$org" ] && continue
+            tok="$(printf '%s\n' "$TOKENS" | awk -v o="$org" '$1==o{print $2; exit}')"
+            if [ -z "$tok" ]; then echo "::warning::no token line for '$org' in ORG_RUNNER_TOKENS — skipping"; continue; fi
+            echo "==================== $org ===================="
+            if ORG="$org" REG_TOKEN="$tok" RUNNER_VERSION="$RUNNER_VERSION" bash scripts/setup-org-runner.sh; then
+              echo "==> $org OK"
+            else
+              echo "::error::install failed for $org"; fail=1
+            fi
+          done
+          exit $fail
