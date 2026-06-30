@@ -1,0 +1,37 @@
+name: host-temporal-recon
+
+# Read-only ground-truth dump for Temporal activation + ai-signal orphan cleanup.
+# Runs on the host runner (SSH proxy-blocked). No mutations.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  recon:
+    runs-on: [self-hosted, tacticl-deploy]
+    steps:
+      - name: Temporal + ai-signal + flags recon (read-only)
+        run: |
+          set -uo pipefail
+          echo "===== arbiter env (PDLC_/CONVERSATION_/TEMPORAL_/VAULT) ====="
+          docker inspect cidadel-arbiter-prod --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null \
+            | grep -E '^(PDLC_|CONVERSATION_|TEMPORAL_|ANTHROPIC_VAULT_CONTEXT|ORCHESTRATOR_)' | sort || echo "(arbiter container not found)"
+          echo ""
+          echo "===== /opt/cidadel/.env relevant lines ====="
+          grep -E '^(PDLC_DOCKER_NETWORK|PDLC_TEMPORAL|CONVERSATION_WORKFLOW|TEMPORAL_ADDRESS|PDLC_CALLBACK)=' /opt/cidadel/.env 2>/dev/null || echo "(none matched)"
+          echo ""
+          echo "===== :50061 ownership + ai-signal/execution containers ====="
+          docker ps --format '{{.Names}}|{{.Ports}}|{{.Image}}|{{.Status}}' | grep -E '50061|ai-signal|execution' || echo "(nothing matched 50061/ai-signal/execution)"
+          for c in strategiz-ai-signal-prod strategiz-execution-prod; do
+            echo "--- $c ---"
+            docker inspect "$c" --format 'state={{.State.Status}} started={{.State.StartedAt}} composeProject={{ index .Config.Labels "com.docker.compose.project" }} composeService={{ index .Config.Labels "com.docker.compose.service" }} ports={{ .NetworkSettings.Ports }}' 2>/dev/null || echo "(missing)"
+          done
+          echo ""
+          echo "===== arbiter image + health ====="
+          docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' | grep -E 'arbiter' || true
+          echo ""
+          echo "===== Temporal workflow count (namespace default) ====="
+          docker exec temporal temporal workflow count --namespace default 2>&1 | head -5 || echo "(temporal CLI failed)"
+          echo ""
+          echo "===== Temporal recent workflows (up to 15) ====="
+          docker exec temporal temporal workflow list --namespace default --limit 15 2>&1 | head -20 || true
