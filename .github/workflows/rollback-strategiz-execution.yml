@@ -1,0 +1,39 @@
+name: rollback-strategiz-execution
+
+# Incident remediation: a deploy-ai-signal run force-recreated strategiz-execution-prod
+# with a fresh build that crash-loops. This dumps diagnosis then rolls the service back
+# to strategiz-execution:prod-previous (the known-good image it ran for weeks).
+# strategiz-ai-signal-prod (:50061, the live AI Signal gRPC) is NOT touched.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rollback:
+    runs-on: [self-hosted, tacticl-deploy]
+    steps:
+      - name: Diagnose + roll back strategiz-execution-prod
+        run: |
+          set -uo pipefail
+          echo "===== strategiz-execution-prod logs (tail 60) ====="
+          docker logs strategiz-execution-prod --tail 60 2>&1 | tail -60 || echo "(no logs)"
+          echo ""
+          echo "===== compose definitions (strategiz-execution / ai-signal) ====="
+          cd /opt/cidadel
+          docker compose config 2>/dev/null | grep -nE 'strategiz-execution|strategiz-ai-signal|image:|50061|ports' | grep -iE 'execution|ai-signal|50061' || echo "(none)"
+          echo ""
+          echo "===== strategiz-execution image tags present ====="
+          docker images --format '{{.Repository}}:{{.Tag}} {{.CreatedSince}}' | grep -E 'strategiz-execution' | sort || true
+          echo ""
+          echo "===== ROLLBACK ====="
+          if docker image inspect strategiz-execution:prod-previous >/dev/null 2>&1; then
+            echo "prod-previous exists -> retag to prod-latest and recreate"
+            docker tag strategiz-execution:prod-previous strategiz-execution:prod-latest
+            docker compose up -d --no-deps --force-recreate strategiz-execution-prod
+            sleep 6
+            echo "--- post-rollback status ---"
+            docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' | grep -E 'strategiz-execution|strategiz-ai-signal' || true
+          else
+            echo "::error::strategiz-execution:prod-previous NOT found — not rolling back blind. Manual review needed."
+            exit 1
+          fi
