@@ -35,6 +35,12 @@ jobs:
           echo "===== local image tags for the products ====="
           docker images --format '{{.Repository}}:{{.Tag}}' | grep -iE 'cidadel|strategiz|pointstax|tacticl|marketiz|travl' | sort
           echo ""
+          echo "===== logs for unhealthy / restarting / exited containers ====="
+          for c in $(docker ps -a --format '{{.Names}}|{{.Status}}' | grep -iE 'Restarting|Exited|unhealthy' | cut -d'|' -f1); do
+            echo "----- $c -----"
+            docker logs --tail 40 "$c" 2>&1 | tail -40
+          done
+          echo ""
           echo "===== compose project/dir/files for out-of-tree services ====="
           for c in marketiz-api marketiz-web marketiz-worker travltime-api strategiz-ai-signal-prod; do
             printf '%s\t' "$c"
