@@ -1,0 +1,36 @@
+name: diag-conversation-temporal
+
+# Read-only: why is Discord chat not hitting the Temporal/analyst path? Dumps the
+# conversation-routing evidence from tacticl-api + arbiter logs + Temporal state.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: [self-hosted, tacticl-deploy]
+    steps:
+      - name: Diagnose conversation routing
+        run: |
+          set -uo pipefail
+          echo "===== tacticl-api image + arbiter-conversation flag ====="
+          docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' | grep -E 'tacticl-api-prod|cidadel-arbiter-prod' || true
+          docker inspect tacticl-api-prod --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep -iE 'arbiter.conversation|arbiter_conversation|voice' || echo "(no arbiter-conversation env on tacticl-api; flag may be in application-prod.properties)"
+          echo ""
+          echo "===== arbiter conversation/workflow env ====="
+          docker inspect cidadel-arbiter-prod --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep -E 'CONVERSATION|PDLC_TEMPORAL_ENABLED|TEMPORAL_ADDRESS' | sort
+          echo ""
+          echo "===== Temporal health + workflows (try addresses) ====="
+          docker exec temporal temporal operator cluster health --address 10.0.1.1:7233 2>&1 | head -3 || true
+          docker exec temporal temporal workflow list --address 10.0.1.1:7233 --namespace default --limit 25 2>&1 | head -30 || true
+          echo "--- conversation task-queue pollers ---"
+          docker exec temporal temporal task-queue describe --address 10.0.1.1:7233 --namespace default --task-queue conversation 2>&1 | head -15 || true
+          echo ""
+          echo "===== arbiter boot: worker registration ====="
+          docker logs cidadel-arbiter-prod 2>&1 | grep -iE 'worker (started|registered)|task.?queue|conversation worker|Temporal (WorkflowClient|worker|connect)|ConversationWorkflow' | tail -25 || true
+          echo ""
+          echo "===== arbiter recent: converse/conversation/analyst/discord routing ====="
+          docker logs cidadel-arbiter-prod --since 12h 2>&1 | grep -iE 'converse|conversation|analyst|discord|signalWithStart|invokePersona|workflow.*conv|canary' | tail -50 || echo "(no matches in 12h)"
+          echo ""
+          echo "===== tacticl-api recent: discord turn + arbiter delegation ====="
+          docker logs tacticl-api-prod --since 12h 2>&1 | grep -iE 'discord|converse|conversation|arbiter|analyst|ingress|gateway' | tail -50 || echo "(no matches in 12h)"
