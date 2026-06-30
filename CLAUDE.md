@@ -381,20 +381,20 @@ Google's Web Model Context Protocol (`navigator.modelContext`) lets websites exp
 - **Quota by tier**: Creator 20/mo, Business 50/mo, Agency 100/mo
 - **Flow**: User prompt → Sonnet enhances prompt → SiliconFlow generates → Cloud Storage → attach to post
 
-## Deploy
+## Deploy — $0 self-hosted GitHub Actions (CURRENT)
+
+**The old `gcloud builds submit` / Cloud Build / Cloud Run path is DEAD** (Cloud Run decommissioned), and
+`scripts/deploy.sh` (ssh-to-host) is also DEAD (SSH to platform-apps is proxy-blocked). Every deploy now
+runs **through GitHub Actions on a self-hosted runner ON the platform-apps host** — it dials *out* to
+GitHub, so no inbound SSH, and it costs **$0** (never use paid GitHub-hosted `ubuntu-latest` runners).
 
 ```bash
-# QA
-gcloud builds submit --config deployment/cloudbuild/cloudbuild-qa.yaml .
-
-# Production
-gcloud builds submit --config deployment/cloudbuild/cloudbuild-prod.yaml .
+gh workflow run deploy-tacticl-api.yml -f environment=prod   # or: Actions tab → deploy-tacticl-api → Run workflow
+gh run watch
 ```
-
-- GCP project: `tacticl`, Artifact Registry: `tacticl-core`
-- QA: `tacticl-core-qa` (2Gi), prod: `tacticl-core` (4Gi)
-- Both on Cloud Run, us-east1, public access
-- Spring profiles: `qa` / `prod`
+- `environment=none` = build-only validation · `prod` / `qa` / `both` = build + deploy. Service: `tacticl-api`.
+- Workflow: `.github/workflows/deploy-tacticl-api.yml` (`runs-on: [self-hosted, platform-apps]`).
+- Full platform deploy context (all brands): `../cidadel-core/docs/runbooks/platform-github-actions-deploys.md`.
 
 ## Firestore Collections
 
