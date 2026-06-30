@@ -29,8 +29,8 @@ jobs:
           echo "===== compose files present ====="
           ls -1 /opt/cidadel/docker-compose*.yml 2>/dev/null; ls -1 /opt/strategiz/docker-compose*.yml 2>/dev/null || true
           echo ""
-          echo "===== running containers (name -> image) ====="
-          docker ps --format '{{.Names}}	{{.Image}}' | sort
+          echo "===== running containers (name -> status -> image) ====="
+          docker ps --format '{{.Names}}	{{.Status}}	{{.Image}}' | sort
           echo ""
           echo "===== local image tags for the products ====="
           docker images --format '{{.Repository}}:{{.Tag}}' | grep -iE 'cidadel|strategiz|pointstax|tacticl|marketiz|travl' | sort
