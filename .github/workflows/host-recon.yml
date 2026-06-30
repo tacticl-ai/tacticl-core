@@ -34,3 +34,9 @@ jobs:
           echo ""
           echo "===== local image tags for the products ====="
           docker images --format '{{.Repository}}:{{.Tag}}' | grep -iE 'cidadel|strategiz|pointstax|tacticl|marketiz|travl' | sort
+          echo ""
+          echo "===== compose project/dir/files for out-of-tree services ====="
+          for c in marketiz-api marketiz-web marketiz-worker travltime-api strategiz-ai-signal-prod; do
+            printf '%s\t' "$c"
+            docker inspect "$c" --format 'project={{index .Config.Labels "com.docker.compose.project"}} svc={{index .Config.Labels "com.docker.compose.service"}} dir={{index .Config.Labels "com.docker.compose.project.working_dir"}} files={{index .Config.Labels "com.docker.compose.project.config_files"}}' 2>/dev/null || echo "(not found)"
+          done
