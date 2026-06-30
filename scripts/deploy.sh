@@ -1,4 +1,17 @@
 #!/usr/bin/env bash
+# =============================================================================
+# ⚠️  DEPRECATED — DO NOT USE. Local-build + scp/ssh/docker-save deploy is DEAD
+# (SSH to platform-apps is proxy-blocked). Deploys now run $0 on the self-hosted
+# GitHub Actions runner ON the host:
+#     gh workflow run deploy-tacticl-api.yml -f environment=prod
+# See this repo's CLAUDE.md "Deployment" section + cidadel-core
+# docs/runbooks/platform-github-actions-deploys.md. Kept for reference only.
+# =============================================================================
+if [ "${I_KNOW_THIS_IS_DEPRECATED:-0}" != "1" ]; then
+  echo "DEPRECATED deploy script. Use: gh workflow run deploy-tacticl-api.yml -f environment=prod (see CLAUDE.md)." >&2
+  echo "Set I_KNOW_THIS_IS_DEPRECATED=1 to force-run the legacy path anyway." >&2
+  exit 1
+fi
 # Deploy tacticl-api to platform-apps (Hetzner)
 # Usage: ./scripts/deploy.sh [prod|qa|both]
 # Default: both

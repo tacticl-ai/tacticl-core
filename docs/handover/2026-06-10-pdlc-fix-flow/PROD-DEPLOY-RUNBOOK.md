@@ -1,3 +1,9 @@
+> # ⚠️ DEPRECATED — superseded
+> **The deploy flow below (local build + docker save / scp / ssh to the host) is DEAD** — SSH to platform-apps is
+> proxy-blocked. **Current method:** `gh workflow run deploy-tacticl-api.yml -f environment=prod` ($0, runs on the self-hosted
+> runner on the host). See this repo's `CLAUDE.md` → "Deployment" and
+> `cidadel-core/docs/runbooks/platform-github-actions-deploys.md`. Kept for historical reference only.
+
 # PROD GO-LIVE RUNBOOK — Discord alert → PDLC fix → PR → approve → merge
 
 **Validated locally 2026-06-13 (fully green):** a Discord-equivalent `SubmitPipeline` drove a real
