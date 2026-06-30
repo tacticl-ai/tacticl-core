@@ -331,8 +331,17 @@ public class PdlcV2Service {
 
         // 3) Fan out to all registered channels (SSE, Telegram, …). The full event is passed
         //    so channels can read role/phase/pipelineRunId as first-class fields rather than
-        //    re-parsing payloadJson.
-        pipelineEventEmitter.emit(event);
+        //    re-parsing payloadJson. For CHECKPOINT_REQUESTED, enrich the payload with the
+        //    checkpointId just minted in handleCheckpointRequested (set on the run) so the
+        //    Discord/Telegram gate cards render Approve/Reject buttons instead of plain text.
+        PipelineCallbackEvent outbound = event;
+        if ("CHECKPOINT_REQUESTED".equals(event.eventType()) && runOpt.isPresent()) {
+            String checkpointId = runOpt.get().getCurrentCheckpointId();
+            if (checkpointId != null && !checkpointId.isBlank()) {
+                outbound = withCheckpointId(event, checkpointId);
+            }
+        }
+        pipelineEventEmitter.emit(outbound);
 
         // 4) On terminal events, close all SSE emitters for this run.
         String type = event.eventType();
@@ -439,6 +448,32 @@ public class PdlcV2Service {
         pipelineCheckpointRepository.save(checkpoint);
         run.pauseAtCheckpoint(checkpoint.getId(), event.phase());
         pipelineRunRepository.save(run);
+    }
+
+    /**
+     * Returns a copy of {@code event} whose payload JSON has {@code checkpointId} merged in,
+     * so chat channels (Discord/Telegram) can render Approve/Reject buttons. The blocked
+     * callback from the arbiter carries askId/gateNonce but no checkpointId (it's minted
+     * tacticl-side in {@link #handleCheckpointRequested}); this injects it for fan-out only.
+     * Falls back to the original event if the payload can't be parsed as an object.
+     */
+    private PipelineCallbackEvent withCheckpointId(PipelineCallbackEvent event, String checkpointId) {
+        try {
+            JsonNode node = (event.payloadJson() == null || event.payloadJson().isBlank())
+                ? JSON.createObjectNode()
+                : JSON.readTree(event.payloadJson());
+            if (!node.isObject()) {
+                return event;
+            }
+            ((tools.jackson.databind.node.ObjectNode) node).put("checkpointId", checkpointId);
+            return new PipelineCallbackEvent(
+                event.pipelineRunId(), event.eventType(), event.role(), event.phase(),
+                JSON.writeValueAsString(node));
+        } catch (JacksonException e) {
+            log.warn("Failed to enrich checkpoint event {} with checkpointId {}",
+                     event.pipelineRunId(), checkpointId, e);
+            return event;
+        }
     }
 
     private JsonNode parsePayload(String payloadJson, String pipelineRunId, String eventType) {
